@@ -29,7 +29,7 @@
                 <div class="navbar-text me-3">
                     {{ current_user.name }}
                 </div>
-                <a href="{{ url_for('main.login') }}" class="btn btn-outline-secondary">Cerrar Sesión</a>
+                <a href="{{ url_for('main.logout') }}" class="btn btn-outline-secondary">Cerrar Sesión</a>
             </div>
             {% endif %}
         </div>
