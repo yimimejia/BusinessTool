@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0">Trabajos Pendientes</h4>
+        {% if current_user.is_admin %}
+        <a href="{{ url_for('new_job') }}" class="btn btn-primary">Nuevo Trabajo</a>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Descripción</th>
+                        <th>Cliente</th>
+                        <th>Factura</th>
+                        <th>Teléfono</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in jobs %}
+                    <tr>
+                        <td>{{ job.id }}</td>
+                        <td>{{ job.description }}</td>
+                        <td>{{ job.client_name }}</td>
+                        <td>{{ job.invoice_number }}</td>
+                        <td>{{ job.phone_number }}</td>
+                        <td>
+                            {% if job.is_completed %}
+                            <span class="badge bg-success">Completado</span>
+                            {% else %}
+                            <span class="badge bg-warning">Pendiente</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if not job.is_completed %}
+                            <form method="POST" action="{{ url_for('complete_job', job_id=job.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-success btn-sm">Completar</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
