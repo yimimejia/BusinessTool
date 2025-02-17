@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import generate_password_hash
 from app import db
 from app.models import User, Job
 
@@ -8,21 +8,33 @@ bp = Blueprint('main', __name__)
 
 @bp.route('/')
 def index():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
     return redirect(url_for('main.login'))
 
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
 
         user = User.query.filter_by(username=username).first()
-        if user and check_password_hash(user.password_hash, password):
+        if user and user.check_password(password):
             login_user(user)
+            flash('¡Bienvenido!', 'success')
             return redirect(url_for('main.dashboard'))
 
         flash('Usuario o contraseña incorrectos', 'error')
     return render_template('login.html')
+
+@bp.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('main.login'))
 
 @bp.route('/dashboard')
 @login_required
@@ -30,8 +42,23 @@ def dashboard():
     if current_user.is_admin:
         jobs = Job.query.all()
     else:
-        jobs = Job.query.filter_by(designer_id=current_user.id).all()
+        jobs = current_user.assigned_jobs
     return render_template('dashboard.html', jobs=jobs)
+
+# Ruta temporal para crear un usuario admin (solo para pruebas)
+@bp.route('/setup')
+def setup():
+    if User.query.first() is None:
+        admin = User(
+            username='admin',
+            name='Administrador',
+            is_admin=True
+        )
+        admin.set_password('admin123')
+        db.session.add(admin)
+        db.session.commit()
+        flash('Usuario administrador creado', 'success')
+    return redirect(url_for('main.login'))
 
 @bp.route('/jobs/new', methods=['GET', 'POST'])
 @login_required
