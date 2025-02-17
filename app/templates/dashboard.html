@@ -5,14 +5,27 @@
 {% block content %}
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h4 class="mb-0">Trabajos Pendientes</h4>
+        <h4 class="mb-0">
+            {% if current_user.is_admin %}
+            Panel de Administración
+            {% else %}
+            Mis Trabajos Asignados
+            {% endif %}
+        </h4>
         {% if current_user.is_admin %}
-        <a href="{{ url_for('main.new_job') }}" class="btn btn-primary">Nuevo Trabajo</a>
+        <div>
+            <a href="{{ url_for('main.manage_users') }}" class="btn btn-info me-2">
+                <i class="bi bi-people"></i> Gestionar Usuarios
+            </a>
+            <a href="{{ url_for('main.new_job') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Nuevo Trabajo
+            </a>
+        </div>
         {% endif %}
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover" id="jobsTable">
                 <thead>
                     <tr>
                         <th>ID</th>
@@ -20,6 +33,9 @@
                         <th>Cliente</th>
                         <th>Factura</th>
                         <th>Teléfono</th>
+                        {% if current_user.is_admin %}
+                        <th>Diseñador</th>
+                        {% endif %}
                         <th>Estado</th>
                         <th>Acciones</th>
                     </tr>
@@ -32,6 +48,9 @@
                         <td>{{ job.client_name }}</td>
                         <td>{{ job.invoice_number }}</td>
                         <td>{{ job.phone_number }}</td>
+                        {% if current_user.is_admin %}
+                        <td>{{ job.designer.name }}</td>
+                        {% endif %}
                         <td>
                             {% if job.is_completed %}
                             <span class="badge bg-success">Completado</span>
@@ -41,9 +60,22 @@
                         </td>
                         <td>
                             {% if not job.is_completed %}
-                            <form method="POST" action="{{ url_for('main.complete_job', job_id=job.id) }}" class="d-inline">
-                                <button type="submit" class="btn btn-success btn-sm">Completar</button>
-                            </form>
+                                {% if current_user.is_admin %}
+                                <a href="{{ url_for('main.edit_job', job_id=job.id) }}" 
+                                   class="btn btn-info btn-sm">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button type="button" class="btn btn-danger btn-sm delete-job" 
+                                        data-job-id="{{ job.id }}">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                {% endif %}
+                                <form method="POST" action="{{ url_for('main.complete_job', job_id=job.id) }}" 
+                                      class="d-inline">
+                                    <button type="submit" class="btn btn-success btn-sm">
+                                        <i class="bi bi-check-circle"></i> Completar
+                                    </button>
+                                </form>
                             {% endif %}
                         </td>
                     </tr>
@@ -53,4 +85,42 @@
         </div>
     </div>
 </div>
+
+{% if current_user.is_admin %}
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                ¿Está seguro que desea eliminar este trabajo?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="deleteForm" method="POST" action="">
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const deleteButtons = document.querySelectorAll('.delete-job');
+    const deleteForm = document.getElementById('deleteForm');
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const jobId = this.dataset.jobId;
+            deleteForm.action = `/jobs/${jobId}/delete`;
+            deleteModal.show();
+        });
+    });
+});
+</script>
+{% endif %}
 {% endblock %}

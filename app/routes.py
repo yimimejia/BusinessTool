@@ -4,8 +4,18 @@ from werkzeug.security import generate_password_hash
 from app import db
 from app.models import User, Job
 from datetime import datetime
+from functools import wraps
 
 bp = Blueprint('main', __name__)
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin:
+            flash('No tienes permiso para acceder a esta página', 'error')
+            return redirect(url_for('main.dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 @bp.route('/')
 def index():
@@ -43,8 +53,121 @@ def dashboard():
     if current_user.is_admin:
         jobs = Job.query.all()
     else:
-        jobs = current_user.assigned_jobs
+        jobs = Job.query.filter_by(designer_id=current_user.id).all()
     return render_template('dashboard.html', jobs=jobs)
+
+@bp.route('/manage-users')
+@login_required
+@admin_required
+def manage_users():
+    users = User.query.all()
+    return render_template('manage_users.html', users=users)
+
+@bp.route('/users/create', methods=['POST'])
+@login_required
+@admin_required
+def create_user():
+    name = request.form.get('name')
+    username = request.form.get('username')
+    password = request.form.get('password')
+    is_admin = request.form.get('is_admin') == '1'
+
+    if User.query.filter_by(username=username).first():
+        flash('El nombre de usuario ya existe', 'error')
+        return redirect(url_for('main.manage_users'))
+
+    user = User(
+        name=name,
+        username=username,
+        is_admin=is_admin,
+        can_edit=True
+    )
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+
+    flash('Usuario creado exitosamente', 'success')
+    return redirect(url_for('main.manage_users'))
+
+@bp.route('/users/<int:user_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_user(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.username == 'admin':
+        flash('No se puede eliminar el usuario administrador principal', 'error')
+        return redirect(url_for('main.manage_users'))
+
+    db.session.delete(user)
+    db.session.commit()
+    flash('Usuario eliminado exitosamente', 'success')
+    return redirect(url_for('main.manage_users'))
+
+@bp.route('/jobs/new', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def new_job():
+    if request.method == 'POST':
+        job = Job(
+            description=request.form.get('description'),
+            designer_id=request.form.get('designer_id'),
+            invoice_number=request.form.get('invoice_number'),
+            client_name=request.form.get('client_name'),
+            phone_number=request.form.get('phone_number')
+        )
+        db.session.add(job)
+        db.session.commit()
+        flash('Trabajo creado exitosamente', 'success')
+        return redirect(url_for('main.dashboard'))
+
+    designers = User.query.filter_by(is_admin=False).all()
+    return render_template('new_job.html', designers=designers)
+
+@bp.route('/jobs/<int:job_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_job(job_id):
+    job = Job.query.get_or_404(job_id)
+
+    if request.method == 'POST':
+        job.description = request.form.get('description')
+        job.designer_id = request.form.get('designer_id')
+        job.invoice_number = request.form.get('invoice_number')
+        job.client_name = request.form.get('client_name')
+        job.phone_number = request.form.get('phone_number')
+
+        db.session.commit()
+        flash('Trabajo actualizado exitosamente', 'success')
+        return redirect(url_for('main.dashboard'))
+
+    designers = User.query.filter_by(is_admin=False).all()
+    return render_template('edit_job.html', job=job, designers=designers)
+
+@bp.route('/jobs/<int:job_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_job(job_id):
+    job = Job.query.get_or_404(job_id)
+    db.session.delete(job)
+    db.session.commit()
+    flash('Trabajo eliminado exitosamente', 'success')
+    return redirect(url_for('main.dashboard'))
+
+@bp.route('/jobs/<int:job_id>/complete', methods=['POST'])
+@login_required
+def complete_job(job_id):
+    job = Job.query.get_or_404(job_id)
+
+    if not current_user.is_admin and job.designer_id != current_user.id:
+        flash('No tienes permiso para completar este trabajo', 'error')
+        return redirect(url_for('main.dashboard'))
+
+    job.is_completed = True
+    job.completed_at = datetime.utcnow()
+    db.session.commit()
+
+    flash('Trabajo marcado como completado exitosamente', 'success')
+    return redirect(url_for('main.dashboard'))
 
 # Ruta para crear usuarios iniciales
 @bp.route('/setup')
@@ -78,43 +201,3 @@ def setup():
     db.session.commit()
     flash('Usuarios creados exitosamente', 'success')
     return redirect(url_for('main.login'))
-
-@bp.route('/jobs/new', methods=['GET', 'POST'])
-@login_required
-def new_job():
-    if not current_user.is_admin and not current_user.can_edit:
-        flash('No tienes permiso para esta acción', 'error')
-        return redirect(url_for('main.dashboard'))
-
-    if request.method == 'POST':
-        job = Job(
-            description=request.form.get('description'),
-            designer_id=request.form.get('designer_id'),
-            invoice_number=request.form.get('invoice_number'),
-            client_name=request.form.get('client_name'),
-            phone_number=request.form.get('phone_number')
-        )
-        db.session.add(job)
-        db.session.commit()
-        flash('Trabajo creado exitosamente', 'success')
-        return redirect(url_for('main.dashboard'))
-
-    designers = User.query.filter_by(is_admin=False).all()
-    return render_template('new_job.html', designers=designers)
-
-@bp.route('/jobs/<int:job_id>/complete', methods=['POST'])
-@login_required
-def complete_job(job_id):
-    job = Job.query.get_or_404(job_id)
-
-    # Verificar que el usuario tenga permiso para completar este trabajo
-    if not current_user.is_admin and job.designer_id != current_user.id:
-        flash('No tienes permiso para completar este trabajo', 'error')
-        return redirect(url_for('main.dashboard'))
-
-    job.is_completed = True
-    job.completed_at = datetime.utcnow()
-    db.session.commit()
-
-    flash('Trabajo marcado como completado exitosamente', 'success')
-    return redirect(url_for('main.dashboard'))

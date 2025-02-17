@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Usuarios{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h4 class="mb-0">Crear Nuevo Usuario</h4>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('main.create_user') }}">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Nombre</label>
+                    <input type="text" name="name" class="form-control" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Usuario</label>
+                    <input type="text" name="username" class="form-control" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Contraseña</label>
+                    <input type="password" name="password" class="form-control" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Tipo de Usuario</label>
+                    <select name="is_admin" class="form-select" required>
+                        <option value="0">Diseñador</option>
+                        <option value="1">Administrador</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Crear Usuario</button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h4 class="mb-0">Usuarios Existentes</h4>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Usuario</th>
+                        <th>Rol</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.name }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>
+                            {% if user.is_admin %}
+                            <span class="badge bg-primary">Administrador</span>
+                            {% else %}
+                            <span class="badge bg-info">Diseñador</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.username != 'admin' %}
+                            <button type="button" class="btn btn-danger btn-sm delete-user" 
+                                    data-user-id="{{ user.id }}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                ¿Está seguro que desea eliminar este usuario?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="deleteUserForm" method="POST" action="">
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const deleteButtons = document.querySelectorAll('.delete-user');
+    const deleteForm = document.getElementById('deleteUserForm');
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
+
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            deleteForm.action = `/users/${userId}/delete`;
+            deleteModal.show();
+        });
+    });
+});
+</script>
+{% endblock %}
