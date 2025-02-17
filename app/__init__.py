@@ -30,15 +30,54 @@ def create_app():
     with app.app_context():
         # Import models and create tables
         from app import models
-        db.create_all()
 
-        # Set up login manager
-        @login_manager.user_loader
-        def load_user(user_id):
-            return models.User.query.get(int(user_id))
+        try:
+            print("Creando tablas en la base de datos...")
+            db.drop_all()  # Limpiar tablas existentes
+            db.create_all()
+            print("Tablas creadas exitosamente")
 
-        # Register blueprints
-        from app.routes import bp
-        app.register_blueprint(bp)
+            # Set up login manager
+            @login_manager.user_loader
+            def load_user(user_id):
+                return models.User.query.get(int(user_id))
+
+            # Register blueprints
+            from app.routes import bp
+            app.register_blueprint(bp)
+
+            # Create initial users if they don't exist
+            admin_user = models.User.query.filter_by(username='admin').first()
+            if not admin_user:
+                print("Creando usuarios iniciales...")
+                # Create admin user
+                admin = models.User(
+                    username='admin',
+                    name='Administrador',
+                    is_admin=True,
+                    can_edit=True
+                )
+                admin.set_password('admin123')
+                db.session.add(admin)
+
+                # Create PC users
+                for i in range(1, 10):
+                    username = f'pc{i:02d}'
+                    user = models.User(
+                        username=username,
+                        name=f'PC{i:02d}',
+                        is_admin=False,
+                        can_edit=True
+                    )
+                    user.set_password('1245')
+                    db.session.add(user)
+
+                db.session.commit()
+                print("Usuarios creados exitosamente")
+
+        except Exception as e:
+            print(f"Error en la inicialización: {str(e)}")
+            db.session.rollback()
+            raise e
 
         return app
