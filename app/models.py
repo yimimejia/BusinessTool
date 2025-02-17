@@ -9,6 +9,7 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(100), nullable=False)
     password_hash = db.Column(db.String(256))
     is_admin = db.Column(db.Boolean, default=False)
+    can_edit = db.Column(db.Boolean, default=False)  # Nuevo campo para permisos de edición
     is_service = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 

@@ -46,25 +46,43 @@ def dashboard():
         jobs = current_user.assigned_jobs
     return render_template('dashboard.html', jobs=jobs)
 
-# Ruta temporal para crear un usuario admin (solo para pruebas)
+# Ruta para crear usuarios iniciales
 @bp.route('/setup')
 def setup():
-    if User.query.first() is None:
-        admin = User(
-            username='admin',
-            name='Administrador',
-            is_admin=True
+    if User.query.first() is not None:
+        flash('La configuración inicial ya se realizó', 'warning')
+        return redirect(url_for('main.login'))
+
+    # Crear admin
+    admin = User(
+        username='admin',
+        name='Administrador',
+        is_admin=True,
+        can_edit=True
+    )
+    admin.set_password('admin123')
+    db.session.add(admin)
+
+    # Crear usuarios PC01-PC09
+    for i in range(1, 10):
+        username = f'pc{i:02d}'
+        user = User(
+            username=username,
+            name=f'PC{i:02d}',
+            is_admin=False,
+            can_edit=True  # Todos pueden editar
         )
-        admin.set_password('admin123')
-        db.session.add(admin)
-        db.session.commit()
-        flash('Usuario administrador creado', 'success')
+        user.set_password('1245')
+        db.session.add(user)
+
+    db.session.commit()
+    flash('Usuarios creados exitosamente', 'success')
     return redirect(url_for('main.login'))
 
 @bp.route('/jobs/new', methods=['GET', 'POST'])
 @login_required
 def new_job():
-    if not current_user.is_admin:
+    if not current_user.is_admin and not current_user.can_edit:
         flash('No tienes permiso para esta acción', 'error')
         return redirect(url_for('main.dashboard'))
 
