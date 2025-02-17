@@ -8,10 +8,21 @@ from functools import wraps
 
 bp = Blueprint('main', __name__)
 
-def admin_required(f):
+def staff_required(f):
+    """Decorator para requerir que el usuario sea admin o supervisor"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_admin:
+        if not current_user.is_authenticated or not current_user.is_staff:
+            flash('No tienes permiso para acceder a esta página', 'error')
+            return redirect(url_for('main.dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    """Decorator para requerir que el usuario sea admin"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.can_manage_users:
             flash('No tienes permiso para acceder a esta página', 'error')
             return redirect(url_for('main.dashboard'))
         return f(*args, **kwargs)
@@ -50,7 +61,7 @@ def logout():
 @bp.route('/dashboard')
 @login_required
 def dashboard():
-    if current_user.is_admin:
+    if current_user.is_staff:
         jobs = Job.query.all()
     else:
         jobs = Job.query.filter_by(designer_id=current_user.id).all()
@@ -70,7 +81,7 @@ def create_user():
     name = request.form.get('name')
     username = request.form.get('username')
     password = request.form.get('password')
-    is_admin = request.form.get('is_admin') == '1'
+    user_type = request.form.get('user_type', 'designer')
 
     if User.query.filter_by(username=username).first():
         flash('El nombre de usuario ya existe', 'error')
@@ -79,7 +90,8 @@ def create_user():
     user = User(
         name=name,
         username=username,
-        is_admin=is_admin,
+        is_admin=user_type == 'admin',
+        is_supervisor=user_type == 'supervisor',
         can_edit=True
     )
     user.set_password(password)
@@ -105,7 +117,7 @@ def delete_user(user_id):
 
 @bp.route('/jobs/new', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@staff_required
 def new_job():
     if request.method == 'POST':
         job = Job(
@@ -120,12 +132,12 @@ def new_job():
         flash('Trabajo creado exitosamente', 'success')
         return redirect(url_for('main.dashboard'))
 
-    designers = User.query.filter_by(is_admin=False).all()
+    designers = User.query.filter_by(is_admin=False, is_supervisor=False).all()
     return render_template('new_job.html', designers=designers)
 
 @bp.route('/jobs/<int:job_id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@staff_required
 def edit_job(job_id):
     job = Job.query.get_or_404(job_id)
 
@@ -140,12 +152,12 @@ def edit_job(job_id):
         flash('Trabajo actualizado exitosamente', 'success')
         return redirect(url_for('main.dashboard'))
 
-    designers = User.query.filter_by(is_admin=False).all()
+    designers = User.query.filter_by(is_admin=False, is_supervisor=False).all()
     return render_template('edit_job.html', job=job, designers=designers)
 
 @bp.route('/jobs/<int:job_id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@admin_required  # Solo administradores pueden eliminar trabajos
 def delete_job(job_id):
     job = Job.query.get_or_404(job_id)
     db.session.delete(job)
@@ -158,7 +170,7 @@ def delete_job(job_id):
 def complete_job(job_id):
     job = Job.query.get_or_404(job_id)
 
-    if not current_user.is_admin and job.designer_id != current_user.id:
+    if not current_user.is_staff and job.designer_id != current_user.id:
         flash('No tienes permiso para completar este trabajo', 'error')
         return redirect(url_for('main.dashboard'))
 
@@ -169,7 +181,6 @@ def complete_job(job_id):
     flash('Trabajo marcado como completado exitosamente', 'success')
     return redirect(url_for('main.dashboard'))
 
-# Ruta para crear usuarios iniciales
 @bp.route('/setup')
 def setup():
     if User.query.first() is not None:

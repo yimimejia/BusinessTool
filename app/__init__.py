@@ -2,6 +2,7 @@ import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from flask_migrate import Migrate
 from sqlalchemy.orm import DeclarativeBase
 
 # Initialize extensions first
@@ -10,6 +11,7 @@ class Base(DeclarativeBase):
 
 db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
+migrate = Migrate()
 
 def create_app():
     app = Flask(__name__)
@@ -25,6 +27,7 @@ def create_app():
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
+    migrate.init_app(app, db)
     login_manager.login_view = 'main.login'
 
     with app.app_context():
@@ -32,10 +35,9 @@ def create_app():
         from app import models
 
         try:
-            print("Creando tablas en la base de datos...")
-            db.drop_all()  # Limpiar tablas existentes
-            db.create_all()
-            print("Tablas creadas exitosamente")
+            print("Inicializando la base de datos...")
+            # Importar los modelos aquí para que Flask-Migrate los detecte
+            from app.models import User, Job # Assuming Job model exists
 
             # Set up login manager
             @login_manager.user_loader
@@ -46,11 +48,10 @@ def create_app():
             from app.routes import bp
             app.register_blueprint(bp)
 
-            # Create initial users if they don't exist
+            # Crear usuario admin si no existe
             admin_user = models.User.query.filter_by(username='admin').first()
             if not admin_user:
-                print("Creando usuarios iniciales...")
-                # Create admin user
+                print("Creando usuario administrador inicial...")
                 admin = models.User(
                     username='admin',
                     name='Administrador',
@@ -59,21 +60,10 @@ def create_app():
                 )
                 admin.set_password('admin123')
                 db.session.add(admin)
-
-                # Create PC users
-                for i in range(1, 10):
-                    username = f'pc{i:02d}'
-                    user = models.User(
-                        username=username,
-                        name=f'PC{i:02d}',
-                        is_admin=False,
-                        can_edit=True
-                    )
-                    user.set_password('1245')
-                    db.session.add(user)
-
                 db.session.commit()
-                print("Usuarios creados exitosamente")
+                print("Usuario administrador creado exitosamente")
+
+            print("Inicialización completada exitosamente")
 
         except Exception as e:
             print(f"Error en la inicialización: {str(e)}")

@@ -10,23 +10,26 @@
     <div class="card-body">
         <form method="POST" action="{{ url_for('main.create_user') }}">
             <div class="row">
-                <div class="col-md-4 mb-3">
+                <div class="col-md-3 mb-3">
                     <label class="form-label">Nombre</label>
                     <input type="text" name="name" class="form-control" required>
                 </div>
-                <div class="col-md-4 mb-3">
+                <div class="col-md-3 mb-3">
                     <label class="form-label">Usuario</label>
                     <input type="text" name="username" class="form-control" required>
                 </div>
-                <div class="col-md-4 mb-3">
+                <div class="col-md-3 mb-3">
                     <label class="form-label">Contraseña</label>
                     <input type="password" name="password" class="form-control" required>
                 </div>
-                <div class="col-md-4 mb-3">
+                <div class="col-md-3 mb-3">
                     <label class="form-label">Tipo de Usuario</label>
-                    <select name="is_admin" class="form-select" required>
-                        <option value="0">Diseñador</option>
-                        <option value="1">Administrador</option>
+                    <select name="user_type" class="form-select" required>
+                        <option value="designer">Diseñador</option>
+                        <option value="supervisor">Supervisor</option>
+                        {% if current_user.is_admin %}
+                        <option value="admin">Administrador</option>
+                        {% endif %}
                     </select>
                 </div>
             </div>
@@ -58,15 +61,17 @@
                         <td>
                             {% if user.is_admin %}
                             <span class="badge bg-primary">Administrador</span>
+                            {% elif user.is_supervisor %}
+                            <span class="badge bg-info">Supervisor</span>
                             {% else %}
-                            <span class="badge bg-info">Diseñador</span>
+                            <span class="badge bg-secondary">Diseñador</span>
                             {% endif %}
                         </td>
                         <td>
-                            {% if user.username != 'admin' %}
+                            {% if current_user.is_admin and user.username != 'admin' %}
                             <button type="button" class="btn btn-danger btn-sm delete-user" 
                                     data-user-id="{{ user.id }}">
-                                <i class="bi bi-trash"></i>
+                                <i class="bi bi-trash"></i> Eliminar
                             </button>
                             {% endif %}
                         </td>

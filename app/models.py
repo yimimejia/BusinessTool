@@ -10,6 +10,7 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(100), nullable=False)
     password_hash = db.Column(db.String(256))
     is_admin = db.Column(db.Boolean, default=False)
+    is_supervisor = db.Column(db.Boolean, default=False)
     can_edit = db.Column(db.Boolean, default=True)
     is_service = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -22,6 +23,26 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    @property
+    def is_staff(self):
+        """Retorna True si el usuario es admin o supervisor"""
+        return self.is_admin or self.is_supervisor
+
+    @property
+    def can_manage_users(self):
+        """Solo los administradores pueden gestionar usuarios"""
+        return self.is_admin
+
+    @property
+    def can_manage_jobs(self):
+        """Administradores y supervisores pueden gestionar trabajos"""
+        return self.is_staff
+
+    @property
+    def can_delete_jobs(self):
+        """Solo los administradores pueden eliminar trabajos"""
+        return self.is_admin
 
 class Job(db.Model):
     __tablename__ = 'jobs'
