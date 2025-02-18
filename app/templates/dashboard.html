@@ -9,7 +9,7 @@
             {% if current_user.is_admin %}
             Panel de Administración
             {% else %}
-            Mis Trabajos Asignados
+            {% if current_user.is_staff %}Trabajos Pendientes{% else %}Mis Trabajos Pendientes{% endif %}
             {% endif %}
         </h4>
         {% if current_user.is_staff %}

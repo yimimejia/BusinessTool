@@ -3,6 +3,8 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
+from flask_mail import Mail
+from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import DeclarativeBase
 
 # Initialize extensions first
@@ -29,6 +31,19 @@ def create_app():
     login_manager.init_app(app)
     migrate.init_app(app, db)
     login_manager.login_view = 'main.login'
+
+    # Configuración de email
+    mail = Mail(app)
+    app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+    app.config['MAIL_PORT'] = 587
+    app.config['MAIL_USE_TLS'] = True
+    app.config['MAIL_USERNAME'] = 'tu-email@gmail.com'  # Actualizar con tu email
+    app.config['MAIL_PASSWORD'] = 'tu-password'  # Actualizar con tu password
+
+    # Inicializar scheduler
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(func=send_daily_notification, trigger="cron", hour=8)  # Enviar a las 8 AM
+    scheduler.start()
 
     with app.app_context():
         # Import models and create tables
@@ -71,3 +86,7 @@ def create_app():
             raise e
 
         return app
+
+def send_daily_notification():
+    # Implementar la lógica para enviar la notificación diaria
+    pass # Replace with actual notification sending logic
