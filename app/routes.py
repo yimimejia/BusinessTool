@@ -147,7 +147,12 @@ def edit_job(job_id):
         job.invoice_number = request.form.get('invoice_number')
         job.client_name = request.form.get('client_name')
         job.phone_number = request.form.get('phone_number')
+        db.session.commit()
+        flash('Trabajo actualizado exitosamente', 'success')
+        return redirect(url_for('main.dashboard'))
 
+    designers = User.query.filter_by(is_admin=False, is_supervisor=False).all()
+    return render_template('edit_job.html', job=job, designers=designers)
 
 @bp.route('/completed-jobs/<int:job_id>/mark-called', methods=['POST'])
 @login_required
