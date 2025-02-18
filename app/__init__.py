@@ -70,7 +70,7 @@ def create_app():
                 admin = models.User(
                     username='admin',
                     name='Administrador',
-                    email='admin@example.com',
+                    email='admin@mojica.com',
                     is_admin=True,
                     can_edit=True
                 )
