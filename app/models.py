@@ -25,26 +25,6 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-    @property
-    def is_staff(self):
-        """Retorna True si el usuario es admin o supervisor"""
-        return self.is_admin or self.is_supervisor
-
-    @property
-    def can_manage_users(self):
-        """Solo los administradores pueden gestionar usuarios"""
-        return self.is_admin
-
-    @property
-    def can_manage_jobs(self):
-        """Administradores y supervisores pueden gestionar trabajos"""
-        return self.is_staff
-
-    @property
-    def can_delete_jobs(self):
-        """Solo los administradores pueden eliminar trabajos"""
-        return self.is_admin
-
 class CompletedJob(db.Model):
     __tablename__ = 'completed_jobs'
     id = db.Column(db.Integer, primary_key=True)
@@ -69,7 +49,7 @@ class Job(db.Model):
     invoice_number = db.Column(db.String(50))
     client_name = db.Column(db.String(100))
     phone_number = db.Column(db.String(20))
-    date = db.Column(db.Date, nullable=False)  # Nueva columna para la fecha
+    date = db.Column(db.Date, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     completed_at = db.Column(db.DateTime)
     is_completed = db.Column(db.Boolean, default=False)
