@@ -236,6 +236,7 @@ def setup():
     admin = User(
         username='admin',
         name='Administrador',
+        email='admin@example.com',
         is_admin=True,
         can_edit=True
     )
