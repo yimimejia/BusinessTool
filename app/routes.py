@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from app import db
-from app.models import User, Job
+from app.models import User, Job, CompletedJob # Added CompletedJob import
 from datetime import datetime
 from functools import wraps
 
@@ -177,13 +177,6 @@ def mark_delivered(job_id):
     return redirect(url_for('main.completed_jobs'))
 
 
-        db.session.commit()
-        flash('Trabajo actualizado exitosamente', 'success')
-        return redirect(url_for('main.dashboard'))
-
-    designers = User.query.filter_by(is_admin=False, is_supervisor=False).all()
-    return render_template('edit_job.html', job=job, designers=designers)
-
 @bp.route('/jobs/<int:job_id>/delete', methods=['POST'])
 @login_required
 @admin_required  # Solo administradores pueden eliminar trabajos
@@ -233,7 +226,6 @@ def complete_job(job_id):
     )
     db.session.add(completed_job)
     db.session.delete(job)
-    job.completed_at = datetime.utcnow()
     db.session.commit()
 
     flash('Trabajo marcado como completado exitosamente', 'success')
