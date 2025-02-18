@@ -169,9 +169,21 @@ def delete_job(job_id):
 @login_required
 def complete_job(job_id):
     job = Job.query.get_or_404(job_id)
+    verification_code = request.form.get('verification_code')
 
     if not current_user.is_staff and job.designer_id != current_user.id:
         flash('No tienes permiso para completar este trabajo', 'error')
+        return redirect(url_for('main.dashboard'))
+
+    # Verificar si hay un supervisor o servicio con ese código
+    verifier = User.query.filter(
+        (User.is_supervisor == True) | (User.is_service == True)
+    ).filter(
+        User.password_hash.like('%' + verification_code + '%')
+    ).first()
+
+    if not verifier:
+        flash('Código de verificación inválido', 'error')
         return redirect(url_for('main.dashboard'))
 
     job.is_completed = True

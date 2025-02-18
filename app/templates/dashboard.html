@@ -76,9 +76,12 @@
                                 {% endif %}
                                 <form method="POST" action="{{ url_for('main.complete_job', job_id=job.id) }}" 
                                       class="d-inline">
-                                    <button type="submit" class="btn btn-success btn-sm">
-                                        <i class="bi bi-check-circle"></i> Completar
-                                    </button>
+                                    <div class="input-group">
+                                        <input type="password" name="verification_code" class="form-control" placeholder="Código de verificación" required>
+                                        <button type="submit" class="btn btn-success btn-sm">
+                                            <i class="bi bi-check-circle"></i> Completar
+                                        </button>
+                                    </div>
                                 </form>
                             {% endif %}
                         </td>
