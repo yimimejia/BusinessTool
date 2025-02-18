@@ -12,11 +12,13 @@
             Mis Trabajos Asignados
             {% endif %}
         </h4>
-        {% if current_user.is_admin %}
+        {% if current_user.is_staff %}
         <div>
+            {% if current_user.can_manage_users %}
             <a href="{{ url_for('main.manage_users') }}" class="btn btn-info me-2">
                 <i class="bi bi-people"></i> Gestionar Usuarios
             </a>
+            {% endif %}
             <a href="{{ url_for('main.new_job') }}" class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> Nuevo Trabajo
             </a>
@@ -33,7 +35,7 @@
                         <th>Cliente</th>
                         <th>Factura</th>
                         <th>Teléfono</th>
-                        {% if current_user.is_admin %}
+                        {% if current_user.is_staff %}
                         <th>Diseñador</th>
                         {% endif %}
                         <th>Estado</th>
@@ -48,7 +50,7 @@
                         <td>{{ job.client_name }}</td>
                         <td>{{ job.invoice_number }}</td>
                         <td>{{ job.phone_number }}</td>
-                        {% if current_user.is_admin %}
+                        {% if current_user.is_staff %}
                         <td>{{ job.designer.name }}</td>
                         {% endif %}
                         <td>
@@ -60,15 +62,17 @@
                         </td>
                         <td>
                             {% if not job.is_completed %}
-                                {% if current_user.is_admin %}
+                                {% if current_user.is_staff %}
                                 <a href="{{ url_for('main.edit_job', job_id=job.id) }}" 
                                    class="btn btn-info btn-sm">
                                     <i class="bi bi-pencil"></i>
                                 </a>
+                                {% if current_user.can_delete_jobs %}
                                 <button type="button" class="btn btn-danger btn-sm delete-job" 
                                         data-job-id="{{ job.id }}">
                                     <i class="bi bi-trash"></i>
                                 </button>
+                                {% endif %}
                                 {% endif %}
                                 <form method="POST" action="{{ url_for('main.complete_job', job_id=job.id) }}" 
                                       class="d-inline">
@@ -86,7 +90,7 @@
     </div>
 </div>
 
-{% if current_user.is_admin %}
+{% if current_user.can_delete_jobs %}
 <div class="modal fade" id="deleteModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
