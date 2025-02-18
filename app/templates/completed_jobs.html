@@ -1,0 +1,62 @@
+
+{% extends "base.html" %}
+
+{% block title %}Trabajos Completados{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4 class="mb-0">Trabajos Completados</h4>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Descripción</th>
+                        <th>Cliente</th>
+                        <th>Teléfono</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in jobs %}
+                    <tr>
+                        <td>{{ job.id }}</td>
+                        <td>{{ job.description }}</td>
+                        <td>{{ job.client_name }}</td>
+                        <td>{{ job.phone_number }}</td>
+                        <td>
+                            {% if job.is_delivered %}
+                                <span class="badge bg-success">Entregado</span>
+                            {% elif job.is_called %}
+                                <span class="badge bg-info">Cliente Notificado</span>
+                            {% else %}
+                                <span class="badge bg-warning">Pendiente de Llamar</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if not job.is_called %}
+                            <form method="POST" action="{{ url_for('main.mark_called', job_id=job.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-telephone"></i> Confirmar Llamada
+                                </button>
+                            </form>
+                            {% elif not job.is_delivered %}
+                            <form method="POST" action="{{ url_for('main.mark_delivered', job_id=job.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-success btn-sm">
+                                    <i class="bi bi-check-circle"></i> Confirmar Entrega
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

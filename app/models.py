@@ -44,6 +44,22 @@ class User(UserMixin, db.Model):
         """Solo los administradores pueden eliminar trabajos"""
         return self.is_admin
 
+class CompletedJob(db.Model):
+    __tablename__ = 'completed_jobs'
+    id = db.Column(db.Integer, primary_key=True)
+    original_job_id = db.Column(db.Integer)
+    description = db.Column(db.String(255), nullable=False)
+    designer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    invoice_number = db.Column(db.String(50))
+    client_name = db.Column(db.String(100))
+    phone_number = db.Column(db.String(20))
+    created_at = db.Column(db.DateTime)
+    completed_at = db.Column(db.DateTime)
+    called_at = db.Column(db.DateTime)
+    delivered_at = db.Column(db.DateTime)
+    is_called = db.Column(db.Boolean, default=False)
+    is_delivered = db.Column(db.Boolean, default=False)
+
 class Job(db.Model):
     __tablename__ = 'jobs'
     id = db.Column(db.Integer, primary_key=True)

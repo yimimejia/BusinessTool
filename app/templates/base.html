@@ -37,6 +37,13 @@
                         </a>
                     </li>
                     {% endif %}
+                    {% if current_user.is_staff %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.completed_jobs') }}">
+                            <i class="bi bi-check2-circle"></i> Trabajos Completados
+                        </a>
+                    </li>
+                    {% endif %}
                 </ul>
                 <div class="navbar-text me-3">
                     <i class="bi bi-person"></i> {{ current_user.name }}

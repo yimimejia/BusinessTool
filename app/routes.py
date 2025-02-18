@@ -148,6 +148,30 @@ def edit_job(job_id):
         job.client_name = request.form.get('client_name')
         job.phone_number = request.form.get('phone_number')
 
+
+@bp.route('/completed-jobs/<int:job_id>/mark-called', methods=['POST'])
+@login_required
+@staff_required
+def mark_called(job_id):
+    job = CompletedJob.query.get_or_404(job_id)
+    job.is_called = True
+    job.called_at = datetime.utcnow()
+    db.session.commit()
+    flash('Cliente marcado como notificado', 'success')
+    return redirect(url_for('main.completed_jobs'))
+
+@bp.route('/completed-jobs/<int:job_id>/mark-delivered', methods=['POST'])
+@login_required
+@staff_required
+def mark_delivered(job_id):
+    job = CompletedJob.query.get_or_404(job_id)
+    job.is_delivered = True
+    job.delivered_at = datetime.utcnow()
+    db.session.commit()
+    flash('Trabajo marcado como entregado', 'success')
+    return redirect(url_for('main.completed_jobs'))
+
+
         db.session.commit()
         flash('Trabajo actualizado exitosamente', 'success')
         return redirect(url_for('main.dashboard'))
@@ -165,6 +189,13 @@ def delete_job(job_id):
     flash('Trabajo eliminado exitosamente', 'success')
     return redirect(url_for('main.dashboard'))
 
+@bp.route('/completed-jobs')
+@login_required
+@staff_required
+def completed_jobs():
+    jobs = CompletedJob.query.all()
+    return render_template('completed_jobs.html', jobs=jobs)
+
 @bp.route('/jobs/<int:job_id>/complete', methods=['POST'])
 @login_required
 def complete_job(job_id):
@@ -175,18 +206,28 @@ def complete_job(job_id):
         flash('No tienes permiso para completar este trabajo', 'error')
         return redirect(url_for('main.dashboard'))
 
-    # Verificar si hay un supervisor o servicio con ese código
+    # Verificar si es admin o supervisor
     verifier = User.query.filter(
-        (User.is_supervisor == True) | (User.is_service == True)
-    ).filter(
-        User.password_hash.like('%' + verification_code + '%')
+        (User.is_admin == True) | (User.is_supervisor == True)
     ).first()
 
-    if not verifier:
+    if not verifier or not verifier.check_password(verification_code):
         flash('Código de verificación inválido', 'error')
         return redirect(url_for('main.dashboard'))
 
-    job.is_completed = True
+    # Crear trabajo completado
+    completed_job = CompletedJob(
+        original_job_id=job.id,
+        description=job.description,
+        designer_id=job.designer_id,
+        invoice_number=job.invoice_number,
+        client_name=job.client_name,
+        phone_number=job.phone_number,
+        created_at=job.created_at,
+        completed_at=datetime.utcnow()
+    )
+    db.session.add(completed_job)
+    db.session.delete(job)
     job.completed_at = datetime.utcnow()
     db.session.commit()
 
