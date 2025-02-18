@@ -204,13 +204,8 @@ def complete_job(job_id):
         flash('No tienes permiso para completar este trabajo', 'error')
         return redirect(url_for('main.dashboard'))
 
-    # Verificar si es admin o supervisor
-    verifier = User.query.filter(
-        (User.is_admin == True) | (User.is_supervisor == True)
-    ).first()
-
-    if not verifier or not verifier.check_password(verification_code):
-        flash('Código de verificación inválido', 'error')
+    if not job.invoice_number or verification_code != job.invoice_number:
+        flash('Número de factura inválido', 'error')
         return redirect(url_for('main.dashboard'))
 
     # Crear trabajo completado
