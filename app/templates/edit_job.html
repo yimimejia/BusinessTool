@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Trabajo{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4 class="mb-0">Editar Trabajo</h4>
+    </div>
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Descripción</label>
+                    <textarea name="description" class="form-control" rows="3" required>{{ job.description }}</textarea>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Diseñador</label>
+                    <select name="designer_id" class="form-select" required>
+                        <option value="">Seleccionar diseñador...</option>
+                        {% for designer in designers %}
+                        <option value="{{ designer.id }}" {% if designer.id == job.designer_id %}selected{% endif %}>
+                            {{ designer.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">No. Factura</label>
+                    <input type="text" name="invoice_number" class="form-control" value="{{ job.invoice_number }}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Cliente</label>
+                    <input type="text" name="client_name" class="form-control" value="{{ job.client_name }}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Teléfono</label>
+                    <input type="text" name="phone_number" class="form-control" value="{{ job.phone_number }}" required>
+                </div>
+            </div>
+            <div class="text-end">
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary me-2">Cancelar</a>
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
