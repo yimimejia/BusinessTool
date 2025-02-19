@@ -15,6 +15,9 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
+    # Configuración de Redis para SSE
+    app.config["REDIS_URL"] = "redis://0.0.0.0:6379"
+
     # Inicializar extensiones
     db.init_app(app)
     login_manager.init_app(app)
