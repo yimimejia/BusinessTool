@@ -30,7 +30,6 @@ def create_app():
     migrate.init_app(app, db)
     login_manager.login_view = 'main.login'
 
-
     with app.app_context():
         # Import models and create tables
         from app import models
@@ -38,7 +37,7 @@ def create_app():
         try:
             print("Inicializando la base de datos...")
             # Importar los modelos aquí para que Flask-Migrate los detecte
-            from app.models import User, Job # Assuming Job model exists
+            from app.models import User, Job
 
             # Set up login manager
             @login_manager.user_loader
@@ -56,7 +55,6 @@ def create_app():
                 admin = models.User(
                     username='admin',
                     name='Administrador',
-                    email='admin@mojica.com',
                     is_admin=True,
                     can_edit=True
                 )

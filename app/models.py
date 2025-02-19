@@ -8,7 +8,6 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256))
     is_admin = db.Column(db.Boolean, default=False)
     is_supervisor = db.Column(db.Boolean, default=False)
@@ -24,6 +23,18 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    @property
+    def is_staff(self):
+        return self.is_admin or self.is_supervisor
+
+    @property
+    def can_manage_users(self):
+        return self.is_admin
+
+    @property
+    def can_delete_jobs(self):
+        return self.is_admin
 
 class CompletedJob(db.Model):
     __tablename__ = 'completed_jobs'
