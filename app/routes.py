@@ -8,6 +8,7 @@ import json
 from functools import wraps
 import logging
 from flask_sse import sse
+from sqlalchemy.exc import DataError
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -152,23 +153,34 @@ def delete_user(user_id):
 @staff_required
 def new_job():
     if request.method == 'POST':
-        job = Job(
-            description=request.form.get('description'),
-            designer_id=request.form.get('designer_id'),
-            invoice_number=request.form.get('invoice_number'),
-            client_name=request.form.get('client_name'),
-            phone_number=request.form.get('phone_number')
-        )
-        db.session.add(job)
-        db.session.commit()
+        try:
+            phone_number = request.form.get('phone_number')
+            if not phone_number.startswith('+52'):
+                phone_number = f'+52{phone_number}' if phone_number.startswith('52') else f'+52{phone_number}'
 
-        log_activity(
-            'nuevo_trabajo',
-            f"Trabajo creado para {job.client_name} (Factura: {job.invoice_number})"
-        )
+            job = Job(
+                description=request.form.get('description'),
+                designer_id=request.form.get('designer_id'),
+                invoice_number=request.form.get('invoice_number'),
+                client_name=request.form.get('client_name'),
+                phone_number=phone_number
+            )
+            db.session.add(job)
+            db.session.commit()
 
-        flash('Trabajo creado exitosamente', 'success')
-        return redirect(url_for('main.dashboard'))
+            log_activity(
+                'nuevo_trabajo',
+                f"Trabajo creado para {job.client_name} (Factura: {job.invoice_number})"
+            )
+
+            flash('Trabajo creado exitosamente', 'success')
+            return redirect(url_for('main.dashboard'))
+        except ValueError as e:
+            flash(str(e), 'error')
+            db.session.rollback()
+        except Exception as e:
+            flash('Error al crear el trabajo. Verifica el formato del número telefónico (+52-XXX-XXXXXXX)', 'error')
+            db.session.rollback()
 
     designers = User.query.filter_by(is_admin=False, is_supervisor=False).all()
     return render_template('new_job.html', designers=designers)

@@ -2,6 +2,8 @@ from datetime import datetime
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
+from sqlalchemy.orm import validates
+import re
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -60,6 +62,22 @@ class Job(db.Model):
     completed_at = db.Column(db.DateTime)
     is_completed = db.Column(db.Boolean, default=False)
     tags = db.Column(db.String(200))  # Comma-separated tags
+
+    @validates('phone_number')
+    def validate_phone_number(self, key, phone_number):
+        if not phone_number:
+            return phone_number
+
+        # Eliminar espacios y guiones para normalizar
+        cleaned_number = re.sub(r'[\s-]', '', phone_number)
+
+        # Validar formato: +52 seguido de 10 dígitos
+        if not re.match(r'^\+52\d{10}$', cleaned_number):
+            raise ValueError('El número de teléfono debe incluir el código de área (+52) y 10 dígitos')
+
+        # Formatear el número para almacenamiento
+        formatted_number = f'+52-{cleaned_number[3:6]}-{cleaned_number[6:]}'
+        return formatted_number
 
 class CompletedJob(db.Model):
     __tablename__ = 'completed_jobs'
