@@ -1,13 +1,12 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
-from app import db
+from app import db, message_queue
 from app.models import User, Job, CompletedJob, ActivityLog
 from datetime import datetime
 import json
 from functools import wraps
 import logging
-from flask_sse import sse
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -36,7 +35,7 @@ def admin_required(f):
     return decorated_function
 
 def log_activity(action, details=None):
-    """Registra una actividad en el log"""
+    """Registra una actividad en el log y envía notificación"""
     try:
         activity = ActivityLog(
             user_id=current_user.id if current_user.is_authenticated else None,
@@ -49,16 +48,13 @@ def log_activity(action, details=None):
 
         # Enviar notificación en tiempo real
         if details:
-            sse.publish({
+            message_queue.put(json.dumps({
                 "message": f"{action}: {details}",
                 "type": "info"
-            }, type='message')
+            }))
     except Exception as e:
         logger.error(f"Error al registrar actividad: {str(e)}")
 
-@bp.route('/stream')
-def stream():
-    return Response(sse.stream(), mimetype='text/event-stream')
 
 @bp.route('/')
 def index():
