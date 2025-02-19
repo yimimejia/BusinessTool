@@ -71,12 +71,12 @@ class Job(db.Model):
         # Eliminar espacios y guiones para normalizar
         cleaned_number = re.sub(r'[\s-]', '', phone_number)
 
-        # Validar formato: +52 seguido de 10 dígitos
-        if not re.match(r'^\+52\d{10}$', cleaned_number):
-            raise ValueError('El número de teléfono debe incluir el código de área (+52) y 10 dígitos')
+        # Validar formato: +1 seguido de 10 dígitos
+        if not re.match(r'^\+1\d{10}$', cleaned_number):
+            raise ValueError('El número de teléfono debe incluir el código de área (+1) y 10 dígitos')
 
         # Formatear el número para almacenamiento
-        formatted_number = f'+52-{cleaned_number[3:6]}-{cleaned_number[6:]}'
+        formatted_number = f'+1-{cleaned_number[2:5]}-{cleaned_number[5:]}'
         return formatted_number
 
 class CompletedJob(db.Model):

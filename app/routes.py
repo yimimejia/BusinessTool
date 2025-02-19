@@ -155,8 +155,8 @@ def new_job():
     if request.method == 'POST':
         try:
             phone_number = request.form.get('phone_number')
-            if not phone_number.startswith('+52'):
-                phone_number = f'+52{phone_number}' if phone_number.startswith('52') else f'+52{phone_number}'
+            if not phone_number.startswith('+1'):
+                phone_number = f'+1{phone_number}' if phone_number.startswith('1') else f'+1{phone_number}'
 
             job = Job(
                 description=request.form.get('description'),
@@ -179,7 +179,7 @@ def new_job():
             flash(str(e), 'error')
             db.session.rollback()
         except Exception as e:
-            flash('Error al crear el trabajo. Verifica el formato del número telefónico (+52-XXX-XXXXXXX)', 'error')
+            flash('Error al crear el trabajo. Verifica el formato del número telefónico (+1-XXX-XXXXXXX)', 'error')
             db.session.rollback()
 
     designers = User.query.filter_by(is_admin=False, is_supervisor=False).all()
