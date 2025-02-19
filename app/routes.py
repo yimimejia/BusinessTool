@@ -236,10 +236,8 @@ def delete_job(job_id):
         flash('Se requiere contraseña para eliminar', 'error')
         return redirect(url_for('main.dashboard'))
 
-    # Verificar si la contraseña coincide con algún admin o supervisor
-    admins = User.query.filter(
-        (User.is_admin == True) | (User.is_supervisor == True)
-    ).all()
+    # Verificar si la contraseña coincide con algún admin solamente
+    admins = User.query.filter_by(is_admin=True).all()
 
     valid_password = False
     for admin in admins:
@@ -248,12 +246,18 @@ def delete_job(job_id):
             break
 
     if not valid_password:
-        flash('Contraseña incorrecta', 'error')
+        flash('Contraseña incorrecta. Se requiere contraseña de administrador.', 'error')
         return redirect(url_for('main.dashboard'))
 
     job = Job.query.get_or_404(job_id)
     db.session.delete(job)
     db.session.commit()
+
+    log_activity(
+        'trabajo_eliminado',
+        f"Trabajo eliminado: {job.client_name} (Factura: {job.invoice_number})"
+    )
+
     flash('Trabajo eliminado exitosamente', 'success')
     return redirect(url_for('main.dashboard'))
 
