@@ -255,7 +255,7 @@ def complete_job(job_id):
     db.session.commit()
 
     flash('Trabajo marcado como completado exitosamente', 'success')
-    return redirect(url_for('main.dashboard'))
+    return redirect(url_for('main.completed_jobs'))
 
 @bp.route('/setup')
 def setup():
@@ -288,3 +288,14 @@ def setup():
     db.session.commit()
     flash('Usuarios creados exitosamente', 'success')
     return redirect(url_for('main.login'))
+
+@bp.route('/send-report', methods=['POST'])
+@login_required
+@staff_required
+def send_manual_report():
+    from app.utils.email_notifications import send_daily_report
+    if send_daily_report():
+        flash('Reporte enviado exitosamente', 'success')
+    else:
+        flash('Error al enviar el reporte', 'error')
+    return redirect(url_for('main.dashboard'))
