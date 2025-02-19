@@ -14,7 +14,8 @@
         </h4>
         {% if current_user.is_staff %}
         <div>
-            <form method="POST" action="{{ url_for('main.send_manual_report') }}" class="d-inline">
+            <form method="POST" action="{{ url_for('main.send_manual_report') }}" class="d-inline" id="sendReportForm">
+                {{ csrf_token() }}
                 <button type="submit" class="btn btn-info me-2">
                     <i class="bi bi-envelope"></i> Enviar Reporte
                 </button>
@@ -104,6 +105,7 @@
             <div class="modal-body">
                 <p>Para eliminar este trabajo, ingrese su contraseña de administrador:</p>
                 <form id="deleteForm" method="POST" action="">
+                    {{ csrf_token() }}
                     <div class="mb-3">
                         <input type="password" name="admin_password" class="form-control" 
                                placeholder="Contraseña de administrador" required>
@@ -129,6 +131,7 @@
             <div class="modal-body">
                 <p>Para marcar este trabajo como completado, ingrese su contraseña de administrador:</p>
                 <form id="completeForm" method="POST" action="">
+                    {{ csrf_token() }}
                     <div class="mb-3">
                         <input type="password" name="admin_password" class="form-control" 
                                placeholder="Contraseña de administrador" required>
@@ -145,6 +148,18 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Prevenir el envío del formulario si no está validado
+    const sendReportForm = document.getElementById('sendReportForm');
+    if (sendReportForm) {
+        sendReportForm.addEventListener('submit', function(e) {
+            if (!this.checkValidity()) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        });
+    }
+
+    // Manejo de modales
     const deleteButtons = document.querySelectorAll('.delete-job');
     const deleteForm = document.getElementById('deleteForm');
     const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
@@ -154,7 +169,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const completeModal = new bootstrap.Modal(document.getElementById('completeModal'));
 
     deleteButtons.forEach(button => {
-        button.addEventListener('click', function() {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
             const jobId = this.dataset.jobId;
             deleteForm.action = `/jobs/${jobId}/delete`;
             deleteModal.show();
@@ -162,7 +178,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     completeButtons.forEach(button => {
-        button.addEventListener('click', function() {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
             const jobId = this.dataset.jobId;
             completeForm.action = `/jobs/${jobId}/complete`;
             completeModal.show();

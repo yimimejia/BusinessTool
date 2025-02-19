@@ -7,6 +7,7 @@ from sqlalchemy.orm import DeclarativeBase
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
 import pytz
+from flask_wtf.csrf import CSRFProtect
 
 # Initialize extensions first
 class Base(DeclarativeBase):
@@ -16,6 +17,7 @@ db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 migrate = Migrate()
 scheduler = BackgroundScheduler()
+csrf = CSRFProtect()
 
 def create_app():
     app = Flask(__name__)
@@ -32,6 +34,7 @@ def create_app():
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
+    csrf.init_app(app)
     login_manager.login_view = 'main.login'
 
     with app.app_context():
