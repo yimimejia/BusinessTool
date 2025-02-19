@@ -74,15 +74,6 @@
                                 </button>
                                 {% endif %}
                                 {% endif %}
-                                <form method="POST" action="{{ url_for('main.complete_job', job_id=job.id) }}" 
-                                      class="d-inline">
-                                    <div class="input-group">
-                                        <input type="password" name="verification_code" class="form-control" placeholder="Código de verificación" required>
-                                        <button type="submit" class="btn btn-success btn-sm">
-                                            <i class="bi bi-check-circle"></i> Completar
-                                        </button>
-                                    </div>
-                                </form>
                             {% endif %}
                         </td>
                     </tr>
@@ -102,12 +93,16 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                ¿Está seguro que desea eliminar este trabajo?
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <p>Para eliminar este trabajo, ingrese su contraseña de administrador:</p>
                 <form id="deleteForm" method="POST" action="">
-                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                    <div class="mb-3">
+                        <input type="password" name="admin_password" class="form-control" 
+                               placeholder="Contraseña de administrador" required>
+                    </div>
+                    <div class="text-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Confirmar Eliminación</button>
+                    </div>
                 </form>
             </div>
         </div>

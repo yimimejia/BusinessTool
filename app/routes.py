@@ -179,8 +179,28 @@ def mark_delivered(job_id):
 
 @bp.route('/jobs/<int:job_id>/delete', methods=['POST'])
 @login_required
-@admin_required  # Solo administradores pueden eliminar trabajos
+@admin_required
 def delete_job(job_id):
+    password = request.form.get('admin_password')
+    if not password:
+        flash('Se requiere contraseña para eliminar', 'error')
+        return redirect(url_for('main.dashboard'))
+
+    # Verificar si la contraseña coincide con algún admin o supervisor
+    admins = User.query.filter(
+        (User.is_admin == True) | (User.is_supervisor == True)
+    ).all()
+
+    valid_password = False
+    for admin in admins:
+        if admin.check_password(password):
+            valid_password = True
+            break
+
+    if not valid_password:
+        flash('Contraseña incorrecta', 'error')
+        return redirect(url_for('main.dashboard'))
+
     job = Job.query.get_or_404(job_id)
     db.session.delete(job)
     db.session.commit()
@@ -236,7 +256,6 @@ def setup():
     admin = User(
         username='admin',
         name='Administrador',
-        email='admin@example.com',
         is_admin=True,
         can_edit=True
     )
@@ -248,9 +267,9 @@ def setup():
         username = f'pc{i:02d}'
         user = User(
             username=username,
-            name=f'PC{i:02d}',
+            name=f'PC{i:02d}',  # Nombre también como PC01, PC02, etc.
             is_admin=False,
-            can_edit=True  # Todos pueden editar
+            can_edit=True
         )
         user.set_password('1245')
         db.session.add(user)
