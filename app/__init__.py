@@ -7,9 +7,8 @@ from sqlalchemy.orm import DeclarativeBase
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
 import pytz
-from queue import Queue
-from flask import Response, stream_with_context
-import json
+import redis
+from flask_sse import sse
 
 # Initialize extensions first
 class Base(DeclarativeBase):
@@ -19,7 +18,6 @@ db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 migrate = Migrate()
 scheduler = BackgroundScheduler()
-message_queue = Queue()
 
 def create_app():
     app = Flask(__name__)
@@ -31,30 +29,14 @@ def create_app():
         "pool_pre_ping": True,
     }
     app.secret_key = os.environ.get("SESSION_SECRET", "dev-key-temporary")
+    app.config["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379")
 
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
+    app.register_blueprint(sse, url_prefix='/stream')
     login_manager.login_view = 'main.login'
-
-    @app.route('/stream')
-    def stream():
-        def event_stream():
-            while True:
-                if not message_queue.empty():
-                    message = message_queue.get()
-                    yield f"data: {json.dumps(message)}\n\n"
-                yield ":\n\n"  # keepalive
-
-        return Response(
-            stream_with_context(event_stream()),
-            mimetype="text/event-stream",
-            headers={
-                'Cache-Control': 'no-cache',
-                'Connection': 'keep-alive'
-            }
-        )
 
     with app.app_context():
         # Import models and create tables
@@ -63,7 +45,7 @@ def create_app():
         try:
             print("Inicializando la base de datos...")
             # Importar los modelos aquí para que Flask-Migrate los detecte
-            from app.models import User, Job, ActivityLog
+            from app.models import User, Job, ActivityLog # ActivityLog added here
             from app.utils.email_notifications import send_daily_report
 
             # Set up login manager
@@ -109,3 +91,7 @@ def create_app():
             raise e
 
         return app
+
+def send_daily_notification():
+    from app.utils.email_notifications import send_daily_report
+    send_daily_report()

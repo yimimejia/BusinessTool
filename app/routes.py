@@ -1,12 +1,13 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
-from app import db, message_queue
+from app import db
 from app.models import User, Job, CompletedJob, ActivityLog
 from datetime import datetime
 import json
 from functools import wraps
 import logging
+from flask_sse import sse
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -35,7 +36,7 @@ def admin_required(f):
     return decorated_function
 
 def log_activity(action, details=None):
-    """Registra una actividad en el log y envía notificación"""
+    """Registra una actividad en el log"""
     try:
         activity = ActivityLog(
             user_id=current_user.id if current_user.is_authenticated else None,
@@ -48,13 +49,16 @@ def log_activity(action, details=None):
 
         # Enviar notificación en tiempo real
         if details:
-            message_queue.put(json.dumps({
+            sse.publish({
                 "message": f"{action}: {details}",
                 "type": "info"
-            }))
+            }, type='message')
     except Exception as e:
         logger.error(f"Error al registrar actividad: {str(e)}")
 
+@bp.route('/stream')
+def stream():
+    return Response(sse.stream(), mimetype='text/event-stream')
 
 @bp.route('/')
 def index():
@@ -245,20 +249,8 @@ def delete_job(job_id):
 @login_required
 @staff_required
 def completed_jobs():
-    completed_jobs = CompletedJob.query.all()
-    active_jobs = Job.query.filter_by(is_completed=True).all()
-
-    # Combinar la información de ambas tablas
-    jobs_info = []
-    for completed_job in completed_jobs:
-        active_job = next((job for job in active_jobs if job.id == completed_job.original_job_id), None)
-        if active_job:
-            jobs_info.append({
-                'completed': completed_job,
-                'active': active_job
-            })
-
-    return render_template('completed_jobs.html', jobs_info=jobs_info)
+    jobs = CompletedJob.query.all()
+    return render_template('completed_jobs.html', jobs=jobs)
 
 @bp.route('/jobs/<int:job_id>/complete', methods=['POST'])
 @login_required
@@ -285,11 +277,7 @@ def complete_job(job_id):
         flash('Contraseña incorrecta', 'error')
         return redirect(url_for('main.dashboard'))
 
-    # Marcar el trabajo como completado
-    job.is_completed = True
-    job.completed_at = datetime.utcnow()
-
-    # Crear registro en trabajos completados
+    # Crear trabajo completado
     completed_job = CompletedJob(
         original_job_id=job.id,
         description=job.description,
@@ -301,6 +289,7 @@ def complete_job(job_id):
         completed_at=datetime.utcnow()
     )
     db.session.add(completed_job)
+    db.session.delete(job)
     db.session.commit()
 
     log_activity(

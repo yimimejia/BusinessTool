@@ -21,41 +21,36 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for job in jobs_info %}
-                    <tr {% if not job.completed.is_called %}style="color: #dc3545; font-weight: bold;"{% endif %}>
-                        <td>{{ job.completed.id }}</td>
-                        <td>{{ job.completed.description }}</td>
-                        <td>{{ job.completed.client_name }}</td>
+                    {% for job in jobs %}
+                    <tr {% if not job.is_called %}style="color: #dc3545; font-weight: bold;"{% endif %}>
+                        <td>{{ job.id }}</td>
+                        <td>{{ job.description }}</td>
+                        <td>{{ job.client_name }}</td>
                         <td>
-                            {% set clean_phone = job.completed.phone_number|replace(' ', '')|replace('-', '')|replace('(', '')|replace(')', '') %}
-                            <a href="https://wa.me/{{ clean_phone }}?text=Hola {{ job.completed.client_name }}, le informamos que su trabajo en FOTO VIDEO MOJICA está listo para recoger." 
+                            {% set clean_phone = job.phone_number|replace(' ', '')|replace('-', '')|replace('(', '')|replace(')', '') %}
+                            <a href="https://wa.me/{{ clean_phone }}?text=Hola {{ job.client_name }}, le informamos que su trabajo en FOTO VIDEO MOJICA está listo para recoger." 
                                target="_blank" class="text-decoration-none">
-                                <i class="bi bi-whatsapp text-success"></i> {{ job.completed.phone_number }}
+                                <i class="bi bi-whatsapp text-success"></i> {{ job.phone_number }}
                             </a>
                         </td>
                         <td>
-                            {% if job.completed.is_delivered %}
+                            {% if job.is_delivered %}
                                 <span class="badge bg-success">Entregado</span>
-                            {% elif job.completed.is_called %}
+                            {% elif job.is_called %}
                                 <span class="badge bg-info">Cliente Notificado</span>
                             {% else %}
                                 <span class="badge bg-warning">Pendiente de Llamar</span>
                             {% endif %}
                         </td>
                         <td>
-                            <!-- Botón de editar siempre visible usando el ID del trabajo activo -->
-                            <a href="{{ url_for('main.edit_job', job_id=job.active.id) }}" class="btn btn-primary btn-sm">
-                                <i class="bi bi-pencil"></i> Editar
-                            </a>
-
-                            {% if not job.completed.is_called %}
-                            <form method="POST" action="{{ url_for('main.mark_called', job_id=job.completed.id) }}" class="d-inline">
+                            {% if not job.is_called %}
+                            <form method="POST" action="{{ url_for('main.mark_called', job_id=job.id) }}" class="d-inline">
                                 <button type="submit" class="btn btn-primary btn-sm">
                                     <i class="bi bi-telephone"></i> Confirmar Llamada
                                 </button>
                             </form>
-                            {% elif not job.completed.is_delivered %}
-                            <form method="POST" action="{{ url_for('main.mark_delivered', job_id=job.completed.id) }}" class="d-inline">
+                            {% elif not job.is_delivered %}
+                            <form method="POST" action="{{ url_for('main.mark_delivered', job_id=job.id) }}" class="d-inline">
                                 <button type="submit" class="btn btn-success btn-sm">
                                     <i class="bi bi-check-circle"></i> Confirmar Entrega
                                 </button>
