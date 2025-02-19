@@ -60,7 +60,6 @@ class Job(db.Model):
     invoice_number = db.Column(db.String(50))
     client_name = db.Column(db.String(100))
     phone_number = db.Column(db.String(20))
-    date = db.Column(db.Date, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     completed_at = db.Column(db.DateTime)
     is_completed = db.Column(db.Boolean, default=False)
