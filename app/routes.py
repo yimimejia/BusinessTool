@@ -1,10 +1,17 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from app import db
-from app.models import User, Job, CompletedJob # Added CompletedJob import
+from app.models import User, Job, CompletedJob, ActivityLog
 from datetime import datetime
+import json
 from functools import wraps
+import logging
+from flask_sse import sse
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('main', __name__)
 
@@ -27,6 +34,31 @@ def admin_required(f):
             return redirect(url_for('main.dashboard'))
         return f(*args, **kwargs)
     return decorated_function
+
+def log_activity(action, details=None):
+    """Registra una actividad en el log"""
+    try:
+        activity = ActivityLog(
+            user_id=current_user.id if current_user.is_authenticated else None,
+            action=action,
+            details=details,
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(activity)
+        db.session.commit()
+
+        # Enviar notificación en tiempo real
+        if details:
+            sse.publish({
+                "message": f"{action}: {details}",
+                "type": "info"
+            }, type='message')
+    except Exception as e:
+        logger.error(f"Error al registrar actividad: {str(e)}")
+
+@bp.route('/stream')
+def stream():
+    return Response(sse.stream(), mimetype='text/event-stream')
 
 @bp.route('/')
 def index():
@@ -129,6 +161,12 @@ def new_job():
         )
         db.session.add(job)
         db.session.commit()
+
+        log_activity(
+            'nuevo_trabajo',
+            f"Trabajo creado para {job.client_name} (Factura: {job.invoice_number})"
+        )
+
         flash('Trabajo creado exitosamente', 'success')
         return redirect(url_for('main.dashboard'))
 
@@ -224,7 +262,7 @@ def complete_job(job_id):
         flash('No tienes permiso para completar este trabajo', 'error')
         return redirect(url_for('main.dashboard'))
 
-    # Verificar si la contraseña coincide con algún admin o supervisor
+    # Verificar contraseña
     admins = User.query.filter(
         (User.is_admin == True) | (User.is_supervisor == True)
     ).all()
@@ -253,6 +291,11 @@ def complete_job(job_id):
     db.session.add(completed_job)
     db.session.delete(job)
     db.session.commit()
+
+    log_activity(
+        'trabajo_completado',
+        f"Trabajo completado para {completed_job.client_name} (Factura: {completed_job.invoice_number})"
+    )
 
     flash('Trabajo marcado como completado exitosamente', 'success')
     return redirect(url_for('main.completed_jobs'))

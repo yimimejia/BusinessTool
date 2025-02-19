@@ -7,6 +7,8 @@ from sqlalchemy.orm import DeclarativeBase
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
 import pytz
+import redis
+from flask_sse import sse
 
 # Initialize extensions first
 class Base(DeclarativeBase):
@@ -27,11 +29,13 @@ def create_app():
         "pool_pre_ping": True,
     }
     app.secret_key = os.environ.get("SESSION_SECRET", "dev-key-temporary")
+    app.config["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379")
 
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
+    app.register_blueprint(sse, url_prefix='/stream')
     login_manager.login_view = 'main.login'
 
     with app.app_context():
@@ -41,7 +45,7 @@ def create_app():
         try:
             print("Inicializando la base de datos...")
             # Importar los modelos aquí para que Flask-Migrate los detecte
-            from app.models import User, Job
+            from app.models import User, Job, ActivityLog # ActivityLog added here
             from app.utils.email_notifications import send_daily_report
 
             # Set up login manager

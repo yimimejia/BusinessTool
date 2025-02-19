@@ -9,6 +9,47 @@
     <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
     <!-- Add jQuery first -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- Notificaciones -->
+    <script>
+    let notificationSound;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Cargar sonido de notificación
+        notificationSound = new Audio("{{ url_for('static', filename='notification.mp3') }}");
+
+        // Solicitar permisos para notificaciones
+        if (Notification.permission !== 'granted') {
+            Notification.requestPermission();
+        }
+
+        // Configurar SSE
+        const eventSource = new EventSource("{{ url_for('main.stream') }}");
+
+        eventSource.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+
+            // Reproducir sonido
+            notificationSound.play();
+
+            // Mostrar notificación del navegador
+            if (Notification.permission === 'granted') {
+                new Notification('FOTO VIDEO MOJICA', {
+                    body: data.message,
+                    icon: '/static/icon.png'
+                });
+            }
+
+            // Mostrar alerta en la página
+            const alert = `
+                <div class="alert alert-${data.type} alert-dismissible fade show" role="alert">
+                    ${data.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            document.querySelector('main').insertAdjacentHTML('afterbegin', alert);
+        };
+    });
+    </script>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
@@ -47,6 +88,13 @@
                     </li>
                     {% endif %}
                 </ul>
+                <!-- Theme Switcher -->
+                <div class="me-3">
+                    <button class="btn btn-outline-light" id="themeSwitcher">
+                        <i class="bi bi-sun-fill" id="lightIcon"></i>
+                        <i class="bi bi-moon-fill" id="darkIcon" style="display: none;"></i>
+                    </button>
+                </div>
                 <div class="navbar-text text-white me-3">
                     <i class="bi bi-person"></i> {{ current_user.name }}
                 </div>
@@ -75,6 +123,27 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Theme Switcher Script -->
+    <script>
+    document.getElementById('themeSwitcher').addEventListener('click', function() {
+        const html = document.documentElement;
+        const currentTheme = html.getAttribute('data-bs-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+        html.setAttribute('data-bs-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+
+        // Update icons
+        document.getElementById('lightIcon').style.display = newTheme === 'dark' ? 'inline' : 'none';
+        document.getElementById('darkIcon').style.display = newTheme === 'light' ? 'inline' : 'none';
+    });
+
+    // Set initial theme from localStorage
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-bs-theme', savedTheme);
+    document.getElementById('lightIcon').style.display = savedTheme === 'dark' ? 'inline' : 'none';
+    document.getElementById('darkIcon').style.display = savedTheme === 'light' ? 'inline' : 'none';
+    </script>
     <!-- Additional scripts -->
     {% block scripts %}{% endblock %}
 </body>
