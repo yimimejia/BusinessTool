@@ -26,7 +26,13 @@
                         <td>{{ job.id }}</td>
                         <td>{{ job.description }}</td>
                         <td>{{ job.client_name }}</td>
-                        <td>{{ job.phone_number }}</td>
+                        <td>
+                            {% set clean_phone = job.phone_number|replace(' ', '')|replace('-', '')|replace('(', '')|replace(')', '') %}
+                            <a href="https://wa.me/57{{ clean_phone }}?text=Hola, le informamos que su trabajo en FOTO VIDEO MOJICA está listo para recoger." 
+                               target="_blank" class="text-decoration-none">
+                                <i class="bi bi-whatsapp text-success"></i> {{ job.phone_number }}
+                            </a>
+                        </td>
                         <td>
                             {% if job.is_delivered %}
                                 <span class="badge bg-success">Entregado</span>
