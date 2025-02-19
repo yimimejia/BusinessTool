@@ -11,7 +11,7 @@
 <body>
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('main.index') }}">
+            <a class="navbar-brand text-white" href="{{ url_for('main.index') }}">
                 <i class="bi bi-camera"></i> FOTO VIDEO MOJICA
             </a>
             {% if current_user.is_authenticated %}
@@ -21,34 +21,34 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.dashboard') }}">
+                        <a class="nav-link text-white" href="{{ url_for('main.dashboard') }}">
                             <i class="bi bi-speedometer2"></i> Dashboard
                         </a>
                     </li>
                     {% if current_user.is_admin %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.manage_users') }}">
+                        <a class="nav-link text-white" href="{{ url_for('main.manage_users') }}">
                             <i class="bi bi-people"></i> Usuarios
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.new_job') }}">
+                        <a class="nav-link text-white" href="{{ url_for('main.new_job') }}">
                             <i class="bi bi-plus-circle"></i> Nuevo Trabajo
                         </a>
                     </li>
                     {% endif %}
                     {% if current_user.is_staff %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.completed_jobs') }}">
+                        <a class="nav-link text-white" href="{{ url_for('main.completed_jobs') }}">
                             <i class="bi bi-check2-circle"></i> Trabajos Completados
                         </a>
                     </li>
                     {% endif %}
                 </ul>
-                <div class="navbar-text me-3">
+                <div class="navbar-text text-white me-3">
                     <i class="bi bi-person"></i> {{ current_user.name }}
                 </div>
-                <a href="{{ url_for('main.logout') }}" class="btn btn-outline-secondary">
+                <a href="{{ url_for('main.logout') }}" class="btn btn-outline-light">
                     <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
                 </a>
             </div>
