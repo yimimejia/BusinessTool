@@ -218,14 +218,25 @@ def completed_jobs():
 @login_required
 def complete_job(job_id):
     job = Job.query.get_or_404(job_id)
-    verification_code = request.form.get('verification_code')
+    verification_code = request.form.get('admin_password')
 
     if not current_user.is_staff and job.designer_id != current_user.id:
         flash('No tienes permiso para completar este trabajo', 'error')
         return redirect(url_for('main.dashboard'))
 
-    if not job.invoice_number or verification_code != job.invoice_number:
-        flash('Número de factura inválido', 'error')
+    # Verificar si la contraseña coincide con algún admin o supervisor
+    admins = User.query.filter(
+        (User.is_admin == True) | (User.is_supervisor == True)
+    ).all()
+
+    valid_password = False
+    for admin in admins:
+        if admin.check_password(verification_code):
+            valid_password = True
+            break
+
+    if not valid_password:
+        flash('Contraseña incorrecta', 'error')
         return redirect(url_for('main.dashboard'))
 
     # Crear trabajo completado

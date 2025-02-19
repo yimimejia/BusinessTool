@@ -74,6 +74,10 @@
                                 </button>
                                 {% endif %}
                                 {% endif %}
+                                <button type="button" class="btn btn-success btn-sm complete-job"
+                                        data-job-id="{{ job.id }}">
+                                    <i class="bi bi-check-circle"></i> Confirmar
+                                </button>
                             {% endif %}
                         </td>
                     </tr>
@@ -108,12 +112,41 @@
         </div>
     </div>
 </div>
+{% endif %}
+
+<div class="modal fade" id="completeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Trabajo Completado</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Para marcar este trabajo como completado, ingrese su contraseña de administrador:</p>
+                <form id="completeForm" method="POST" action="">
+                    <div class="mb-3">
+                        <input type="password" name="admin_password" class="form-control" 
+                               placeholder="Contraseña de administrador" required>
+                    </div>
+                    <div class="text-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">Confirmar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const deleteButtons = document.querySelectorAll('.delete-job');
     const deleteForm = document.getElementById('deleteForm');
     const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+
+    const completeButtons = document.querySelectorAll('.complete-job');
+    const completeForm = document.getElementById('completeForm');
+    const completeModal = new bootstrap.Modal(document.getElementById('completeModal'));
 
     deleteButtons.forEach(button => {
         button.addEventListener('click', function() {
@@ -122,7 +155,14 @@ document.addEventListener('DOMContentLoaded', function() {
             deleteModal.show();
         });
     });
+
+    completeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const jobId = this.dataset.jobId;
+            completeForm.action = `/jobs/${jobId}/complete`;
+            completeModal.show();
+        });
+    });
 });
 </script>
-{% endif %}
 {% endblock %}
