@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}Trabajos Completados{% endblock %}
@@ -23,7 +22,7 @@
                 </thead>
                 <tbody>
                     {% for job in jobs %}
-                    <tr>
+                    <tr {% if not job.is_called %}class="text-danger"{% endif %}>
                         <td>{{ job.id }}</td>
                         <td>{{ job.description }}</td>
                         <td>{{ job.client_name }}</td>

@@ -4,6 +4,9 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from sqlalchemy.orm import DeclarativeBase
+from apscheduler.schedulers.background import BackgroundScheduler
+from datetime import datetime
+import pytz
 
 # Initialize extensions first
 class Base(DeclarativeBase):
@@ -12,6 +15,7 @@ class Base(DeclarativeBase):
 db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 migrate = Migrate()
+scheduler = BackgroundScheduler()
 
 def create_app():
     app = Flask(__name__)
@@ -38,6 +42,7 @@ def create_app():
             print("Inicializando la base de datos...")
             # Importar los modelos aquí para que Flask-Migrate los detecte
             from app.models import User, Job
+            from app.utils.email_notifications import send_daily_report
 
             # Set up login manager
             @login_manager.user_loader
@@ -63,6 +68,17 @@ def create_app():
                 db.session.commit()
                 print("Usuario administrador creado exitosamente")
 
+            # Configurar el programador de tareas
+            if not scheduler.running:
+                scheduler.add_job(
+                    send_daily_report,
+                    'cron',
+                    hour=8,
+                    minute=0,
+                    timezone=pytz.timezone('America/Bogota')
+                )
+                scheduler.start()
+
             print("Inicialización completada exitosamente")
 
         except Exception as e:
@@ -73,5 +89,5 @@ def create_app():
         return app
 
 def send_daily_notification():
-    # Implementar la lógica para enviar la notificación diaria
-    pass # Replace with actual notification sending logic
+    from app.utils.email_notifications import send_daily_report
+    send_daily_report()
