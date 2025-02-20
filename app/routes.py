@@ -355,7 +355,7 @@ def send_manual_report():
     from app.utils.whatsapp import get_whatsapp_report_url
 
     # Lista de números de WhatsApp a los que enviar el reporte
-    whatsapp_numbers = ['+18099730372', '+18492653436']
+    whatsapp_numbers = ['+18492653436']
 
     # Generar enlaces para cada número
     report_links = []

@@ -10,7 +10,7 @@ def get_pending_jobs_text():
     if not jobs:
         return "No hay trabajos pendientes"
 
-    text = "*TRABAJOS PENDIENTES* 📋\n\n"
+    text = "*TRABAJOS PENDIENTES*\n\n"
     for job in jobs:
         text += f"*Cliente:* {job.client_name}\n"
         text += f"*Factura:* {job.invoice_number}\n"
@@ -27,7 +27,7 @@ def get_whatsapp_report_url(phone_number):
     # Codificar el mensaje para URL
     encoded_message = quote(message)
     # Limpiar el número de teléfono (eliminar +, espacios y guiones)
-    clean_number = ''.join(filter(str.isdigit, phone_number))
+    clean_number = phone_number.replace('+', '').replace('-', '').replace(' ', '')
     return f"https://wa.me/{clean_number}?text={encoded_message}"
 
 def send_whatsapp_report(to_numbers):
