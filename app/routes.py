@@ -1,8 +1,8 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response, send_from_directory, session
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response, send_from_directory, session, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from app import db
-from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, WebAuthnCredential, PendingJob, Message # Added Message model
+from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, WebAuthnCredential, PendingJob, Message
 from datetime import datetime
 import json
 from functools import wraps
@@ -10,8 +10,6 @@ import logging
 from flask_sse import sse
 from sqlalchemy.exc import DataError
 import os
-from openpyxl import Workbook
-import io
 import base64
 import qrcode
 from webauthn import (
@@ -28,6 +26,9 @@ from webauthn.helpers.structs import (
     RegistrationCredential,
     AuthenticationCredential,
 )
+import urllib.parse
+from werkzeug.utils import secure_filename
+import io
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -69,13 +70,110 @@ def log_activity(action, details=None):
         db.session.commit()
 
         # Enviar notificación en tiempo real si es una acción importante
-        if action in ['nuevo_trabajo', 'trabajo_completado', 'trabajo_eliminado', 'trabajo_entregado', 'trabajo_entregado_qr', 'nuevo_trabajo_pendiente', 'trabajo_aprobado', 'trabajo_rechazado', 'enviar_mensaje']: #Added 'enviar_mensaje'
+        if action in ['nuevo_trabajo', 'trabajo_completado', 'trabajo_eliminado', 'trabajo_entregado', 'trabajo_entregado_qr', 'nuevo_trabajo_pendiente', 'trabajo_aprobado', 'trabajo_rechazado', 'enviar_mensaje', 'enviar_fotos', 'fotos_aprobadas']:
             sse.publish({
                 "message": f"{action}: {details}",
                 "type": "info"
             }, type='message')
     except Exception as e:
         logger.error(f"Error al registrar actividad: {str(e)}")
+
+@bp.route('/jobs/<int:job_id>/send-photos', methods=['POST'])
+@login_required
+def send_job_photos(job_id):
+    """Enviar fotos para un trabajo completado"""
+    job = CompletedJob.query.get_or_404(job_id)
+
+    if 'photos' not in request.files:
+        flash('No se seleccionaron fotos', 'error')
+        return redirect(url_for('main.completed_jobs'))
+
+    photos = request.files.getlist('photos')
+    if not photos or photos[0].filename == '':
+        flash('No se seleccionaron fotos', 'error')
+        return redirect(url_for('main.completed_jobs'))
+
+    # Crear directorio para las fotos si no existe
+    upload_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], str(job_id))
+    os.makedirs(upload_folder, exist_ok=True)
+
+    # Guardar las fotos
+    photo_paths = []
+    for photo in photos:
+        if photo and photo.filename:
+            filename = secure_filename(photo.filename)
+            # Agregar timestamp para evitar duplicados
+            filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}"
+            photo_path = os.path.join('uploads', str(job_id), filename)
+            full_path = os.path.join(current_app.static_folder, photo_path)
+            photo.save(full_path)
+            photo_paths.append(photo_path)
+
+    # Crear mensaje con las fotos adjuntas
+    message = Message(
+        sender_id=current_user.id,
+        recipient_id=User.query.filter_by(is_admin=True).first().id,  # Enviar al primer admin
+        content=f"Fotos para el trabajo #{job.id} - Cliente: {job.client_name}\n" +
+                request.form.get('message', ''),
+        photos=json.dumps(photo_paths)
+    )
+
+    db.session.add(message)
+    db.session.commit()
+
+    log_activity(
+        'enviar_fotos',
+        f"Fotos enviadas para aprobación - Trabajo #{job.id}, Cliente: {job.client_name}"
+    )
+
+    flash('Fotos enviadas para aprobación', 'success')
+    return redirect(url_for('main.completed_jobs'))
+
+@bp.route('/messages/<int:message_id>/approve-photos', methods=['POST'])
+@login_required
+@admin_required
+def approve_photos(message_id):
+    """Aprobar y enviar fotos por WhatsApp"""
+    message = Message.query.get_or_404(message_id)
+
+    if not message.photos:
+        flash('Este mensaje no contiene fotos', 'error')
+        return redirect(url_for('main.messages'))
+
+    # Extraer el ID del trabajo desde el contenido del mensaje
+    import re
+    job_id_match = re.search(r'trabajo #(\d+)', message.content)
+    if not job_id_match:
+        flash('No se pudo identificar el trabajo asociado', 'error')
+        return redirect(url_for('main.messages'))
+
+    job_id = int(job_id_match.group(1))
+    job = CompletedJob.query.get_or_404(job_id)
+
+    # Preparar enlace de WhatsApp con las fotos
+    clean_phone = job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+    photos = json.loads(message.photos)
+    photo_urls = [
+        f"{request.url_root.rstrip('/')}/static/{photo}"
+        for photo in photos
+    ]
+
+    # Crear mensaje de WhatsApp con los enlaces de las fotos
+    whatsapp_message = f"Hola {job.client_name}, aquí están las fotos de su trabajo:\n\n"
+    whatsapp_message += "\n".join(photo_urls)
+
+    # Marcar mensaje como aprobado
+    message.is_approved = True
+    db.session.commit()
+
+    log_activity(
+        'fotos_aprobadas',
+        f"Fotos aprobadas y enviadas - Trabajo #{job.id}, Cliente: {job.client_name}"
+    )
+
+    # Redirigir a WhatsApp con el mensaje
+    whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(whatsapp_message)}"
+    return redirect(whatsapp_url)
 
 @bp.route('/stream')
 def stream():
@@ -658,6 +756,7 @@ def export_jobs(format):
 
     if format == 'excel':
         # Crear un nuevo libro de Excel
+        from openpyxl import Workbook
         wb = Workbook()
         ws = wb.active
         ws.title = "Trabajos"
@@ -842,10 +941,11 @@ def webauthn_register_complete():
             require_user_verification=False  # Más permisivo para móviles
         )
 
+        # Guardar credencial
         # Guardar credencial en la base de datos
         new_credential = WebAuthnCredential(
             user_id=current_user.id,
-            credential_id=base64encode(verification.credential_id).decode(),
+            credential_id=base64.b64encode(verification.credential_id).decode(),
             public_key=verification.credential_public_key.hex(),
             sign_count=verification.sign_count,
             name=device_name

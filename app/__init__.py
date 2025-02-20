@@ -30,6 +30,11 @@ def create_app():
     app.secret_key = os.environ.get("SESSION_SECRET", "dev-key-temporary")
     app.config["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379")
 
+    # Create uploads directory
+    upload_folder = os.path.join(app.static_folder, 'uploads')
+    os.makedirs(upload_folder, exist_ok=True)
+    app.config['UPLOAD_FOLDER'] = upload_folder
+
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
@@ -52,12 +57,12 @@ def create_app():
         # Create tables
         db.create_all()
 
-        #Set up login manager (moved from inside try block)
+        #Set up login manager
         @login_manager.user_loader
         def load_user(user_id):
             return models.User.query.get(int(user_id))
 
-        #Adding admin user creation (moved from inside try block)
+        #Adding admin user creation
         admin_user = models.User.query.filter_by(username='admin').first()
         if not admin_user:
             print("Creando usuario administrador inicial...")
@@ -71,7 +76,6 @@ def create_app():
             db.session.add(admin)
             db.session.commit()
             print("Usuario administrador creado exitosamente")
-
 
         return app
 

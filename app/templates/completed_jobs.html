@@ -43,19 +43,76 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if not job.is_called %}
-                            <form method="POST" action="{{ url_for('main.mark_called', job_id=job.id) }}" class="d-inline">
-                                <button type="submit" class="btn btn-primary btn-sm">
-                                    <i class="bi bi-telephone"></i> Confirmar Llamada
+                            <div class="btn-group">
+                                {% if not job.is_called %}
+                                <form method="POST" action="{{ url_for('main.mark_called', job_id=job.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-primary btn-sm">
+                                        <i class="bi bi-telephone"></i> Confirmar Llamada
+                                    </button>
+                                </form>
+                                {% elif not job.is_delivered %}
+                                <form method="POST" action="{{ url_for('main.mark_delivered', job_id=job.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-success btn-sm">
+                                        <i class="bi bi-check-circle"></i> Confirmar Entrega
+                                    </button>
+                                </form>
+                                {% endif %}
+
+                                <!-- Botón para enviar fotos -->
+                                <button type="button" class="btn btn-info btn-sm" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#photoModal{{ job.id }}">
+                                    <i class="bi bi-camera"></i> Enviar Fotos
                                 </button>
-                            </form>
-                            {% elif not job.is_delivered %}
-                            <form method="POST" action="{{ url_for('main.mark_delivered', job_id=job.id) }}" class="d-inline">
-                                <button type="submit" class="btn btn-success btn-sm">
-                                    <i class="bi bi-check-circle"></i> Confirmar Entrega
-                                </button>
-                            </form>
-                            {% endif %}
+                            </div>
+
+                            <!-- Modal para subir fotos -->
+                            <div class="modal fade" id="photoModal{{ job.id }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Enviar Fotos a {{ job.client_name }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form action="{{ url_for('main.send_job_photos', job_id=job.id) }}" 
+                                              method="POST" 
+                                              enctype="multipart/form-data">
+                                            <div class="modal-body">
+                                                <div class="mb-3">
+                                                    <label for="photos{{ job.id }}" class="form-label">
+                                                        Seleccionar Fotos
+                                                    </label>
+                                                    <input type="file" 
+                                                           class="form-control" 
+                                                           id="photos{{ job.id }}" 
+                                                           name="photos" 
+                                                           multiple 
+                                                           accept="image/*" 
+                                                           required>
+                                                    <div id="preview{{ job.id }}" class="mt-2 d-flex flex-wrap gap-2"></div>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="message{{ job.id }}" class="form-label">
+                                                        Mensaje Adicional
+                                                    </label>
+                                                    <textarea class="form-control" 
+                                                              id="message{{ job.id }}" 
+                                                              name="message" 
+                                                              rows="3"></textarea>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                                    Cancelar
+                                                </button>
+                                                <button type="submit" class="btn btn-primary">
+                                                    <i class="bi bi-send"></i> Enviar para Aprobación
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -64,4 +121,33 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Manejar la vista previa de fotos para cada modal
+    {% for job in jobs %}
+    const photoInput{{ job.id }} = document.getElementById('photos{{ job.id }}');
+    const previewDiv{{ job.id }} = document.getElementById('preview{{ job.id }}');
+
+    if (photoInput{{ job.id }}) {
+        photoInput{{ job.id }}.addEventListener('change', function() {
+            previewDiv{{ job.id }}.innerHTML = '';
+            for (let file of this.files) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.classList.add('img-thumbnail');
+                    img.style.maxWidth = '100px';
+                    previewDiv{{ job.id }}.appendChild(img);
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+    {% endfor %}
+});
+</script>
 {% endblock %}
