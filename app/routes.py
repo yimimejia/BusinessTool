@@ -7,8 +7,6 @@ from datetime import datetime
 import json
 from functools import wraps
 import logging
-from flask_sse import sse
-from sqlalchemy.exc import DataError
 import os
 import base64
 import qrcode
@@ -29,6 +27,8 @@ from webauthn.helpers.structs import (
 import urllib.parse
 from werkzeug.utils import secure_filename
 import io
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
+import time
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -78,56 +78,104 @@ def log_activity(action, details=None):
     except Exception as e:
         logger.error(f"Error al registrar actividad: {str(e)}")
 
+def retry_on_db_error(max_retries=3, delay=1):
+    """Decorator para reintentar operaciones de base de datos"""
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            retries = 0
+            while retries < max_retries:
+                try:
+                    return f(*args, **kwargs)
+                except OperationalError as e:
+                    retries += 1
+                    if retries == max_retries:
+                        logging.error(f"Max retries reached for database operation: {str(e)}")
+                        raise
+                    logging.warning(f"Database operation failed, retrying ({retries}/{max_retries})")
+                    time.sleep(delay)
+                    db.session.rollback()
+                except SQLAlchemyError as e:
+                    retries += 1
+                    if retries == max_retries:
+                        logging.error(f"Max retries reached for database operation: {str(e)}")
+                        raise
+                    logging.warning(f"Database operation failed, retrying ({retries}/{max_retries})")
+                    time.sleep(delay)
+                    db.session.rollback()
+
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
+
 @bp.route('/jobs/<int:job_id>/send-photos', methods=['POST'])
 @login_required
+@retry_on_db_error()
 def send_job_photos(job_id):
     """Enviar fotos para un trabajo completado"""
-    job = CompletedJob.query.get_or_404(job_id)
+    try:
+        job = CompletedJob.query.get_or_404(job_id)
 
-    if 'photos' not in request.files:
-        flash('No se seleccionaron fotos', 'error')
+        if 'photos' not in request.files:
+            flash('No se seleccionaron fotos', 'error')
+            return redirect(url_for('main.completed_jobs'))
+
+        photos = request.files.getlist('photos')
+        if not photos or photos[0].filename == '':
+            flash('No se seleccionaron fotos', 'error')
+            return redirect(url_for('main.completed_jobs'))
+
+        # Crear directorio para las fotos si no existe
+        upload_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], str(job_id))
+        os.makedirs(upload_folder, exist_ok=True)
+
+        # Guardar las fotos
+        photo_paths = []
+        for photo in photos:
+            if photo and photo.filename:
+                filename = secure_filename(photo.filename)
+                filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}"
+                photo_path = os.path.join('uploads', str(job_id), filename)
+                full_path = os.path.join(current_app.static_folder, photo_path)
+                photo.save(full_path)
+                photo_paths.append(photo_path)
+
+        # Buscar un admin para enviar el mensaje
+        admin = User.query.filter_by(is_admin=True).first()
+        if not admin:
+            flash('No se encontró un administrador para revisar las fotos', 'error')
+            return redirect(url_for('main.completed_jobs'))
+
+        # Crear mensaje con las fotos adjuntas
+        message = Message(
+            sender_id=current_user.id,
+            recipient_id=admin.id,
+            content=f"Fotos para el trabajo #{job.id} - Cliente: {job.client_name}\n" +
+                    request.form.get('message', ''),
+            photos=json.dumps(photo_paths)
+        )
+
+        db.session.add(message)
+        db.session.commit()
+
+        log_activity(
+            'enviar_fotos',
+            f"Fotos enviadas para aprobación - Trabajo #{job.id}, Cliente: {job.client_name}"
+        )
+
+        flash('Fotos enviadas para aprobación', 'success')
         return redirect(url_for('main.completed_jobs'))
 
-    photos = request.files.getlist('photos')
-    if not photos or photos[0].filename == '':
-        flash('No se seleccionaron fotos', 'error')
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        logging.error(f"Database error in send_job_photos: {str(e)}")
+        flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
+        return redirect(url_for('main.completed_jobs'))
+    except Exception as e:
+        logging.error(f"Unexpected error in send_job_photos: {str(e)}")
+        flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.completed_jobs'))
 
-    # Crear directorio para las fotos si no existe
-    upload_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], str(job_id))
-    os.makedirs(upload_folder, exist_ok=True)
-
-    # Guardar las fotos
-    photo_paths = []
-    for photo in photos:
-        if photo and photo.filename:
-            filename = secure_filename(photo.filename)
-            # Agregar timestamp para evitar duplicados
-            filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}"
-            photo_path = os.path.join('uploads', str(job_id), filename)
-            full_path = os.path.join(current_app.static_folder, photo_path)
-            photo.save(full_path)
-            photo_paths.append(photo_path)
-
-    # Crear mensaje con las fotos adjuntas
-    message = Message(
-        sender_id=current_user.id,
-        recipient_id=User.query.filter_by(is_admin=True).first().id,  # Enviar al primer admin
-        content=f"Fotos para el trabajo #{job.id} - Cliente: {job.client_name}\n" +
-                request.form.get('message', ''),
-        photos=json.dumps(photo_paths)
-    )
-
-    db.session.add(message)
-    db.session.commit()
-
-    log_activity(
-        'enviar_fotos',
-        f"Fotos enviadas para aprobación - Trabajo #{job.id}, Cliente: {job.client_name}"
-    )
-
-    flash('Fotos enviadas para aprobación', 'success')
-    return redirect(url_for('main.completed_jobs'))
 
 @bp.route('/messages/<int:message_id>/approve-photos', methods=['POST'])
 @login_required
