@@ -91,8 +91,16 @@
     </style>
 </head>
 <body>
+    <div class="action-buttons" style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+        <a href="{{ url_for('main.generate_job_pdf', job_id=job.id, download=1) }}" class="btn btn-success me-2">
+            <i class="bi bi-download"></i> Guardar PDF
+        </a>
+        <a href="https://wa.me/{{ job.phone_number.replace('+', '').replace('-', '') }}?text=Aquí está su factura digital:" class="btn btn-primary" target="_blank">
+            <i class="bi bi-whatsapp"></i> Enviar WhatsApp
+        </a>
+    </div>
     <!-- Botón de regresar -->
-    <button onclick="window.history.back()" class="btn btn-primary back-button">
+    <button onclick="window.history.back()" class="btn btn-secondary back-button">
         <i class="bi bi-arrow-left"></i> Regresar
     </button>
 

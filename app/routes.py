@@ -1247,7 +1247,6 @@ def pending_jobs():
 
 @bp.route('/jobs/pending/<int:job_id>/approve', methods=['POST'])
 @login_required
-@staff_required
 def approve_pending_job(job_id):
     """Aprobar un trabajo pendiente"""
     try:
