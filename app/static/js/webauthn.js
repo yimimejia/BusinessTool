@@ -11,16 +11,25 @@ async function isPlatformAuthenticatorAvailable() {
     }
 
     try {
-        return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        // En iOS, esto puede fallar pero aún así el dispositivo puede soportar Face ID/Touch ID
+        const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+
+        // En iOS, podríamos tener soporte incluso si la verificación falla
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        return available || isIOS;
     } catch (error) {
         console.error('Error verificando autenticador:', error);
-        // En iOS, podemos asumir que está disponible si el navegador soporta WebAuthn
-        return isWebAuthnSupported();
+        // En iOS, asumimos que está disponible si el navegador soporta WebAuthn
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        return isIOS && isWebAuthnSupported();
     }
 }
 
-// Función para convertir ArrayBuffer a Base64
+// Función para convertir ArrayBuffer a Base64 de manera segura
 function arrayBufferToBase64(buffer) {
+    if (!buffer || !(buffer instanceof ArrayBuffer)) {
+        throw new Error("Buffer inválido");
+    }
     const bytes = new Uint8Array(buffer);
     let binary = '';
     for (let i = 0; i < bytes.byteLength; i++) {
@@ -29,8 +38,11 @@ function arrayBufferToBase64(buffer) {
     return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
-// Función para convertir Base64 a ArrayBuffer
+// Función para convertir Base64 a ArrayBuffer de manera segura
 function base64ToArrayBuffer(base64) {
+    if (!base64 || typeof base64 !== 'string') {
+        throw new Error("Cadena base64 inválida");
+    }
     const binary = atob(base64.replace(/-/g, '+').replace(/_/g, '/'));
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
@@ -39,20 +51,27 @@ function base64ToArrayBuffer(base64) {
     return bytes.buffer;
 }
 
-// Función para mostrar mensajes de error amigables
+// Función para mostrar mensajes de error amigables y descriptivos
 function showUserFriendlyError(error) {
-    let message = 'Error desconocido';
+    console.error('Error detallado:', error);
 
-    if (error.message.includes('The operation either timed out')) {
+    let message = 'Error desconocido';
+    const errorMsg = error.message.toLowerCase();
+
+    if (errorMsg.includes('operation either timed out') || errorMsg.includes('timeout')) {
         message = 'La operación ha expirado. Por favor, intente nuevamente y responda más rápido a la solicitud biométrica.';
-    } else if (error.message.includes('did not match the expected pattern')) {
-        message = 'Error temporal. Por favor, intente nuevamente.';
-    } else if (error.message.includes('The operation was cancelled')) {
-        message = 'Operación cancelada por el usuario.';
-    } else if (error.message.includes('not supported')) {
-        message = 'Su dispositivo no tiene un autenticador biométrico compatible. Por favor, use contraseña.';
+    } else if (errorMsg.includes('pattern')) {
+        message = 'El dispositivo no pudo procesar la solicitud. Por favor, asegúrese de que Face ID/Touch ID esté configurado en su dispositivo.';
+    } else if (errorMsg.includes('cancelled')) {
+        message = 'Operación cancelada. Por favor, complete la verificación biométrica cuando se le solicite.';
+    } else if (errorMsg.includes('not supported')) {
+        message = 'Su dispositivo no tiene Face ID o Touch ID configurado. Por favor, configure la autenticación biométrica en su dispositivo.';
+    } else if (errorMsg.includes('already registered')) {
+        message = 'Este dispositivo ya está registrado. Por favor, use otro dispositivo o elimine el registro existente.';
+    } else if (errorMsg.includes('user verification')) {
+        message = 'La verificación biométrica falló. Por favor, asegúrese de usar el mismo dedo o rostro registrado.';
     } else {
-        message = 'Error de autenticación biométrica. Por favor, intente nuevamente.';
+        message = 'Error de autenticación biométrica. Por favor, intente nuevamente o contacte a soporte si el problema persiste.';
     }
 
     alert(message);
@@ -61,9 +80,10 @@ function showUserFriendlyError(error) {
 // Función para registrar credenciales biométricas
 async function registerBiometric(deviceName) {
     try {
+        console.log('Iniciando registro biométrico...');
         const available = await isPlatformAuthenticatorAvailable();
         if (!available) {
-            throw new Error('Su dispositivo no tiene un autenticador biométrico compatible');
+            throw new Error('Su dispositivo no tiene Face ID o Touch ID disponible');
         }
 
         // Obtener opciones de creación del servidor
@@ -82,15 +102,19 @@ async function registerBiometric(deviceName) {
         }
 
         const options = await response.json();
+        console.log('Opciones de registro recibidas:', options);
 
         // Convertir las opciones del formato base64 a ArrayBuffer
         options.publicKey.challenge = base64ToArrayBuffer(options.publicKey.challenge);
         options.publicKey.user.id = base64ToArrayBuffer(options.publicKey.user.id);
 
+        console.log('Solicitando credenciales al navegador...');
         // Crear credenciales
         const credential = await navigator.credentials.create({
             publicKey: options.publicKey
         });
+
+        console.log('Credenciales creadas exitosamente');
 
         // Preparar datos para enviar al servidor
         const credentialResponse = {
@@ -118,6 +142,7 @@ async function registerBiometric(deviceName) {
             throw new Error(error.message || 'Error al completar registro biométrico');
         }
 
+        console.log('Registro biométrico completado exitosamente');
         return await finalResponse.json();
 
     } catch (error) {
@@ -130,6 +155,7 @@ async function registerBiometric(deviceName) {
 // Función para autenticar con biometría
 async function authenticateBiometric(username) {
     try {
+        console.log('Iniciando autenticación biométrica...');
         if (!isWebAuthnSupported()) {
             throw new Error('WebAuthn no es compatible con este navegador');
         }
@@ -150,6 +176,7 @@ async function authenticateBiometric(username) {
         }
 
         const options = await response.json();
+        console.log('Opciones de autenticación recibidas:', options);
 
         // Convertir las opciones del formato base64 a ArrayBuffer
         options.publicKey.challenge = base64ToArrayBuffer(options.publicKey.challenge);
@@ -160,10 +187,13 @@ async function authenticateBiometric(username) {
             }));
         }
 
+        console.log('Solicitando verificación biométrica...');
         // Obtener credenciales
         const assertion = await navigator.credentials.get({
             publicKey: options.publicKey
         });
+
+        console.log('Verificación biométrica completada');
 
         // Preparar respuesta para el servidor
         const assertionResponse = {
@@ -193,6 +223,7 @@ async function authenticateBiometric(username) {
             throw new Error(error.message || 'Error en la autenticación biométrica');
         }
 
+        console.log('Autenticación biométrica exitosa');
         window.location.href = '/dashboard';
         return await finalResponse.json();
 
@@ -206,6 +237,7 @@ async function authenticateBiometric(username) {
 // Función para configurar biometría desde la interfaz de usuario
 async function setupBiometricAuth() {
     try {
+        console.log('Iniciando configuración biométrica...');
         const deviceName = prompt('Por favor, ingrese un nombre para este dispositivo:');
         if (!deviceName) {
             throw new Error('Se requiere un nombre para el dispositivo');
@@ -223,6 +255,7 @@ async function setupBiometricAuth() {
 // Función para iniciar sesión con biometría
 async function loginWithBiometric(username) {
     try {
+        console.log('Iniciando login biométrico...');
         await authenticateBiometric(username);
     } catch (error) {
         showUserFriendlyError(error);
@@ -236,10 +269,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const usernameInput = document.getElementById('username');
 
     if (biometricSetupButton) {
+        console.log('Botón de configuración biométrica encontrado');
         biometricSetupButton.addEventListener('click', setupBiometricAuth);
     }
 
     if (biometricLoginButton) {
+        console.log('Botón de login biométrico encontrado');
         biometricLoginButton.addEventListener('click', () => {
             const username = usernameInput.value;
             if (!username) {
@@ -256,6 +291,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const username = usernameInput.value;
             if (username) {
                 try {
+                    console.log('Verificando credenciales biométricas para:', username);
                     const response = await fetch('/webauthn/status', {
                         method: 'POST',
                         headers: {
@@ -266,16 +302,36 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const data = await response.json();
 
                     if (data.enabled) {
+                        console.log('Credenciales biométricas encontradas');
                         biometricLoginButton.style.display = 'block';
-                        biometricSetupButton.style.display = 'none';
+                        if (biometricSetupButton) {
+                            biometricSetupButton.style.display = 'none';
+                        }
                     } else {
+                        console.log('No se encontraron credenciales biométricas');
                         biometricLoginButton.style.display = 'none';
-                        biometricSetupButton.style.display = 'block';
+                        if (biometricSetupButton) {
+                            biometricSetupButton.style.display = 'block';
+                        }
                     }
                 } catch (error) {
                     console.error('Error verificando estado biométrico:', error);
+                    showUserFriendlyError(error);
                 }
             }
         });
+    }
+
+    // Verificar soporte inicial de WebAuthn
+    try {
+        const supported = await isPlatformAuthenticatorAvailable();
+        console.log('Soporte de autenticación biométrica:', supported ? 'Disponible' : 'No disponible');
+
+        if (!supported) {
+            if (biometricSetupButton) biometricSetupButton.style.display = 'none';
+            if (biometricLoginButton) biometricLoginButton.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error verificando soporte de WebAuthn:', error);
     }
 });
