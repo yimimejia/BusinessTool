@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Mensajes{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Nuevo Mensaje</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('main.send_message') }}">
+                        <div class="mb-3">
+                            <label for="recipient_id" class="form-label">Destinatario</label>
+                            <select class="form-select" id="recipient_id" name="recipient_id" required>
+                                <option value="" selected disabled>Seleccionar usuario...</option>
+                                {% for user in users %}
+                                    {% if user.id != current_user.id %}
+                                    <option value="{{ user.id }}">{{ user.name }} ({{ user.username }})</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="content" class="form-label">Mensaje</label>
+                            <textarea class="form-control" id="content" name="content" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send"></i> Enviar
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Mensajes</h5>
+                </div>
+                <div class="card-body">
+                    <div class="messages-container">
+                        {% if messages %}
+                            {% for message in messages %}
+                            <div class="message-card mb-3 {% if message.sender_id == current_user.id %}sent{% else %}received{% endif %}
+                                         {% if not message.is_read and message.recipient_id == current_user.id %}unread{% endif %}"
+                                 data-message-id="{{ message.id }}">
+                                <div class="message-header">
+                                    <strong>
+                                        {% if message.sender_id == current_user.id %}
+                                            Enviado a {{ message.recipient.name }}
+                                        {% else %}
+                                            De: {{ message.sender.name }}
+                                        {% endif %}
+                                    </strong>
+                                    <small class="text-muted">
+                                        {{ message.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                    </small>
+                                </div>
+                                <div class="message-content">
+                                    {{ message.content }}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="alert alert-info">No hay mensajes.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Marcar mensajes como leídos al abrirlos
+    const unreadMessages = document.querySelectorAll('.message-card.unread');
+    unreadMessages.forEach(function(message) {
+        const messageId = message.dataset.messageId;
+        fetch(`/messages/${messageId}/read`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                message.classList.remove('unread');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

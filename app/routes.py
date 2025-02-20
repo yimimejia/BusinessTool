@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from app import db
-from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, WebAuthnCredential, PendingJob # Assumed PendingJob model exists
+from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, WebAuthnCredential, PendingJob, Message # Added Message model
 from datetime import datetime
 import json
 from functools import wraps
@@ -69,7 +69,7 @@ def log_activity(action, details=None):
         db.session.commit()
 
         # Enviar notificación en tiempo real si es una acción importante
-        if action in ['nuevo_trabajo', 'trabajo_completado', 'trabajo_eliminado', 'trabajo_entregado', 'trabajo_entregado_qr', 'nuevo_trabajo_pendiente', 'trabajo_aprobado', 'trabajo_rechazado']:
+        if action in ['nuevo_trabajo', 'trabajo_completado', 'trabajo_eliminado', 'trabajo_entregado', 'trabajo_entregado_qr', 'nuevo_trabajo_pendiente', 'trabajo_aprobado', 'trabajo_rechazado', 'enviar_mensaje']: #Added 'enviar_mensaje'
             sse.publish({
                 "message": f"{action}: {details}",
                 "type": "info"
@@ -98,7 +98,11 @@ def login():
 
         user = User.query.filter_by(username=username).first()
         if user and user.check_password(password):
-            login_user(user)
+            # Si es diseñador, establecer sesión permanente
+            if not user.is_admin and not user.is_supervisor:
+                user.permanent_session = True
+                session.permanent = True
+            login_user(user, remember=user.permanent_session)
             log_activity('login', f'Inicio de sesión exitoso - Usuario: {user.username}')
             flash('¡Bienvenido!', 'success')
             return redirect(url_for('main.dashboard'))
@@ -106,6 +110,67 @@ def login():
         flash('Usuario o contraseña incorrectos', 'error')
         log_activity('login_failed', f'Intento de inicio de sesión fallido - Usuario: {username}')
     return render_template('login.html')
+
+# Nuevas rutas para mensajería
+
+@bp.route('/messages')
+@login_required
+def messages():
+    """Ver mensajes"""
+    messages = current_user.get_messages()
+    return render_template('messages.html', messages=messages)
+
+@bp.route('/messages/send', methods=['POST'])
+@login_required
+def send_message():
+    """Enviar un mensaje"""
+    recipient_id = request.form.get('recipient_id')
+    content = request.form.get('content')
+
+    if not recipient_id or not content:
+        flash('Por favor complete todos los campos', 'error')
+        return redirect(url_for('main.messages'))
+
+    recipient = User.query.get(recipient_id)
+    if not recipient:
+        flash('Usuario no encontrado', 'error')
+        return redirect(url_for('main.messages'))
+
+    message = Message(
+        sender_id=current_user.id,
+        recipient_id=recipient_id,
+        content=content
+    )
+    db.session.add(message)
+    db.session.commit()
+
+    log_activity(
+        'enviar_mensaje',
+        f"Mensaje enviado a {recipient.username}"
+    )
+
+    flash('Mensaje enviado exitosamente', 'success')
+    return redirect(url_for('main.messages'))
+
+@bp.route('/messages/<int:message_id>/read', methods=['POST'])
+@login_required
+def mark_message_read(message_id):
+    """Marcar un mensaje como leído"""
+    message = Message.query.get_or_404(message_id)
+    if message.recipient_id != current_user.id:
+        flash('No tienes permiso para acceder a este mensaje', 'error')
+        return redirect(url_for('main.messages'))
+
+    message.is_read = True
+    db.session.commit()
+    return jsonify({'status': 'success'})
+
+@bp.route('/messages/unread')
+@login_required
+def unread_messages_count():
+    """Obtener el número de mensajes no leídos"""
+    count = current_user.get_unread_messages_count()
+    return jsonify({'count': count})
 
 @bp.route('/logout')
 @login_required
@@ -780,7 +845,7 @@ def webauthn_register_complete():
         # Guardar credencial en la base de datos
         new_credential = WebAuthnCredential(
             user_id=current_user.id,
-            credential_id=base64.b64encode(verification.credential_id).decode(),
+            credential_id=base64encode(verification.credential_id).decode(),
             public_key=verification.credential_public_key.hex(),
             sign_count=verification.sign_count,
             name=device_name
@@ -857,7 +922,7 @@ def webauthn_authenticate_complete():
 
         credential = AuthenticationCredential.from_json(request.json)
 
-        # Buscar lacredencial en la base de datos
+        # Buscar la credencial en la base de datos
         db_credential = WebAuthnCredential.query.filter_by(
             credential_id=base64.b64encode(credential.raw_id).decode()
         ).first()
@@ -1094,3 +1159,91 @@ def reject_pending_job(job_id):
         flash(f'Error al rechazar el trabajo: {str(e)}', 'error')
 
     return redirect(url_for('main.pending_jobs'))
+
+@bp.route('/jobs/public/<qr_code>')
+def verify_job_qr(qr_code):
+    """Ruta pública para verificar un trabajo mediante QR"""
+    job = Job.query.filter_by(qr_code=qr_code).first()
+    completed_job = CompletedJob.query.filter_by(qr_code=qr_code).first()
+    pending_job = PendingJob.query.filter_by(qr_code=qr_code).first()
+
+    if not any([job, completed_job, pending_job]):
+        flash('Código QR no válido', 'error')
+        return redirect(url_for('main.login'))
+
+    # Determinar qué tipo de trabajo es y procesarlo
+    if job:
+        delivered_job = create_delivered_job_from_job(job)
+        db.session.delete(job)
+    elif completed_job:
+        delivered_job = create_delivered_job_from_completed(completed_job)
+        db.session.delete(completed_job)
+    elif pending_job:
+        delivered_job = create_delivered_job_from_pending(pending_job)
+        db.session.delete(pending_job)
+
+    db.session.add(delivered_job)
+    db.session.commit()
+
+    log_activity(
+        'trabajo_entregado_qr',
+        f"Trabajo entregado por escaneo QR: {delivered_job.client_name} (Factura: {delivered_job.invoice_number})"
+    )
+
+    flash('¡Trabajo marcado como entregado exitosamente!', 'success')
+    return render_template('job_delivered.html', job=delivered_job)
+
+def create_delivered_job_from_job(job):
+    """Crea un trabajo entregado a partir de un trabajo regular"""
+    return DeliveredJob(
+        original_job_id=job.id,
+        description=job.description,
+        designer_id=job.designer_id,
+        registered_by_id=job.registered_by_id,
+        invoice_number=job.invoice_number,
+        client_name=job.client_name,
+        phone_number=job.phone_number,
+        created_at=job.created_at,
+        completed_at=datetime.utcnow(),
+        called_at=datetime.utcnow(),
+        delivered_at=datetime.utcnow(),
+        qr_code=job.qr_code,
+        tags=job.tags
+    )
+
+def create_delivered_job_from_completed(completed_job):
+    """Crea un trabajo entregado a partir de un trabajo completado"""
+    return DeliveredJob(
+        original_job_id=completed_job.original_job_id,
+        completed_job_id=completed_job.id,
+        description=completed_job.description,
+        designer_id=completed_job.designer_id,
+        registered_by_id=completed_job.registered_by_id,
+        invoice_number=completed_job.invoice_number,
+        client_name=completed_job.client_name,
+        phone_number=completed_job.phone_number,
+        created_at=completed_job.created_at,
+        completed_at=completed_job.completed_at,
+        called_at=completed_job.called_at if completed_job.called_at else datetime.utcnow(),
+        delivered_at=datetime.utcnow(),
+        qr_code=completed_job.qr_code,
+        tags=completed_job.tags
+    )
+
+def create_delivered_job_from_pending(pending_job):
+    """Crea un trabajo entregado a partir de un trabajo pendiente"""
+    return DeliveredJob(
+        original_job_id=pending_job.id,
+        description=pending_job.description,
+        designer_id=pending_job.designer_id,
+        registered_by_id=pending_job.registered_by_id,
+        invoice_number=pending_job.invoice_number,
+        client_name=pending_job.client_name,
+        phone_number=pending_job.phone_number,
+        created_at=pending_job.created_at,
+        completed_at=datetime.utcnow(),
+        called_at=datetime.utcnow(),
+        delivered_at=datetime.utcnow(),
+        qr_code=pending_job.qr_code,
+        tags=pending_job.tags
+    )

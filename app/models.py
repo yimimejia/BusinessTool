@@ -8,6 +8,19 @@ import base64
 import json
 import random
 
+class Message(db.Model):
+    __tablename__ = 'messages'
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    recipient_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
+    recipient = db.relationship('User', foreign_keys=[recipient_id], backref='received_messages')
+
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -19,17 +32,25 @@ class User(UserMixin, db.Model):
     can_edit = db.Column(db.Boolean, default=True)
     is_service = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    remember_token = db.Column(db.String(100))  # Para "mantener sesión iniciada"
+    remember_token = db.Column(db.String(100))
+    permanent_session = db.Column(db.Boolean, default=False)  # Nueva columna
 
-    # Relationships with explicit foreign keys
-    assigned_jobs = db.relationship('Job', 
-                                  foreign_keys='Job.designer_id',
-                                  backref='designer')
-    registered_jobs = db.relationship('Job', 
-                                    foreign_keys='Job.registered_by_id',
-                                    backref='registered_by')
+    # Relationships
+    assigned_jobs = db.relationship('Job', foreign_keys='Job.designer_id', backref='designer')
+    registered_jobs = db.relationship('Job', foreign_keys='Job.registered_by_id', backref='registered_by')
     activities = db.relationship('ActivityLog', backref='user', lazy='dynamic')
     notifications = db.relationship('Notification', backref='user', lazy='dynamic')
+    webauthn_credentials = db.relationship('WebAuthnCredential', backref='user')
+
+    def get_unread_messages_count(self):
+        """Obtiene el número de mensajes no leídos"""
+        return Message.query.filter_by(recipient_id=self.id, is_read=False).count()
+
+    def get_messages(self):
+        """Obtiene todos los mensajes del usuario"""
+        return Message.query.filter(
+            (Message.recipient_id == self.id) | (Message.sender_id == self.id)
+        ).order_by(Message.created_at.desc()).all()
 
     def set_password(self, password):
         if len(password) < 8:
@@ -58,6 +79,7 @@ class User(UserMixin, db.Model):
     def get_pending_jobs(self):
         """Obtiene los trabajos pendientes del diseñador"""
         return Job.query.filter_by(designer_id=self.id, is_completed=False).all()
+
 
 class Notification(db.Model):
     __tablename__ = 'notifications'
@@ -198,11 +220,19 @@ class CompletedJob(db.Model):
     completed_at = db.Column(db.DateTime, default=datetime.utcnow)
     called_at = db.Column(db.DateTime)
     is_called = db.Column(db.Boolean, default=False)
-    tags = db.Column(db.String(200))  # Comma-separated tags
+    tags = db.Column(db.String(200))
+    qr_code = db.Column(db.String(100), unique=True)  # Nuevo campo
 
     # Relationships
     designer = db.relationship('User', foreign_keys=[designer_id])
     registered_by = db.relationship('User', foreign_keys=[registered_by_id])
+
+    def generate_qr_code(self):
+        """Genera un identificador único para el código QR"""
+        if not self.qr_code:
+            unique_id = f"{int(datetime.utcnow().timestamp())}-{self.id}-{random.randint(1000, 9999)}"
+            self.qr_code = base64.urlsafe_b64encode(unique_id.encode()).decode()
+        return self.qr_code
 
 class DeliveredJob(db.Model):
     __tablename__ = 'delivered_jobs'
@@ -219,12 +249,13 @@ class DeliveredJob(db.Model):
     completed_at = db.Column(db.DateTime)
     called_at = db.Column(db.DateTime)
     delivered_at = db.Column(db.DateTime, default=datetime.utcnow)
-    tags = db.Column(db.String(200))  # Comma-separated tags
+    tags = db.Column(db.String(200))
+    qr_code = db.Column(db.String(100))  # Nuevo campo
+    delivery_method = db.Column(db.String(50), default='manual')  # 'manual' o 'qr'
 
     # Relationships
     designer = db.relationship('User', foreign_keys=[designer_id])
     registered_by = db.relationship('User', foreign_keys=[registered_by_id])
-
 
 class PendingJob(db.Model):
     __tablename__ = 'pending_jobs'
@@ -236,6 +267,7 @@ class PendingJob(db.Model):
     client_name = db.Column(db.String(100))
     phone_number = db.Column(db.String(20))
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    qr_code = db.Column(db.String(100), unique=True)  # Nuevo campo
 
     # Relationships
     designer = db.relationship('User', foreign_keys=[designer_id])
@@ -262,6 +294,13 @@ class PendingJob(db.Model):
         # Formatear el número para almacenamiento: +1-XXX-XXXXXXX
         formatted_number = f'+{cleaned_number[0]}-{cleaned_number[1:4]}-{cleaned_number[4:]}'
         return formatted_number
+
+    def generate_qr_code(self):
+        """Genera un identificador único para el código QR"""
+        if not self.qr_code:
+            unique_id = f"{int(datetime.utcnow().timestamp())}-{self.id}-{random.randint(1000, 9999)}"
+            self.qr_code = base64.urlsafe_b64encode(unique_id.encode()).decode()
+        return self.qr_code
 
     def to_job(self):
         """Convierte el trabajo pendiente en un trabajo regular"""
