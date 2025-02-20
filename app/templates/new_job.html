@@ -24,8 +24,8 @@
                         {% endfor %}
                     </select>
                     {% else %}
-                    <input type="hidden" name="designer_id" value="{{ current_user.id }}">
                     <input type="text" class="form-control" value="{{ current_user.name }}" readonly>
+                    <input type="hidden" name="designer_id" value="{{ current_user.id }}">
                     {% endif %}
                 </div>
                 <div class="col-md-4 mb-3">

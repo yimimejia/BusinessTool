@@ -158,6 +158,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link text-white" href="{{ url_for('main.completed_jobs') }}">
+                            <i class="bi bi-check-circle-fill"></i> Trabajos Completados
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.qr_scanner') }}">
                             <i class="bi bi-qr-code-scan"></i> Escanear QR
                         </a>
@@ -180,11 +185,6 @@
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.pending_jobs') }}">
                             <i class="bi bi-clock-history"></i> Verificar Trabajos
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="{{ url_for('main.completed_jobs') }}">
-                            <i class="bi bi-clipboard2-check-fill"></i> Trabajos Completados
                         </a>
                     </li>
                     <li class="nav-item">
