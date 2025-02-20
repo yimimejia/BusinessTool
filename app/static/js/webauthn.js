@@ -20,7 +20,7 @@ function base64ToArrayBuffer(base64) {
 }
 
 // Función para registrar credenciales biométricas
-async function registerBiometric() {
+async function registerBiometric(deviceName) {
     try {
         if (!isWebAuthnSupported()) {
             throw new Error('WebAuthn no es compatible con este navegador');
@@ -29,7 +29,11 @@ async function registerBiometric() {
         // Obtener opciones de creación del servidor
         const response = await fetch('/webauthn/register/begin', {
             method: 'POST',
-            credentials: 'same-origin'
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ device_name: deviceName })
         });
         const options = await response.json();
 
@@ -63,10 +67,12 @@ async function registerBiometric() {
             body: JSON.stringify(credentialResponse)
         });
 
-        if (finalResponse.ok) {
-            return true;
+        const result = await finalResponse.json();
+        if (!finalResponse.ok) {
+            throw new Error(result.message || 'Error al registrar credenciales biométricas');
         }
-        throw new Error('Error al registrar credenciales biométricas');
+
+        return result;
 
     } catch (error) {
         console.error('Error durante el registro biométrico:', error);
@@ -75,7 +81,7 @@ async function registerBiometric() {
 }
 
 // Función para autenticar con biometría
-async function authenticateBiometric() {
+async function authenticateBiometric(username) {
     try {
         if (!isWebAuthnSupported()) {
             throw new Error('WebAuthn no es compatible con este navegador');
@@ -84,8 +90,18 @@ async function authenticateBiometric() {
         // Obtener opciones de autenticación del servidor
         const response = await fetch('/webauthn/authenticate/begin', {
             method: 'POST',
-            credentials: 'same-origin'
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ username })
         });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Error al iniciar autenticación biométrica');
+        }
+
         const options = await response.json();
 
         // Convertir las opciones del formato base64 a ArrayBuffer
@@ -127,14 +143,56 @@ async function authenticateBiometric() {
             body: JSON.stringify(assertionResponse)
         });
 
-        if (finalResponse.ok) {
-            window.location.href = '/dashboard';
-            return true;
+        const result = await finalResponse.json();
+        if (!finalResponse.ok) {
+            throw new Error(result.message || 'Error en la autenticación biométrica');
         }
-        throw new Error('Error en la autenticación biométrica');
+
+        window.location.href = '/dashboard';
+        return result;
 
     } catch (error) {
         console.error('Error durante la autenticación biométrica:', error);
         throw error;
     }
 }
+
+// Función para configurar biometría desde la interfaz de usuario
+async function setupBiometricAuth() {
+    try {
+        const deviceName = prompt('Por favor, ingrese un nombre para este dispositivo:');
+        if (!deviceName) {
+            throw new Error('Se requiere un nombre para el dispositivo');
+        }
+
+        await registerBiometric(deviceName);
+        alert('¡Registro biométrico exitoso! Ahora puede usar Face ID o Touch ID para iniciar sesión.');
+        location.reload();
+    } catch (error) {
+        alert('Error al configurar el acceso biométrico: ' + error.message);
+    }
+}
+
+// Función para iniciar sesión con biometría
+async function loginWithBiometric(username) {
+    try {
+        await authenticateBiometric(username);
+    } catch (error) {
+        alert('Error al iniciar sesión con biometría: ' + error.message);
+    }
+}
+
+// Verificar estado de biometría al cargar la página
+document.addEventListener('DOMContentLoaded', async () => {
+    const biometricSetupButton = document.getElementById('setup-biometric');
+    const biometricLoginButton = document.getElementById('biometric-login');
+
+    if (biometricSetupButton) {
+        biometricSetupButton.addEventListener('click', setupBiometricAuth);
+    }
+
+    if (biometricLoginButton) {
+        const username = biometricLoginButton.dataset.username;
+        biometricLoginButton.addEventListener('click', () => loginWithBiometric(username));
+    }
+});
