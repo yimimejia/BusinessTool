@@ -482,13 +482,13 @@ def delete_user(user_id):
 def new_job():
     if request.method == 'POST':
         try:
+            # Formatear número de teléfono
             phone_number = request.form.get('phone_number')
             if not phone_number.startswith('+1'):
                 phone_number = f'+1{phone_number}' if phone_number.startswith('1') else f'+1{phone_number}'
 
             # Procesar etiquetas
             tags = request.form.get('tags', '').strip()
-            # Limpiar y normalizar las etiquetas
             if tags:
                 tags = ','.join([tag.strip() for tag in tags.split(',') if tag.strip()])
 
@@ -497,12 +497,8 @@ def new_job():
             if deposit_amount:
                 deposit_amount = float(deposit_amount)
 
-            # Forzar el designer_id al usuario actual si no es staff
-            designer_id = (
-                request.form.get('designer_id') 
-                if current_user.is_staff 
-                else current_user.id
-            )
+            # Si no es staff, siempre usar el ID del usuario actual como diseñador
+            designer_id = current_user.id if not current_user.is_staff else request.form.get('designer_id')
 
             job = Job(
                 description=request.form.get('description'),
