@@ -329,17 +329,19 @@ def logout():
 @bp.route('/dashboard')
 @login_required
 def dashboard():
+    # Si es staff (admin o supervisor) ve todos los trabajos
     if current_user.is_staff:
         jobs = Job.query.all()
     else:
+        # Si es diseñador, solo ve sus trabajos
         jobs = Job.query.filter_by(designer_id=current_user.id).all()
 
-    # Estadísticas
+    # Estadísticas basadas en los trabajos filtrados
     stats = {
         'total_jobs': len(jobs),
         'completed_jobs': len([j for j in jobs if j.is_completed]),
         'pending_jobs': len([j for j in jobs if not j.is_completed]),
-        'designers': len(set(job.designer_id for job in jobs))
+        'designers': len(set(job.designer_id for job in jobs)) if current_user.is_staff else 1
     }
 
     return render_template('dashboard.html', jobs=jobs, stats=stats)
@@ -838,7 +840,7 @@ def export_jobs(format):
         output.seek(0)
 
         return Response(
-            output,
+                        output,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',            headers={'Content-Disposition': f'attachment;filename=trabajos_{datetime.now().strftime("%Y%m%d")}.xlsx'}
         )
 
