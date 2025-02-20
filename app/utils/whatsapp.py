@@ -15,10 +15,9 @@ def get_pending_jobs_text():
         text += f"*Cliente:* {job.client_name}\n"
         text += f"*Factura:* {job.invoice_number}\n"
         text += f"*Descripción:* {job.description}\n"
-        text += f"*Teléfono:* {job.phone_number}\n"
-        text += "-------------------\n\n"
+        text += f"*Teléfono:* {job.phone_number}\n\n"
 
-    text += f"\n_Reporte generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}_"
+    text += "_Reporte generado: " + datetime.now().strftime('%d/%m/%Y %H:%M') + "_"
     return text
 
 def get_whatsapp_report_url(phone_number):
@@ -27,7 +26,7 @@ def get_whatsapp_report_url(phone_number):
     # Codificar el mensaje para URL
     encoded_message = quote(message)
     # Limpiar el número de teléfono (eliminar +, espacios y guiones)
-    clean_number = phone_number.replace('+', '').replace('-', '').replace(' ', '')
+    clean_number = ''.join(filter(str.isdigit, phone_number))
     return f"https://wa.me/{clean_number}?text={encoded_message}"
 
 def send_whatsapp_report(to_numbers):
