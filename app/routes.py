@@ -1032,11 +1032,11 @@ def pending_jobs():
 @login_required
 @staff_required
 def approve_pending_job(job_id):
-    """Aprobar un trabajo pendiente"""
+    """Aprueba un trabajo pendiente"""
     pending_job = PendingJob.query.get_or_404(job_id)
 
     try:
-        # Crear un nuevo trabajo regular
+        # Crear el trabajo regular
         job = pending_job.to_job()
 
         # Agregar campos adicionales
@@ -1047,18 +1047,25 @@ def approve_pending_job(job_id):
         # Generar código QR
         job.generate_qr_code()
 
-        # Guardar el nuevo trabajo y eliminar el pendiente
+        # Guardar el trabajo y eliminar el pendiente
         db.session.add(job)
         db.session.delete(pending_job)
         db.session.commit()
 
+        # Generar URL de la factura
+        invoice_url = url_for('main.show_job_qr', job_id=job.id, _external=True)
+
+        # Generar enlace de WhatsApp
+        from app.utils.whatsapp import get_invoice_whatsapp_url
+        whatsapp_url = get_invoice_whatsapp_url(job, invoice_url)
+
         log_activity(
             'trabajo_aprobado',
-            f"Trabajo aprobado para {job.client_name} (Factura: {job.invoice_number})"
+            f"Trabajo aprobado: {job.client_name} (Factura: {job.invoice_number})"
         )
 
-        flash('Trabajo aprobado exitosamente', 'success')
-        return redirect(url_for('main.show_job_qr', job_id=job.id))
+        # Redirigir al enlace de WhatsApp
+        return redirect(whatsapp_url)
 
     except Exception as e:
         db.session.rollback()

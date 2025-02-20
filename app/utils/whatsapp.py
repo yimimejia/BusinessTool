@@ -20,6 +20,28 @@ def get_pending_jobs_text():
     text += "_Reporte generado: " + datetime.now().strftime('%d/%m/%Y %H:%M') + "_"
     return text
 
+def get_invoice_whatsapp_url(job, invoice_url):
+    """Genera una URL de WhatsApp para enviar la factura al cliente"""
+    message = f"""*FOTO VIDEO MOJICA*
+¡Gracias por su preferencia!
+
+*Detalles de su trabajo:*
+Cliente: {job.client_name}
+Factura: {job.invoice_number}
+Descripción: {job.description}
+Abono: ${job.deposit_amount if job.deposit_amount else '0'}
+
+Para ver su factura digital, haga clic en el siguiente enlace:
+{invoice_url}
+
+_Si tiene alguna pregunta, no dude en contactarnos._"""
+
+    # Codificar el mensaje para URL
+    encoded_message = quote(message)
+    # Limpiar el número de teléfono (eliminar +, espacios y guiones)
+    clean_number = ''.join(filter(str.isdigit, job.phone_number))
+    return f"https://wa.me/{clean_number}?text={encoded_message}"
+
 def get_whatsapp_report_url(phone_number):
     """Genera una URL de WhatsApp con el reporte de trabajos pendientes"""
     message = get_pending_jobs_text()
