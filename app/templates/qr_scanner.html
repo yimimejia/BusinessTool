@@ -27,6 +27,11 @@
                         </div>
                         <p class="mt-2">Procesando código QR...</p>
                     </div>
+                    <div id="successMessage" class="alert alert-success" style="display: none;">
+                        Trabajo procesado exitosamente
+                    </div>
+                    <div id="errorMessage" class="alert alert-danger" style="display: none;">
+                    </div>
                 </div>
             </div>
         </div>
@@ -42,11 +47,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const preview = document.getElementById('preview');
     const imagePreview = document.getElementById('imagePreview');
     const loadingIndicator = document.getElementById('loadingIndicator');
+    const successMessage = document.getElementById('successMessage');
+    const errorMessage = document.getElementById('errorMessage');
 
     // Función para procesar el resultado del QR
     async function processQrResult(decodedText) {
         try {
             loadingIndicator.style.display = 'block';
+            successMessage.style.display = 'none';
+            errorMessage.style.display = 'none';
             console.log('Texto decodificado:', decodedText);
 
             // Intentar parsear el QR
@@ -72,14 +81,20 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Respuesta del servidor:', result);
 
             if (result.success) {
-                alert('Trabajo marcado como entregado exitosamente');
-                window.location.href = result.redirect_url;
+                successMessage.style.display = 'block';
+                successMessage.textContent = result.message || 'Trabajo procesado exitosamente';
+                setTimeout(() => {
+                    if (result.redirect_url) {
+                        window.location.href = result.redirect_url;
+                    }
+                }, 2000);
             } else {
                 throw new Error(result.message || 'Error al procesar el código QR');
             }
         } catch (error) {
             console.error('Error detallado:', error);
-            alert(error.message || 'Error al procesar el código QR. Por favor, intente con otra imagen.');
+            errorMessage.style.display = 'block';
+            errorMessage.textContent = error.message || 'Error al procesar el código QR. Por favor, intente con otra imagen.';
         } finally {
             loadingIndicator.style.display = 'none';
         }
@@ -111,7 +126,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     })
                     .catch(err => {
                         console.error('Error al escanear:', err);
-                        alert('No se pudo leer el código QR. Por favor, asegúrese que la imagen sea clara y vuelva a intentar.');
+                        errorMessage.style.display = 'block';
+                        errorMessage.textContent = 'No se pudo leer el código QR. Por favor, asegúrese que la imagen sea clara y vuelva a intentar.';
                         loadingIndicator.style.display = 'none';
                     });
             }

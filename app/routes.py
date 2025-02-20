@@ -935,30 +935,33 @@ def generate_job_pdf(job_id):
     )
 
 @bp.route('/process-qr', methods=['POST'])
-@login_required
 def process_qr():
-    """Procesa un código QR y marca el trabajo como entregado si coincide"""
+    """Procesa un código QR escaneado y marca el trabajo como entregado"""
     try:
-        # Obtener datos del QR
-        qr_data = request.json
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'message': 'No se recibieron datos'}), 400
 
-        if not qr_data or not isinstance(qr_data, dict):
-            return jsonify({
-                'success': False,
-                'message': 'Datos de QR inválidos'
-            }), 400
+        # Obtener el código QR
+        qr_code = data.get('qr_code')
+        if not qr_code:
+            return jsonify({'success': False, 'message': 'Código QR inválido'}), 400
 
         # Buscar el trabajo por el código QR
-        job = Job.query.filter_by(qr_code=qr_data.get('qr_code')).first()
-
+        job = Job.query.filter_by(qr_code=qr_code).first()
         if not job:
-            return jsonify({
-                'success': False,
-                'message': 'No se encontró ningún trabajo con este código QR'
-            }), 404
+            return jsonify({'success': False, 'message': 'Trabajo no encontrado'}), 404
 
-        # Crear trabajo entregado
-        delivered_job = DeliveredJob(
+        # Si el trabajo ya está completado, devolver error
+        if job.is_completed:
+            return jsonify({'success': False, 'message': 'Este trabajo ya fue completado'}), 400
+
+        # Marcar el trabajo como completado
+        job.is_completed = True
+        job.completed_at = datetime.utcnow()
+
+        # Crear un nuevo trabajo completado
+        completed_job = CompletedJob(
             original_job_id=job.id,
             description=job.description,
             designer_id=job.designer_id,
@@ -967,64 +970,30 @@ def process_qr():
             client_name=job.client_name,
             phone_number=job.phone_number,
             created_at=job.created_at,
-            delivered_at=datetime.utcnow(),
-            tags=job.tags,
-            qr_code=job.qr_code
+            completed_at=datetime.utcnow(),
+            tags=job.tags
         )
 
-        # Agregar el trabajo entregado y eliminar el trabajo original
-        db.session.add(delivered_job)
+        db.session.add(completed_job)
         db.session.delete(job)
         db.session.commit()
 
-        # Registrar la actividad
         log_activity(
             'trabajo_entregado_qr',
-            f"Trabajo entregado por QR: {delivered_job.client_name} (Factura: {delivered_job.invoice_number})"
+            f"Trabajo marcado como entregado vía QR: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
         )
 
         return jsonify({
             'success': True,
             'message': 'Trabajo marcado como entregado exitosamente',
-            'redirect_url': url_for('main.delivered_jobs')
+            'redirect_url': url_for('main.completed_jobs')
         })
 
     except Exception as e:
-        logger.error(f"Error procesando QR: {str(e)}")
         db.session.rollback()
-        return jsonify({
-            'success': False,
-            'message': 'Error al procesar el código QR'
-        }), 500
+        return jsonify({'success': False, 'message': str(e)}), 500
 
-@bp.route('/jobs/public/<qr_code>')
-def public_job_view(qr_code):
-    """Vista pública de la factura a través del código QR"""
-    job = Job.query.filter_by(qr_code=qr_code).first_or_404()
-
-    # Generar QR
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_H,
-        box_size=15,
-        border=4
-    )
-    qr.add_data(json.dumps(job.to_qr_data()))
-    qr.make(fit=True)
-
-    # Crear imagen con mejor contraste
-    img = qr.make_image(fill_color="black", back_color="white")
-
-    # Convertir a base64
-    buffered = io.BytesIO()
-    img.save(buffered, format="PNG", quality=100)
-    qr_image = base64.b64encode(buffered.getvalue()).decode()
-
-    return render_template('invoice_pdf.html', job=job, qr_image=qr_image)
-
-@bp.route('/scan-qr')
-@login_required
-@staff_required
-def scan_qr():
-    """Página para escanear códigos QR"""
+@bp.route('/qr-scanner')
+def qr_scanner():
+    """Página pública para escanear códigos QR"""
     return render_template('qr_scanner.html')
