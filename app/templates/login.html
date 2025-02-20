@@ -19,49 +19,10 @@
                         <label for="password" class="form-label">Contraseña</label>
                         <input type="password" class="form-control" id="password" name="password" required>
                     </div>
-                    <div class="d-grid gap-2">
+                    <div class="d-grid">
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-key-fill"></i> Ingresar con Contraseña
+                            <i class="bi bi-key-fill"></i> Ingresar
                         </button>
-                        <button type="button" id="biometric-login" class="btn btn-success" style="display: none;">
-                            <i class="bi bi-fingerprint"></i> Ingresar con Biometría
-                        </button>
-                        <button type="button" id="setup-biometric" class="btn btn-outline-info">
-                            <i class="bi bi-shield-lock"></i> Configurar Acceso Biométrico
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal de Configuración Biométrica -->
-<div class="modal fade" id="biometricSetupModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Configurar Acceso Biométrico</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Para configurar el acceso biométrico, primero ingrese sus credenciales:</p>
-                <form id="biometricSetupForm">
-                    <div class="mb-3">
-                        <label class="form-label">Usuario</label>
-                        <input type="text" name="username" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Contraseña</label>
-                        <input type="password" name="password" class="form-control" required>
-                    </div>
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> 
-                        Después de verificar sus credenciales, se le pedirá registrar su huella digital o Face ID.
-                    </div>
-                    <div class="text-end">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Continuar</button>
                     </div>
                 </form>
             </div>
@@ -71,77 +32,9 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/webauthn.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const loginForm = document.getElementById('loginForm');
-    const usernameInput = document.getElementById('username');
-    const biometricButton = document.getElementById('biometric-login');
-    const setupButton = document.getElementById('setup-biometric');
-
-    // Verificar si el navegador soporta WebAuthn
-    if (!isWebAuthnSupported()) {
-        setupButton.style.display = 'none';
-        return;
-    }
-
-    // Verificar si ya hay credenciales registradas cuando se ingresa un nombre de usuario
-    usernameInput.addEventListener('change', async function() {
-        const username = this.value;
-        if (username) {
-            try {
-                const response = await fetch('/webauthn/status', {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ username }),
-                    method: 'POST'
-                });
-                const data = await response.json();
-
-                if (data.enabled) {
-                    biometricButton.style.display = 'block';
-                    biometricButton.dataset.username = username;
-                    setupButton.style.display = 'none';
-                } else {
-                    biometricButton.style.display = 'none';
-                    setupButton.style.display = 'block';
-                }
-            } catch (error) {
-                console.error('Error verificando estado biométrico:', error);
-            }
-        }
-    });
-
-    // Configurar evento para el botón de configuración biométrica
-    setupButton.addEventListener('click', async function() {
-        const username = usernameInput.value;
-        if (!username) {
-            alert('Por favor, ingrese su nombre de usuario primero');
-            return;
-        }
-        try {
-            await setupBiometricAuth();
-        } catch (error) {
-            console.error('Error en configuración biométrica:', error);
-            alert('Error al configurar el acceso biométrico: ' + error.message);
-        }
-    });
-
-    // Configurar el botón de login biométrico
-    biometricButton.addEventListener('click', async function() {
-        const username = this.dataset.username;
-        if (!username) {
-            alert('Por favor, ingrese su nombre de usuario primero');
-            return;
-        }
-        try {
-            await loginWithBiometric(username);
-        } catch (error) {
-            console.error('Error en autenticación biométrica:', error);
-            alert('Error al intentar la autenticación biométrica. Por favor, intente con su contraseña.');
-        }
-    });
 });
 </script>
 {% endblock %}
