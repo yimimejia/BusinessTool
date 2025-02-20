@@ -152,7 +152,8 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <li class="nav-item dropdown">
+                    <!-- Menú desplegable para PC -->
+                    <li class="nav-item dropdown d-none d-lg-block">
                         <a class="nav-link text-white dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="bi bi-folder2-open"></i> Trabajos
                         </a>
@@ -188,6 +189,36 @@
                             {% endif %}
                         </ul>
                     </li>
+                    <!-- Menú normal para móviles -->
+                    <li class="nav-item d-lg-none">
+                        <a class="nav-link text-white" href="{{ url_for('main.dashboard') }}">
+                            <i class="bi bi-folder2-open"></i> Trabajos Pendientes
+                        </a>
+                    </li>
+                    <li class="nav-item d-lg-none">
+                        <a class="nav-link text-white" href="{{ url_for('main.completed_jobs') }}">
+                            <i class="bi bi-check-circle-fill"></i> Trabajos Completados
+                        </a>
+                    </li>
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item d-lg-none">
+                        <a class="nav-link text-white" href="{{ url_for('main.new_pending_job') }}">
+                            <i class="bi bi-plus-circle-fill"></i> Nuevo Trabajo
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if current_user.is_staff %}
+                    <li class="nav-item d-lg-none">
+                        <a class="nav-link text-white" href="{{ url_for('main.pending_jobs') }}">
+                            <i class="bi bi-clock-history"></i> Verificar Trabajos
+                        </a>
+                    </li>
+                    <li class="nav-item d-lg-none">
+                        <a class="nav-link text-white" href="{{ url_for('main.delivered_jobs') }}">
+                            <i class="bi bi-box-seam-fill"></i> Trabajos Entregados
+                        </a>
+                    </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.qr_scanner') }}">
                             <i class="bi bi-qr-code-scan"></i> Escanear QR
