@@ -1,0 +1,107 @@
+
+{% extends "base.html" %}
+
+{% block title %}Fotos Pendientes por Aprobar{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Fotos Pendientes por Aprobar</h4>
+            <span class="badge bg-danger" id="pendingPhotosCount"></span>
+        </div>
+        <div class="card-body">
+            {% if jobs %}
+            <div class="row">
+                {% for job in jobs %}
+                {% if job.pending_type == 'photo_verification' %}
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">{{ job.client_name }}</h5>
+                            <small class="text-muted">Trabajo #{{ job.original_job_id }}</small>
+                        </div>
+                        <div class="card-body">
+                            <p>{{ job.description }}</p>
+                            {% if job.photos %}
+                            <div class="row">
+                                {% for photo in job.photos|tojson|safe|fromjson %}
+                                <div class="col-6 col-md-4 mb-3">
+                                    <img src="{{ url_for('static', filename=photo) }}" 
+                                         class="img-fluid thumbnail" 
+                                         alt="Foto de trabajo"
+                                         onclick="window.open(this.src)">
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            <div class="mt-3">
+                                <form action="{{ url_for('main.approve_pending_job', job_id=job.id) }}" method="POST">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="bi bi-check-circle"></i> Aprobar y Enviar
+                                    </button>
+                                    <button type="button" class="btn btn-danger" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#rejectPhotoModal{{ job.id }}">
+                                        <i class="bi bi-x-circle"></i> Rechazar
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal de Rechazo de Fotos -->
+                <div class="modal fade" id="rejectPhotoModal{{ job.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Rechazar Fotos</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>¿Está seguro que desea rechazar estas fotos?</p>
+                                <p><strong>Cliente:</strong> {{ job.client_name }}</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <form action="{{ url_for('main.reject_pending_job', job_id=job.id) }}" method="POST">
+                                    <button type="submit" class="btn btn-danger">
+                                        <i class="bi bi-x-circle"></i> Rechazar
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                No hay fotos pendientes por aprobar.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Agregar estilos para las miniaturas
+    document.addEventListener('DOMContentLoaded', function() {
+        const style = document.createElement('style');
+        style.textContent = `
+            .thumbnail {
+                cursor: pointer;
+                transition: transform 0.2s;
+            }
+            .thumbnail:hover {
+                transform: scale(1.05);
+            }
+        `;
+        document.head.appendChild(style);
+    });
+</script>
+{% endblock %}

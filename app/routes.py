@@ -1237,13 +1237,21 @@ def new_pending_job():
     designers = User.query.filter_by(is_admin=False, is_supervisor=False).all()
     return render_template('new_pending_job.html', designers=designers)
 
-@bp.route('/jobs/pending')
+@bp.route('/jobs/pending/verification')
 @login_required
 @staff_required
-def pending_jobs():
-    """Vista de trabajos pendientes de verificación"""
-    jobs = PendingJob.query.all()
-    return render_template('pending_jobs.html', jobs=jobs)
+def pending_verification():
+    """Vista de trabajos pendientes por verificar"""
+    jobs = PendingJob.query.filter_by(pending_type='new_job').all()
+    return render_template('pending_verification.html', jobs=jobs)
+
+@bp.route('/jobs/pending/photos')
+@login_required
+@staff_required
+def pending_photos():
+    """Vista de fotos pendientes por aprobar"""
+    jobs = PendingJob.query.filter_by(pending_type='photo_verification').all()
+    return render_template('pending_photos.html', jobs=jobs)
 
 @bp.route('/jobs/pending/<int:job_id>/approve', methods=['POST'])
 @login_required
@@ -1440,7 +1448,13 @@ def utility_processor():
             return PendingJob.query.filter_by(pending_type='new_job').count()
         return 0
 
+    def get_pending_photos_count():
+        if current_user.is_authenticated and current_user.is_staff:
+            return PendingJob.query.filter_by(pending_type='photo_verification').count()
+        return 0
+
     return dict(
         get_job_photos=get_job_photos,
-        pending_jobs_count=get_pending_jobs_count()
+        pending_jobs_count=get_pending_jobs_count(),
+        pending_photos_count=get_pending_photos_count()
     )

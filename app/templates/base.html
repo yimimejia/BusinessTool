@@ -179,16 +179,18 @@
                             </li>
                             {% endif %}
                             {% if current_user.is_staff %}
-                            <li>
-                                <a class="dropdown-item position-relative" href="{{ url_for('main.pending_jobs') }}">
-                                    <i class="bi bi-clock-history"></i> Verificar Trabajos
-                                    {% if pending_jobs_count > 0 %}
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                        {{ pending_jobs_count }}
-                                    </span>
-                                    {% endif %}
-                                </a>
-                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.pending_verification') }}">
+                                <i class="bi bi-clock-history"></i> Verificar Trabajos
+                                {% if pending_jobs_count > 0 %}
+                                <span class="badge bg-danger">{{ pending_jobs_count }}</span>
+                                {% endif %}
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.pending_photos') }}">
+                                <i class="bi bi-images"></i> Aprobar Fotos
+                                {% if pending_photos_count > 0 %}
+                                <span class="badge bg-danger">{{ pending_photos_count }}</span>
+                                {% endif %}
+                            </a></li>
                             <li>
                                 <a class="dropdown-item" href="{{ url_for('main.delivered_jobs') }}">
                                     <i class="bi bi-box-seam-fill"></i> Trabajos Entregados
@@ -217,8 +219,13 @@
                     {% endif %}
                     {% if current_user.is_staff %}
                     <li class="nav-item d-lg-none">
-                        <a class="nav-link text-white" href="{{ url_for('main.pending_jobs') }}">
+                        <a class="nav-link text-white" href="{{ url_for('main.pending_verification') }}">
                             <i class="bi bi-clock-history"></i> Verificar Trabajos
+                        </a>
+                    </li>
+                    <li class="nav-item d-lg-none">
+                        <a class="nav-link text-white" href="{{ url_for('main.pending_photos') }}">
+                            <i class="bi bi-images"></i> Aprobar Fotos
                         </a>
                     </li>
                     <li class="nav-item d-lg-none">
