@@ -1299,7 +1299,7 @@ def approve_pending_job(job_id):
         flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.pending_jobs'))
             # Si es verificación de fotos, aprobar y enviar por WhatsApp
-            photos = json.loads(pending_job.photos) if pending_job.photos else []
+        photos = json.loads(pending_job.photos) if pending_job.photos else []
 
             # Preparar mensaje de WhatsApp con las fotos
             clean_phone = pending_job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
