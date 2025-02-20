@@ -1435,4 +1435,12 @@ def get_job_photos(job_id):
 
 @bp.context_processor
 def utility_processor():
-    return dict(get_job_photos=get_job_photos)
+    def get_pending_jobs_count():
+        if current_user.is_authenticated and current_user.is_staff:
+            return PendingJob.query.filter_by(pending_type='new_job').count()
+        return 0
+
+    return dict(
+        get_job_photos=get_job_photos,
+        pending_jobs_count=get_pending_jobs_count()
+    )
