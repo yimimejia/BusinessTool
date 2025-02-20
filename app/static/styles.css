@@ -35,3 +35,43 @@ body {
     color: var(--bs-body-color);
     border: 1px solid var(--bs-border-color);
 }
+
+/* Mejoras para móviles */
+@media (max-width: 768px) {
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .table-responsive {
+        margin-bottom: 1rem;
+    }
+
+    .dataTables_wrapper {
+        padding: 0.5rem;
+    }
+
+    .dataTables_filter,
+    .dataTables_length {
+        text-align: left !important;
+        margin-bottom: 1rem;
+    }
+}
+
+/* Mejoras de accesibilidad */
+.btn:focus,
+.form-control:focus {
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+/* Animaciones suaves */
+.alert {
+    transition: opacity 0.3s ease-in-out;
+}
+
+/* Estado hover para botones e íconos */
+.btn:hover,
+.nav-link:hover {
+    opacity: 0.9;
+    transition: opacity 0.2s ease-in-out;
+}

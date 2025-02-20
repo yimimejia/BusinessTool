@@ -6,9 +6,14 @@
     <title>FOTO VIDEO MOJICA - {% block title %}{% endblock %}</title>
     <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- DataTables CSS -->
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
     <!-- Add jQuery first -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
     <!-- Notificaciones -->
     <script>
     let notificationSound;
@@ -48,6 +53,16 @@
             `;
             document.querySelector('main').insertAdjacentHTML('afterbegin', alert);
         };
+
+        // Inicializar DataTables en todas las tablas con la clase .datatable
+        $('.datatable').DataTable({
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+            },
+            responsive: true,
+            pageLength: 10,
+            lengthMenu: [[5, 10, 25, 50, -1], [5, 10, 25, 50, "Todos"]]
+        });
     });
     </script>
 </head>
@@ -55,7 +70,7 @@
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
         <div class="container">
             <a class="navbar-brand text-white" href="{{ url_for('main.index') }}">
-                <i class="bi bi-camera"></i> FOTO VIDEO MOJICA
+                <i class="bi bi-camera-fill"></i> FOTO VIDEO MOJICA
             </a>
             {% if current_user.is_authenticated %}
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -71,34 +86,34 @@
                     {% if current_user.is_admin %}
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.manage_users') }}">
-                            <i class="bi bi-people"></i> Usuarios
+                            <i class="bi bi-people-fill"></i> Usuarios
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.new_job') }}">
-                            <i class="bi bi-plus-circle"></i> Nuevo Trabajo
+                            <i class="bi bi-plus-circle-fill"></i> Nuevo Trabajo
                         </a>
                     </li>
                     {% endif %}
                     {% if current_user.is_staff %}
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.completed_jobs') }}">
-                            <i class="bi bi-check2-circle"></i> Trabajos Completados
+                            <i class="bi bi-check2-circle-fill"></i> Trabajos Completados
                         </a>
                     </li>
                     {% endif %}
                 </ul>
                 <!-- Theme Switcher -->
                 <div class="me-3">
-                    <button class="btn btn-outline-light" id="themeSwitcher">
+                    <button class="btn btn-outline-light" id="themeSwitcher" title="Cambiar tema">
                         <i class="bi bi-sun-fill" id="lightIcon"></i>
                         <i class="bi bi-moon-fill" id="darkIcon" style="display: none;"></i>
                     </button>
                 </div>
                 <div class="navbar-text text-white me-3">
-                    <i class="bi bi-person"></i> {{ current_user.name }}
+                    <i class="bi bi-person-circle"></i> {{ current_user.name }}
                 </div>
-                <a href="{{ url_for('main.logout') }}" class="btn btn-outline-light">
+                <a href="{{ url_for('main.logout') }}" class="btn btn-outline-light" title="Cerrar sesión">
                     <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
                 </a>
             </div>
