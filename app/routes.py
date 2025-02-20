@@ -352,9 +352,25 @@ def setup():
 @login_required
 @staff_required
 def send_manual_report():
-    from app.utils.email_notifications import send_daily_report
-    if send_daily_report():
-        flash('Reporte enviado exitosamente', 'success')
-    else:
-        flash('Error al enviar el reporte', 'error')
-    return redirect(url_for('main.dashboard'))
+    from app.utils.whatsapp import get_whatsapp_report_url
+
+    # Lista de números de WhatsApp a los que enviar el reporte
+    whatsapp_numbers = ['+18099730372', '+18492653436']
+
+    # Generar enlaces para cada número
+    report_links = []
+    for number in whatsapp_numbers:
+        report_links.append(get_whatsapp_report_url(number))
+
+    # Registrar la actividad
+    log_activity(
+        'reporte_generado',
+        f"Enlaces de reporte de trabajos pendientes generados"
+    )
+
+    # Devolver los enlaces como JSON
+    return jsonify({
+        'success': True,
+        'message': 'Enlaces de WhatsApp generados',
+        'links': report_links
+    })
