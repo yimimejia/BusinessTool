@@ -253,6 +253,7 @@ def new_job():
             job = Job(
                 description=request.form.get('description'),
                 designer_id=request.form.get('designer_id'),
+                registered_by_id=current_user.id,  # Agregar el usuario que registra
                 invoice_number=request.form.get('invoice_number'),
                 client_name=request.form.get('client_name'),
                 phone_number=phone_number,
@@ -320,6 +321,7 @@ def mark_delivered(job_id):
         completed_job_id=job.id,
         description=job.description,
         designer_id=job.designer_id,
+        registered_by_id=job.registered_by_id,  # Mantener el usuario que registró
         invoice_number=job.invoice_number,
         client_name=job.client_name,
         phone_number=job.phone_number,
@@ -415,11 +417,13 @@ def complete_job(job_id):
         original_job_id=job.id,
         description=job.description,
         designer_id=job.designer_id,
+        registered_by_id=job.registered_by_id,  # Mantener el usuario que registró
         invoice_number=job.invoice_number,
         client_name=job.client_name,
         phone_number=job.phone_number,
         created_at=job.created_at,
-        completed_at=datetime.utcnow()
+        completed_at=datetime.utcnow(),
+        tags=job.tags
     )
     db.session.add(completed_job)
     db.session.delete(job)

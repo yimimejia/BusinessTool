@@ -17,8 +17,13 @@ class User(UserMixin, db.Model):
     is_service = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Relationships
-    assigned_jobs = db.relationship('Job', backref='designer', lazy='dynamic')
+    # Relationships with explicit foreign keys
+    assigned_jobs = db.relationship('Job', 
+                                  foreign_keys='Job.designer_id',
+                                  backref='designer')
+    registered_jobs = db.relationship('Job', 
+                                    foreign_keys='Job.registered_by_id',
+                                    backref='registered_by')
     activities = db.relationship('ActivityLog', backref='user', lazy='dynamic')
 
     def set_password(self, password):
@@ -59,6 +64,7 @@ class Job(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.String(255), nullable=False)
     designer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    registered_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     invoice_number = db.Column(db.String(50))
     client_name = db.Column(db.String(100))
     phone_number = db.Column(db.String(20))
@@ -89,14 +95,19 @@ class CompletedJob(db.Model):
     original_job_id = db.Column(db.Integer)
     description = db.Column(db.String(255), nullable=False)
     designer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    registered_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     invoice_number = db.Column(db.String(50))
     client_name = db.Column(db.String(100))
     phone_number = db.Column(db.String(20))
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False)
     completed_at = db.Column(db.DateTime, default=datetime.utcnow)
     called_at = db.Column(db.DateTime)
     is_called = db.Column(db.Boolean, default=False)
     tags = db.Column(db.String(200))  # Comma-separated tags
+
+    # Relationships
+    designer = db.relationship('User', foreign_keys=[designer_id])
+    registered_by = db.relationship('User', foreign_keys=[registered_by_id])
 
 class DeliveredJob(db.Model):
     __tablename__ = 'delivered_jobs'
@@ -105,11 +116,16 @@ class DeliveredJob(db.Model):
     completed_job_id = db.Column(db.Integer)
     description = db.Column(db.String(255), nullable=False)
     designer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    registered_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     invoice_number = db.Column(db.String(50))
     client_name = db.Column(db.String(100))
     phone_number = db.Column(db.String(20))
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow) #Added  nullable=False, default=datetime.utcnow
+    created_at = db.Column(db.DateTime, nullable=False)
     completed_at = db.Column(db.DateTime)
     called_at = db.Column(db.DateTime)
     delivered_at = db.Column(db.DateTime, default=datetime.utcnow)
     tags = db.Column(db.String(200))  # Comma-separated tags
+
+    # Relationships
+    designer = db.relationship('User', foreign_keys=[designer_id])
+    registered_by = db.relationship('User', foreign_keys=[registered_by_id])
