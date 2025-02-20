@@ -621,23 +621,34 @@ def delivered_jobs():
     jobs = DeliveredJob.query.all()
     return render_template('delivered_jobs.html', jobs=jobs)
 
-@bp.route('/webauthn/status')
-@login_required
+@bp.route('/webauthn/status', methods=['POST'])
 def webauthn_status():
     """Verifica si el usuario tiene credenciales biométricas registradas"""
-    has_credentials = WebAuthnCredential.query.filter_by(user_id=current_user.id).first() is not None
-    return jsonify({
-        'enabled': has_credentials,
-        'credentials': [
-            {
-                'id': cred.id,
-                'name': cred.name,
-                'created_at': cred.created_at.isoformat(),
-                'last_used_at': cred.last_used_at.isoformat() if cred.last_used_at else None
-            }
-            for cred in current_user.webauthn_credentials
-        ] if has_credentials else []
-    })
+    try:
+        username = request.json.get('username')
+        if not username:
+            return jsonify({'error': 'Se requiere nombre de usuario'}), 400
+
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            return jsonify({'enabled': False})
+
+        has_credentials = WebAuthnCredential.query.filter_by(user_id=user.id).first() is not None
+        return jsonify({
+            'enabled': has_credentials,
+            'credentials': [
+                {
+                    'id': cred.id,
+                    'name': cred.name,
+                    'created_at': cred.created_at.isoformat(),
+                    'last_used_at': cred.last_used_at.isoformat() if cred.last_used_at else None
+                }
+                for cred in user.webauthn_credentials
+            ] if has_credentials else []
+        })
+    except Exception as e:
+        logging.error(f"Error verificando estado biométrico: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @bp.route('/webauthn/register/begin', methods=['POST'])
 @login_required

@@ -23,10 +23,10 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-key-fill"></i> Ingresar con Contraseña
                         </button>
-                        <button type="button" id="biometricLogin" class="btn btn-success" style="display: none;">
+                        <button type="button" id="biometric-login" class="btn btn-success" style="display: none;">
                             <i class="bi bi-fingerprint"></i> Ingresar con Biometría
                         </button>
-                        <button type="button" id="setupBiometric" class="btn btn-outline-info">
+                        <button type="button" id="setup-biometric" class="btn btn-outline-info">
                             <i class="bi bi-shield-lock"></i> Configurar Acceso Biométrico
                         </button>
                     </div>
@@ -74,10 +74,10 @@
 <script src="{{ url_for('static', filename='js/webauthn.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const biometricButton = document.getElementById('biometricLogin');
-    const setupButton = document.getElementById('setupBiometric');
-    const setupModal = new bootstrap.Modal(document.getElementById('biometricSetupModal'));
-    const setupForm = document.getElementById('biometricSetupForm');
+    const loginForm = document.getElementById('loginForm');
+    const usernameInput = document.getElementById('username');
+    const biometricButton = document.getElementById('biometric-login');
+    const setupButton = document.getElementById('setup-biometric');
 
     // Verificar si el navegador soporta WebAuthn
     if (!isWebAuthnSupported()) {
@@ -85,56 +85,58 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    // Verificar si ya hay credenciales registradas
-    fetch('/webauthn/status')
-        .then(response => response.json())
-        .then(data => {
-            if (data.registered) {
-                biometricButton.style.display = 'block';
-                setupButton.style.display = 'none';
-            }
-        });
+    // Verificar si ya hay credenciales registradas cuando se ingresa un nombre de usuario
+    usernameInput.addEventListener('change', async function() {
+        const username = this.value;
+        if (username) {
+            try {
+                const response = await fetch('/webauthn/status', {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username }),
+                    method: 'POST'
+                });
+                const data = await response.json();
 
-    // Configurar evento para el botón de configuración
-    setupButton.addEventListener('click', () => {
-        setupModal.show();
+                if (data.enabled) {
+                    biometricButton.style.display = 'block';
+                    biometricButton.dataset.username = username;
+                    setupButton.style.display = 'none';
+                } else {
+                    biometricButton.style.display = 'none';
+                    setupButton.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error verificando estado biométrico:', error);
+            }
+        }
     });
 
-    // Manejar el envío del formulario de configuración
-    setupForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(setupForm);
-
+    // Configurar evento para el botón de configuración biométrica
+    setupButton.addEventListener('click', async function() {
+        const username = usernameInput.value;
+        if (!username) {
+            alert('Por favor, ingrese su nombre de usuario primero');
+            return;
+        }
         try {
-            // Primero verificar las credenciales
-            const response = await fetch('/login', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (response.ok) {
-                // Si las credenciales son correctas, iniciar registro biométrico
-                setupModal.hide();
-                await registerBiometric();
-
-                // Mostrar mensaje de éxito y actualizar botones
-                alert('¡Registro biométrico exitoso! Ahora puede usar Face ID/Touch ID para iniciar sesión.');
-                biometricButton.style.display = 'block';
-                setupButton.style.display = 'none';
-            } else {
-                alert('Credenciales incorrectas. Por favor, verifique su usuario y contraseña.');
-            }
+            await setupBiometricAuth();
         } catch (error) {
-            console.error('Error durante el registro:', error);
-            alert('Error al configurar el acceso biométrico. Por favor, intente nuevamente.');
+            console.error('Error en configuración biométrica:', error);
+            alert('Error al configurar el acceso biométrico: ' + error.message);
         }
     });
 
     // Configurar el botón de login biométrico
-    biometricButton.addEventListener('click', async function(e) {
-        e.preventDefault();
+    biometricButton.addEventListener('click', async function() {
+        const username = this.dataset.username;
+        if (!username) {
+            alert('Por favor, ingrese su nombre de usuario primero');
+            return;
+        }
         try {
-            await authenticateBiometric();
+            await loginWithBiometric(username);
         } catch (error) {
             console.error('Error en autenticación biométrica:', error);
             alert('Error al intentar la autenticación biométrica. Por favor, intente con su contraseña.');
