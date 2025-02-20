@@ -239,14 +239,29 @@ def delete_user(user_id):
         flash('No se puede eliminar el usuario administrador principal', 'error')
         return redirect(url_for('main.manage_users'))
 
-    log_activity(
-        'eliminar_usuario',
-        f'Usuario eliminado: {user.username}'
-    )
+    # Verificar si el usuario tiene trabajos completados
+    has_completed_jobs = CompletedJob.query.filter_by(designer_id=user_id).first() is not None
+    has_active_jobs = Job.query.filter_by(designer_id=user_id).first() is not None
 
-    db.session.delete(user)
-    db.session.commit()
-    flash('Usuario eliminado exitosamente', 'success')
+    if has_completed_jobs or has_active_jobs:
+        flash('No se puede eliminar el usuario porque tiene trabajos asociados. ' +
+              'Por favor, reasigne o elimine los trabajos antes de eliminar el usuario.', 'error')
+        return redirect(url_for('main.manage_users'))
+
+    try:
+        log_activity(
+            'eliminar_usuario',
+            f'Usuario eliminado: {user.username}'
+        )
+
+        db.session.delete(user)
+        db.session.commit()
+        flash('Usuario eliminado exitosamente', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al eliminar usuario: {str(e)}")
+        flash('Error al eliminar el usuario. Por favor, inténtelo de nuevo.', 'error')
+
     return redirect(url_for('main.manage_users'))
 
 @bp.route('/jobs/new', methods=['GET', 'POST'])
@@ -821,7 +836,7 @@ def webauthn_authenticate_begin():
     except Exception as e:
         logger.error(f"Error iniciando autenticación biométrica: {str(e)}")
         error_message = str(e)
-        if "no credentials" in error_message.lower():
+        if "no credentials" in error_message.lower:
             error_message = "No se encontraron credenciales biométricas. Por favor, registre su dispositivo primero."
         elif "timeout" in error_message.lower():
             error_message = "El proceso tomó demasiado tiempo. Por favor, intente nuevamente."
