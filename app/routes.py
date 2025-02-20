@@ -654,24 +654,34 @@ def webauthn_status():
 @login_required
 def webauthn_register_begin():
     """Inicia el proceso de registro de credenciales biométricas"""
-    device_name = request.json.get('device_name', 'Dispositivo sin nombre')
+    try:
+        device_name = request.json.get('device_name', 'Dispositivo sin nombre')
 
-    registration_options = generate_registration_options(
-        rp_id=request.host.split(':')[0],
-        rp_name="FOTO VIDEO MOJICA",
-        user_id=str(current_user.id),
-        user_name=current_user.username,
-        user_display_name=current_user.name,
-        authenticator_selection=AuthenticatorSelectionCriteria(
-            user_verification=UserVerificationRequirement.PREFERRED
+        registration_options = generate_registration_options(
+            rp_id=request.host.split(':')[0],
+            rp_name="FOTO VIDEO MOJICA",
+            user_id=str(current_user.id),
+            user_name=current_user.username,
+            user_display_name=current_user.name,
+            authenticator_selection=AuthenticatorSelectionCriteria(
+                authenticator_attachment="platform",
+                require_resident_key=False,
+                user_verification=UserVerificationRequirement.PREFERRED
+            ),
+            timeout=60000  # 60 segundos para dar tiempo en móviles
         )
-    )
 
-    # Guardar challenge para verificación posterior
-    session['webauthn_registration_challenge'] = registration_options.challenge
-    session['webauthn_device_name'] = device_name
+        # Guardar challenge para verificación posterior
+        session['webauthn_registration_challenge'] = registration_options.challenge
+        session['webauthn_device_name'] = device_name
 
-    return jsonify(options_to_json(registration_options))
+        # Convertir opciones a formato JSON
+        options_json = options_to_json(registration_options)
+
+        return jsonify(options_json)
+    except Exception as e:
+        logging.error(f"Error en registro biométrico: {str(e)}")
+        return jsonify({'error': str(e)}), 400
 
 @bp.route('/webauthn/register/complete', methods=['POST'])
 @login_required
@@ -685,11 +695,13 @@ def webauthn_register_complete():
             raise ValueError("No se encontró el challenge de registro")
 
         credential = RegistrationCredential.from_json(request.json)
+
         verification = verify_registration_response(
             credential=credential,
             expected_challenge=challenge,
             expected_rp_id=request.host.split(':')[0],
-            expected_origin=request.url_root.rstrip('/')
+            expected_origin=request.url_root.rstrip('/'),
+            require_user_verification=False  # Más permisivo para móviles
         )
 
         # Guardar credencial en la base de datos
@@ -708,7 +720,10 @@ def webauthn_register_complete():
 
     except Exception as e:
         logging.error(f"Error en registro biométrico: {str(e)}")
-        return jsonify({'status': 'error', 'message': str(e)}), 400
+        error_msg = str(e)
+        if "did not match the expected pattern" in error_msg:
+            error_msg = "Error de compatibilidad con el dispositivo. Por favor, intente con otro método de autenticación."
+        return jsonify({'status': 'error', 'message': error_msg}), 400
 
 @bp.route('/webauthn/authenticate/begin', methods=['POST'])
 def webauthn_authenticate_begin():
