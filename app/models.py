@@ -287,6 +287,9 @@ class PendingJob(db.Model):
     deposit_amount = db.Column(db.Numeric(10, 2))
     pending_type = db.Column(db.String(50), default='new_job')
     photos = db.Column(db.Text)  # Para almacenar rutas de fotos en JSON
+    original_job_id = db.Column(db.Integer)
+    tags = db.Column(db.String(200))
+    message = db.Column(db.Text)
 
     # Relationships
     designer = db.relationship('User', foreign_keys=[designer_id])
@@ -330,5 +333,6 @@ class PendingJob(db.Model):
             invoice_number=self.invoice_number,
             client_name=self.client_name,
             phone_number=self.phone_number,
-            created_at=self.created_at
+            created_at=self.created_at,
+            tags=self.tags
         )
