@@ -666,9 +666,9 @@ def webauthn_register_begin():
             authenticator_selection=AuthenticatorSelectionCriteria(
                 authenticator_attachment="platform",
                 require_resident_key=False,
-                user_verification=UserVerificationRequirement.PREFERRED
+                user_verification=UserVerificationRequirement.DISCOURAGED  # Cambiado para mayor compatibilidad
             ),
-            timeout=60000  # 60 segundos para dar tiempo en móviles
+            timeout=120000  # 120 segundos para dar más tiempo en móviles
         )
 
         # Guardar challenge para verificación posterior
@@ -677,8 +677,8 @@ def webauthn_register_begin():
 
         # Convertir opciones a formato JSON
         options_json = options_to_json(registration_options)
-
         return jsonify(options_json)
+
     except Exception as e:
         logging.error(f"Error en registro biométrico: {str(e)}")
         return jsonify({'error': str(e)}), 400
