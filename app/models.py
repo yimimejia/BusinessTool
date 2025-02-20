@@ -4,6 +4,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
 from sqlalchemy.orm import validates
 import re
+import base64
+import json
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -25,6 +27,7 @@ class User(UserMixin, db.Model):
                                     foreign_keys='Job.registered_by_id',
                                     backref='registered_by')
     activities = db.relationship('ActivityLog', backref='user', lazy='dynamic')
+    webauthn_credentials = db.relationship('WebAuthnCredential', backref='user', lazy=True)
 
     def set_password(self, password):
         if len(password) < 8:
@@ -49,6 +52,24 @@ class User(UserMixin, db.Model):
     @property
     def can_delete_jobs(self):
         return self.is_admin
+
+class WebAuthnCredential(db.Model):
+    __tablename__ = 'webauthn_credentials'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    credential_id = db.Column(db.String(250), unique=True, nullable=False)
+    public_key = db.Column(db.Text, nullable=False)
+    sign_count = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_used_at = db.Column(db.DateTime)
+    name = db.Column(db.String(100))  # Nombre del dispositivo
+
+    def get_credential_data(self):
+        return {
+            'credentialId': self.credential_id,
+            'publicKey': self.public_key,
+            'signCount': self.sign_count,
+        }
 
 class ActivityLog(db.Model):
     __tablename__ = 'activity_logs'
