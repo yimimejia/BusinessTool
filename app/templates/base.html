@@ -102,19 +102,26 @@
                             <i class="bi bi-qr-code-scan"></i> Escanear QR
                         </a>
                     </li>
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{{ url_for('main.new_pending_job') }}">
+                            <i class="bi bi-plus-circle-fill"></i> Nuevo Trabajo
+                        </a>
+                    </li>
+                    {% endif %}
                     {% if current_user.is_admin %}
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.manage_users') }}">
                             <i class="bi bi-people-fill"></i> Usuarios
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="{{ url_for('main.new_job') }}">
-                            <i class="bi bi-plus-circle-fill"></i> Nuevo Trabajo
-                        </a>
-                    </li>
                     {% endif %}
                     {% if current_user.is_staff %}
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{{ url_for('main.pending_jobs') }}">
+                            <i class="bi bi-clock-history"></i> Verificar Trabajos
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.completed_jobs') }}">
                             <i class="bi bi-clipboard2-check-fill"></i> Trabajos Completados

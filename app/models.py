@@ -224,3 +224,53 @@ class DeliveredJob(db.Model):
     # Relationships
     designer = db.relationship('User', foreign_keys=[designer_id])
     registered_by = db.relationship('User', foreign_keys=[registered_by_id])
+
+
+class PendingJob(db.Model):
+    __tablename__ = 'pending_jobs'
+    id = db.Column(db.Integer, primary_key=True)
+    description = db.Column(db.String(255), nullable=False)
+    designer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    registered_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    invoice_number = db.Column(db.String(50))
+    client_name = db.Column(db.String(100))
+    phone_number = db.Column(db.String(20))
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    # Relationships
+    designer = db.relationship('User', foreign_keys=[designer_id])
+    registered_by = db.relationship('User', foreign_keys=[registered_by_id])
+
+    @validates('phone_number')
+    def validate_phone_number(self, key, phone_number):
+        if not phone_number:
+            return phone_number
+
+        # Eliminar cualquier caracter que no sea número
+        cleaned_number = re.sub(r'[^\d]', '', phone_number)
+
+        # Si el número no empieza con 1, agregar el código de área
+        if len(cleaned_number) == 10:
+            cleaned_number = '1' + cleaned_number
+        elif len(cleaned_number) > 11 or len(cleaned_number) < 10:
+            raise ValueError('El número de teléfono debe tener 10 dígitos')
+
+        # Validar que empiece con 1
+        if not cleaned_number.startswith('1'):
+            raise ValueError('El número debe incluir el código de área (+1)')
+
+        # Formatear el número para almacenamiento: +1-XXX-XXXXXXX
+        formatted_number = f'+{cleaned_number[0]}-{cleaned_number[1:4]}-{cleaned_number[4:]}'
+        return formatted_number
+
+    def to_job(self):
+        """Convierte el trabajo pendiente en un trabajo regular"""
+        return Job(
+            description=self.description,
+            designer_id=self.designer_id,
+            registered_by_id=self.registered_by_id,
+            invoice_number=self.invoice_number,
+            client_name=self.client_name,
+            phone_number=self.phone_number,
+            created_at=self.created_at
+        )

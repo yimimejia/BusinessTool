@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from app import db
-from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, WebAuthnCredential
+from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, WebAuthnCredential, PendingJob # Assumed PendingJob model exists
 from datetime import datetime
 import json
 from functools import wraps
@@ -69,7 +69,7 @@ def log_activity(action, details=None):
         db.session.commit()
 
         # Enviar notificación en tiempo real si es una acción importante
-        if action in ['nuevo_trabajo', 'trabajo_completado', 'trabajo_eliminado', 'trabajo_entregado', 'trabajo_entregado_qr']:
+        if action in ['nuevo_trabajo', 'trabajo_completado', 'trabajo_eliminado', 'trabajo_entregado', 'trabajo_entregado_qr', 'nuevo_trabajo_pendiente', 'trabajo_aprobado', 'trabajo_rechazado']:
             sse.publish({
                 "message": f"{action}: {details}",
                 "type": "info"
@@ -836,7 +836,7 @@ def webauthn_authenticate_begin():
     except Exception as e:
         logger.error(f"Error iniciando autenticación biométrica: {str(e)}")
         error_message = str(e)
-        if "no credentials" in error_message.lower:
+        if "no credentials" in error_message.lower():
             error_message = "No se encontraron credenciales biométricas. Por favor, registre su dispositivo primero."
         elif "timeout" in error_message.lower():
             error_message = "El proceso tomó demasiado tiempo. Por favor, intente nuevamente."
@@ -980,3 +980,109 @@ def public_job(qr_code):
     if not job:
         return "Trabajo no encontrado", 404
     return render_template('public_job.html', job=job)
+
+@bp.route('/jobs/pending/new', methods=['GET', 'POST'])
+@login_required
+def new_pending_job():
+    if request.method == 'POST':
+        try:
+            phone_number = request.form.get('phone_number')
+            if not phone_number.startswith('+1'):
+                phone_number = f'+1{phone_number}' if phone_number.startswith('1') else f'+1{phone_number}'
+
+            pending_job = PendingJob(
+                description=request.form.get('description'),
+                designer_id=request.form.get('designer_id'),
+                registered_by_id=current_user.id,
+                invoice_number=request.form.get('invoice_number'),
+                client_name=request.form.get('client_name'),
+                phone_number=phone_number
+            )
+
+            db.session.add(pending_job)
+            db.session.commit()
+
+            log_activity(
+                'nuevo_trabajo_pendiente',
+                f"Trabajo pendiente creado para {pending_job.client_name} (Factura: {pending_job.invoice_number})"
+            )
+
+            flash('Trabajo enviado para verificación', 'success')
+            return redirect(url_for('main.dashboard'))
+
+        except ValueError as e:
+            flash(str(e), 'error')
+            db.session.rollback()
+        except Exception as e:
+            flash('Error al crear el trabajo. Verifica el formato del número telefónico (+1-XXX-XXXXXXX)', 'error')
+            db.session.rollback()
+
+    designers = User.query.filter_by(is_admin=False, is_supervisor=False).all()
+    return render_template('new_pending_job.html', designers=designers)
+
+@bp.route('/jobs/pending')
+@login_required
+@staff_required
+def pending_jobs():
+    """Vista de trabajos pendientes de verificación"""
+    jobs = PendingJob.query.all()
+    return render_template('pending_jobs.html', jobs=jobs)
+
+@bp.route('/jobs/pending/<int:job_id>/approve', methods=['POST'])
+@login_required
+@staff_required
+def approve_pending_job(job_id):
+    """Aprobar un trabajo pendiente"""
+    pending_job = PendingJob.query.get_or_404(job_id)
+
+    try:
+        # Crear un nuevo trabajo regular
+        job = pending_job.to_job()
+
+        # Agregar campos adicionales
+        job.deposit_amount = request.form.get('deposit_amount', type=float)
+        job.tags = request.form.get('tags', '').strip()
+
+        # Generar código QR
+        job.generate_qr_code()
+
+        # Guardar el nuevo trabajo y eliminar el pendiente
+        db.session.add(job)
+        db.session.delete(pending_job)
+        db.session.commit()
+
+        log_activity(
+            'trabajo_aprobado',
+            f"Trabajo aprobado para {job.client_name} (Factura: {job.invoice_number})"
+        )
+
+        flash('Trabajo aprobado exitosamente', 'success')
+        return redirect(url_for('main.show_job_qr', job_id=job.id))
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al aprobar el trabajo: {str(e)}', 'error')
+        return redirect(url_for('main.pending_jobs'))
+
+@bp.route('/jobs/pending/<int:job_id>/reject', methods=['POST'])
+@login_required
+@staff_required
+def reject_pending_job(job_id):
+    """Rechazar un trabajo pendiente"""
+    pending_job = PendingJob.query.get_or_404(job_id)
+
+    try:
+        log_activity(
+            'trabajo_rechazado',
+            f"Trabajo rechazado para {pending_job.client_name} (Factura: {pending_job.invoice_number})"
+        )
+
+        db.session.delete(pending_job)
+        db.session.commit()
+
+        flash('Trabajo rechazado', 'warning')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al rechazar el trabajo: {str(e)}', 'error')
+
+    return redirect(url_for('main.pending_jobs'))

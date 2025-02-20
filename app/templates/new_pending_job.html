@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Nuevo Trabajo{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Registrar Nuevo Trabajo</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Descripción</label>
+                            <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="designer_id" class="form-label">Diseñador</label>
+                            <select class="form-select" id="designer_id" name="designer_id" required>
+                                <option value="" selected disabled>Seleccionar diseñador...</option>
+                                {% for designer in designers %}
+                                <option value="{{ designer.id }}">{{ designer.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="invoice_number" class="form-label">No. Factura</label>
+                            <input type="text" class="form-control" id="invoice_number" name="invoice_number" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="client_name" class="form-label">Cliente</label>
+                            <input type="text" class="form-control" id="client_name" name="client_name" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="phone_number" class="form-label">Teléfono</label>
+                            <input type="tel" class="form-control" id="phone_number" name="phone_number" 
+                                   placeholder="+1-XXX-XXXXXXX" required>
+                        </div>
+
+                        <div class="text-end">
+                            <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary me-2">Cancelar</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Guardar Trabajo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
