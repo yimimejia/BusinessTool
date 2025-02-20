@@ -1,8 +1,8 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response, send_from_directory
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response, send_from_directory, session
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from app import db
-from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob # Added DeliveredJob import
+from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, WebAuthnCredential
 from datetime import datetime
 import json
 from functools import wraps
@@ -11,8 +11,22 @@ from flask_sse import sse
 from sqlalchemy.exc import DataError
 import os
 from openpyxl import Workbook
-from datetime import datetime
 import io
+import base64
+from webauthn import (
+    generate_registration_options,
+    verify_registration_response,
+    generate_authentication_options,
+    verify_authentication_response,
+    options_to_json,
+    base64url_to_bytes,
+)
+from webauthn.helpers.structs import (
+    AuthenticatorSelectionCriteria,
+    UserVerificationRequirement,
+    RegistrationCredential,
+    AuthenticationCredential,
+)
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -606,3 +620,165 @@ def search_jobs():
 def delivered_jobs():
     jobs = DeliveredJob.query.all()
     return render_template('delivered_jobs.html', jobs=jobs)
+
+@bp.route('/webauthn/status')
+@login_required
+def webauthn_status():
+    """Verifica si el usuario tiene credenciales biométricas registradas"""
+    has_credentials = WebAuthnCredential.query.filter_by(user_id=current_user.id).first() is not None
+    return jsonify({
+        'enabled': has_credentials,
+        'credentials': [
+            {
+                'id': cred.id,
+                'name': cred.name,
+                'created_at': cred.created_at.isoformat(),
+                'last_used_at': cred.last_used_at.isoformat() if cred.last_used_at else None
+            }
+            for cred in current_user.webauthn_credentials
+        ] if has_credentials else []
+    })
+
+@bp.route('/webauthn/register/begin', methods=['POST'])
+@login_required
+def webauthn_register_begin():
+    """Inicia el proceso de registro de credenciales biométricas"""
+    device_name = request.json.get('device_name', 'Dispositivo sin nombre')
+
+    registration_options = generate_registration_options(
+        rp_id=request.host.split(':')[0],
+        rp_name="FOTO VIDEO MOJICA",
+        user_id=str(current_user.id),
+        user_name=current_user.username,
+        user_display_name=current_user.name,
+        authenticator_selection=AuthenticatorSelectionCriteria(
+            user_verification=UserVerificationRequirement.PREFERRED
+        )
+    )
+
+    # Guardar challenge para verificación posterior
+    session['webauthn_registration_challenge'] = registration_options.challenge
+    session['webauthn_device_name'] = device_name
+
+    return jsonify(options_to_json(registration_options))
+
+@bp.route('/webauthn/register/complete', methods=['POST'])
+@login_required
+def webauthn_register_complete():
+    """Completa el proceso de registro de credenciales biométricas"""
+    try:
+        challenge = session.pop('webauthn_registration_challenge', None)
+        device_name = session.pop('webauthn_device_name', 'Dispositivo sin nombre')
+
+        if not challenge:
+            raise ValueError("No se encontró el challenge de registro")
+
+        credential = RegistrationCredential.from_json(request.json)
+        verification = verify_registration_response(
+            credential=credential,
+            expected_challenge=challenge,
+            expected_rp_id=request.host.split(':')[0],
+            expected_origin=request.url_root.rstrip('/')
+        )
+
+        # Guardar credencial en la base de datos
+        new_credential = WebAuthnCredential(
+            user_id=current_user.id,
+            credential_id=base64.b64encode(verification.credential_id).decode(),
+            public_key=verification.credential_public_key.hex(),
+            sign_count=verification.sign_count,
+            name=device_name
+        )
+        db.session.add(new_credential)
+        db.session.commit()
+
+        log_activity('registro_biometrico', f'Registro biométrico exitoso - Usuario: {current_user.username}')
+        return jsonify({'status': 'success'})
+
+    except Exception as e:
+        logging.error(f"Error en registro biométrico: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 400
+
+@bp.route('/webauthn/authenticate/begin', methods=['POST'])
+def webauthn_authenticate_begin():
+    """Inicia el proceso de autenticación biométrica"""
+    try:
+        username = request.json.get('username')
+        if not username:
+            raise ValueError("Se requiere el nombre de usuario")
+
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            raise ValueError("Usuario no encontrado")
+
+        credentials = WebAuthnCredential.query.filter_by(user_id=user.id).all()
+        if not credentials:
+            raise ValueError("El usuario no tiene credenciales biométricas registradas")
+
+        allowed_credentials = [
+            {"type": "public-key", "id": base64url_to_bytes(cred.credential_id)}
+            for cred in credentials
+        ]
+
+        authentication_options = generate_authentication_options(
+            rp_id=request.host.split(':')[0],
+            allow_credentials=allowed_credentials,
+            user_verification=UserVerificationRequirement.PREFERRED
+        )
+
+        session['webauthn_authentication_challenge'] = authentication_options.challenge
+        session['webauthn_authentication_username'] = username
+
+        return jsonify(options_to_json(authentication_options))
+
+    except Exception as e:
+        logging.error(f"Error iniciando autenticación biométrica: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 400
+
+@bp.route('/webauthn/authenticate/complete', methods=['POST'])
+def webauthn_authenticate_complete():
+    """Completa el proceso de autenticación biométrica"""
+    try:
+        challenge = session.pop('webauthn_authentication_challenge', None)
+        username = session.pop('webauthn_authentication_username', None)
+
+        if not challenge or not username:
+            raise ValueError("Datos de autenticación no encontrados")
+
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            raise ValueError("Usuario no encontrado")
+
+        credential = AuthenticationCredential.from_json(request.json)
+
+        # Buscar la credencial en la base de datos
+        db_credential = WebAuthnCredential.query.filter_by(
+            credential_id=base64.b64encode(credential.raw_id).decode()
+        ).first()
+
+        if not db_credential:
+            raise ValueError("Credencial no encontrada")
+
+        verification = verify_authentication_response(
+            credential=credential,
+            expected_challenge=challenge,
+            expected_rp_id=request.host.split(':')[0],
+            expected_origin=request.url_root.rstrip('/'),
+            credential_public_key=bytes.fromhex(db_credential.public_key),
+            credential_current_sign_count=db_credential.sign_count
+        )
+
+        # Actualizar el contador de firmas
+        db_credential.sign_count = verification.new_sign_count
+        db_credential.last_used_at = datetime.utcnow()
+
+        # Iniciar sesión del usuario
+        login_user(user)
+        log_activity('login_biometrico', f'Inicio de sesión biométrico exitoso - Usuario: {user.username}')
+
+        db.session.commit()
+        return jsonify({'status': 'success'})
+
+    except Exception as e:
+        logging.error(f"Error completando autenticación biométrica: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 400
