@@ -37,6 +37,9 @@
                            pattern="[0-9]*" inputmode="numeric" required
                            placeholder="Ejemplo: 3051234567">
                     <small class="text-muted">Solo números. El código de área (+1) se agregará automáticamente</small>
+                    <div id="phoneError" class="invalid-feedback">
+                        El número de teléfono debe tener 10 dígitos
+                    </div>
                 </div>
                 <div class="col-md-12 mb-3">
                     <label class="form-label">Etiquetas (separadas por comas)</label>
@@ -46,7 +49,10 @@
             </div>
             <div class="text-end">
                 <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary me-2">Cancelar</a>
-                <button type="submit" class="btn btn-primary">Guardar Trabajo</button>
+                <button type="submit" id="submitButton" class="btn btn-primary">
+                    <span id="submitText">Guardar Trabajo</span>
+                    <span id="loadingSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                </button>
             </div>
         </form>
     </div>
@@ -58,6 +64,10 @@
 document.addEventListener('DOMContentLoaded', function() {
     const phoneInput = document.getElementById('phone_number');
     const form = document.getElementById('newJobForm');
+    const submitButton = document.getElementById('submitButton');
+    const submitText = document.getElementById('submitText');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    let isSubmitting = false;
 
     // Solo permitir números en el campo de teléfono
     phoneInput.addEventListener('input', function(e) {
@@ -68,19 +78,44 @@ document.addEventListener('DOMContentLoaded', function() {
         if (this.value.length > 10) {
             this.value = this.value.slice(0, 10);
         }
+
+        // Validar longitud
+        if (this.value.length === 10) {
+            this.classList.remove('is-invalid');
+            this.classList.add('is-valid');
+        } else {
+            this.classList.remove('is-valid');
+            if (this.value.length > 0) {
+                this.classList.add('is-invalid');
+            }
+        }
     });
 
     // Validar el formulario antes de enviar
     form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        if (isSubmitting) {
+            return false;
+        }
+
         const phoneNumber = phoneInput.value;
 
         // Verificar que tenga 10 dígitos
         if (phoneNumber.length !== 10) {
-            e.preventDefault();
-            alert('El número de teléfono debe tener 10 dígitos');
+            phoneInput.classList.add('is-invalid');
             phoneInput.focus();
             return false;
         }
+
+        // Prevenir envíos múltiples
+        isSubmitting = true;
+        submitButton.disabled = true;
+        submitText.textContent = 'Guardando...';
+        loadingSpinner.classList.remove('d-none');
+
+        // Enviar el formulario
+        this.submit();
     });
 });
 </script>
