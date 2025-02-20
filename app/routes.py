@@ -479,7 +479,6 @@ def delete_user(user_id):
 
 @bp.route('/jobs/new', methods=['GET', 'POST'])
 @login_required
-@staff_required
 def new_job():
     if request.method == 'POST':
         try:
@@ -498,9 +497,12 @@ def new_job():
             if deposit_amount:
                 deposit_amount = float(deposit_amount)
 
+            # Si no es staff, usar el ID del usuario actual como diseñador
+            designer_id = request.form.get('designer_id') if current_user.is_staff else current_user.id
+
             job = Job(
                 description=request.form.get('description'),
-                designer_id=request.form.get('designer_id'),
+                designer_id=designer_id,
                 registered_by_id=current_user.id,
                 invoice_number=request.form.get('invoice_number'),
                 client_name=request.form.get('client_name'),
@@ -530,7 +532,8 @@ def new_job():
             flash('Error al crear el trabajo. Verifica el formato del número telefónico (+1-XXX-XXXXXXX)', 'error')
             db.session.rollback()
 
-    designers = User.query.filter_by(is_admin=False, is_supervisor=False).all()
+    # Solo obtener diseñadores si el usuario es staff
+    designers = User.query.filter_by(is_admin=False, is_supervisor=False).all() if current_user.is_staff else None
     return render_template('new_job.html', designers=designers)
 
 @bp.route('/jobs/<int:job_id>/qr')
@@ -672,12 +675,12 @@ def delete_job(job_id):
 @login_required
 def completed_jobs():
     """Ver trabajos completados"""
-    # Si es staff (admin o supervisor) ve todos los trabajos
     if current_user.is_staff:
-        jobs = CompletedJob.query.all()
+        # Si es staff (admin o supervisor) ve todos los trabajos
+        jobs = CompletedJob.query.order_by(CompletedJob.completed_at.desc()).all()
     else:
-        # Si es diseñador, solo ve sus trabajos
-        jobs = CompletedJob.query.filter_by(designer_id=current_user.id).all()
+        # Si es diseñador, solo ve sus trabajos completados
+        jobs = CompletedJob.query.filter_by(designer_id=current_user.id).order_by(CompletedJob.completed_at.desc()).all()
 
     return render_template('completed_jobs.html', jobs=jobs)
 
