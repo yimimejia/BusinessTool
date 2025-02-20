@@ -13,6 +13,7 @@ import os
 from openpyxl import Workbook
 import io
 import base64
+import qrcode
 from webauthn import (
     generate_registration_options,
     verify_registration_response,
