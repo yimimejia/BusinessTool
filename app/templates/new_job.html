@@ -8,7 +8,7 @@
         <h4 class="mb-0">Registrar Nuevo Trabajo</h4>
     </div>
     <div class="card-body">
-        <form method="POST">
+        <form method="POST" id="newJobForm">
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Descripción</label>
@@ -33,7 +33,10 @@
                 </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Teléfono</label>
-                    <input type="text" name="phone_number" class="form-control" required>
+                    <input type="tel" name="phone_number" id="phone_number" class="form-control" 
+                           pattern="[0-9]*" inputmode="numeric" required
+                           placeholder="Ejemplo: 3051234567">
+                    <small class="text-muted">Solo números. El código de área (+1) se agregará automáticamente</small>
                 </div>
                 <div class="col-md-12 mb-3">
                     <label class="form-label">Etiquetas (separadas por comas)</label>
@@ -48,4 +51,37 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const phoneInput = document.getElementById('phone_number');
+    const form = document.getElementById('newJobForm');
+
+    // Solo permitir números en el campo de teléfono
+    phoneInput.addEventListener('input', function(e) {
+        // Remover cualquier caracter que no sea número
+        this.value = this.value.replace(/[^\d]/g, '');
+
+        // Limitar a 10 dígitos
+        if (this.value.length > 10) {
+            this.value = this.value.slice(0, 10);
+        }
+    });
+
+    // Validar el formulario antes de enviar
+    form.addEventListener('submit', function(e) {
+        const phoneNumber = phoneInput.value;
+
+        // Verificar que tenga 10 dígitos
+        if (phoneNumber.length !== 10) {
+            e.preventDefault();
+            alert('El número de teléfono debe tener 10 dígitos');
+            phoneInput.focus();
+            return false;
+        }
+    });
+});
+</script>
 {% endblock %}

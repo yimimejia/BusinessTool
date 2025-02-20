@@ -141,15 +141,21 @@ class Job(db.Model):
         if not phone_number:
             return phone_number
 
-        # Eliminar espacios y guiones para normalizar
-        cleaned_number = re.sub(r'[\s-]', '', phone_number)
+        # Eliminar cualquier caracter que no sea número
+        cleaned_number = re.sub(r'[^\d]', '', phone_number)
 
-        # Validar formato: +1 seguido de 10 dígitos
-        if not re.match(r'^\+1\d{10}$', cleaned_number):
-            raise ValueError('El número de teléfono debe incluir el código de área (+1) y 10 dígitos')
+        # Si el número no empieza con 1, agregar el código de área
+        if len(cleaned_number) == 10:
+            cleaned_number = '1' + cleaned_number
+        elif len(cleaned_number) > 11 or len(cleaned_number) < 10:
+            raise ValueError('El número de teléfono debe tener 10 dígitos')
 
-        # Formatear el número para almacenamiento
-        formatted_number = f'+1-{cleaned_number[2:5]}-{cleaned_number[5:]}'
+        # Validar que empiece con 1
+        if not cleaned_number.startswith('1'):
+            raise ValueError('El número debe incluir el código de área (+1)')
+
+        # Formatear el número para almacenamiento: +1-XXX-XXXXXXX
+        formatted_number = f'+{cleaned_number[0]}-{cleaned_number[1:4]}-{cleaned_number[4:]}'
         return formatted_number
 
 class CompletedJob(db.Model):
