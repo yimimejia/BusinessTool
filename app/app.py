@@ -2,6 +2,7 @@ import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from flask_sse import sse
 from sqlalchemy.orm import DeclarativeBase
 
 class Base(DeclarativeBase):
@@ -20,25 +21,27 @@ def create_app():
         "pool_recycle": 300,
         "pool_pre_ping": True,
     }
+    app.config["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379")
 
     # Inicializar extensiones
     db.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
 
+    # Registrar blueprint para SSE
+    app.register_blueprint(sse, url_prefix='/stream')
+
     with app.app_context():
         # Importar modelos y rutas
         from app import models
         from app.tasks import init_scheduler
-        
+
         # Crear tablas
         db.create_all()
-        
+
         # Inicializar el planificador de tareas
         scheduler = init_scheduler()
-        
-        # Registrar blueprints aquí si los tienes
-        
+
         return app
 
 app = create_app()

@@ -7,7 +7,7 @@ function requestNotificationPermission() {
 
 // Reproducir sonido de alerta
 function playAlertSound() {
-    const audio = new Audio('/static/sounds/notification.mp3');
+    const audio = new Audio('/static/notification.mp3');
     audio.play().catch(error => console.log('Error al reproducir sonido:', error));
 }
 
@@ -16,7 +16,7 @@ const evtSource = new EventSource("/stream");
 
 evtSource.onmessage = function(event) {
     const data = JSON.parse(event.data);
-    
+
     // Mostrar notificación del navegador
     if (Notification.permission === "granted") {
         new Notification("FOTO VIDEO MOJICA", {
@@ -25,8 +25,8 @@ evtSource.onmessage = function(event) {
         });
     }
 
-    // Reproducir sonido si el mensaje es sobre un nuevo trabajo
-    if (data.type === "nuevo_trabajo") {
+    // Reproducir sonido si el mensaje es sobre un trabajo pendiente
+    if (data.type === "pending_job") {
         playAlertSound();
     }
 };
