@@ -29,6 +29,7 @@ from werkzeug.utils import secure_filename
 import io
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 import time
+import re
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -177,13 +178,6 @@ def send_job_photos(job_id):
         return redirect(url_for('main.completed_jobs'))
 
 
-def get_job_photos(job_id):
-    """Obtiene los mensajes con fotos para un trabajo específico"""
-    return Message.query.filter(
-        Message.content.like(f'%trabajo #{job_id}%'),
-        Message.photos.isnot(None)
-    ).order_by(Message.created_at.desc()).all()
-
 @bp.route('/messages/<int:message_id>/approve-photos', methods=['POST'])
 @login_required
 @admin_required
@@ -196,7 +190,6 @@ def approve_photos(message_id):
         return redirect(url_for('main.completed_jobs'))
 
     # Extraer el ID del trabajo desde el contenido del mensaje
-    import re
     job_id_match = re.search(r'trabajo #(\d+)', message.content)
     if not job_id_match:
         flash('No se pudo identificar el trabajo asociado', 'error')
@@ -854,7 +847,7 @@ def export_jobs(format):
         return Response(
             html,
             mimetype='text/html',
-            headers={'Content-Disposition': f'attachment;filename=trabajos_{datetime.now().strftime("%Y%m%d")}.pdf'}
+            headers={'Content-Disposition': f'attachment;filename=trabajos_{datetime.now().strftime("%Ym%d")}.pdf'}
         )
 
 @bp.route('/jobs/search', methods=['GET'])
@@ -1402,3 +1395,14 @@ def create_delivered_job_from_pending(pending_job):
         qr_code=pending_job.qr_code,
         tags=pending_job.tags
     )
+
+def get_job_photos(job_id):
+    """Obtiene los mensajes con fotos para un trabajo específico"""
+    return Message.query.filter(
+        Message.content.like(f'%trabajo #{job_id}%'),
+        Message.photos.isnot(None)
+    ).order_by(Message.created_at.desc()).all()
+
+@bp.context_processor
+def utility_processor():
+    return dict(get_job_photos=get_job_photos)
