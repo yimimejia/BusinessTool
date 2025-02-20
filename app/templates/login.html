@@ -19,10 +19,40 @@
                         <label for="password" class="form-label">Contraseña</label>
                         <input type="password" class="form-control" id="password" name="password" required>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Ingresar</button>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-key-fill"></i> Ingresar con Contraseña
+                        </button>
+                        <button type="button" id="biometricLogin" class="btn btn-success" style="display: none;">
+                            <i class="bi bi-fingerprint"></i> Ingresar con Biometría
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/webauthn.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const biometricButton = document.getElementById('biometricLogin');
+
+    // Verificar si el navegador soporta WebAuthn
+    if (isWebAuthnSupported()) {
+        biometricButton.style.display = 'block';
+        biometricButton.addEventListener('click', async function(e) {
+            e.preventDefault();
+            try {
+                await authenticateBiometric();
+            } catch (error) {
+                console.error('Error en autenticación biométrica:', error);
+                alert('Error al intentar la autenticación biométrica. Por favor, intente con su contraseña.');
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
