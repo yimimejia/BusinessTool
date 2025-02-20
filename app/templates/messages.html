@@ -11,7 +11,7 @@
                     <h5 class="mb-0">Nuevo Mensaje</h5>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('main.send_message') }}">
+                    <form method="POST" action="{{ url_for('main.send_message') }}" enctype="multipart/form-data">
                         <div class="mb-3">
                             <label for="recipient_id" class="form-label">Destinatario</label>
                             <select class="form-select" id="recipient_id" name="recipient_id" required>
@@ -27,6 +27,13 @@
                             <label for="content" class="form-label">Mensaje</label>
                             <textarea class="form-control" id="content" name="content" rows="3" required></textarea>
                         </div>
+                        {% if current_user.is_admin or current_user.is_staff %}
+                        <div class="mb-3">
+                            <label for="photos" class="form-label">Fotos para WhatsApp</label>
+                            <input type="file" class="form-control" id="photos" name="photos" multiple accept="image/*">
+                            <div id="preview" class="mt-2 d-flex flex-wrap gap-2"></div>
+                        </div>
+                        {% endif %}
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-send"></i> Enviar
                         </button>
@@ -61,6 +68,23 @@
                                 <div class="message-content">
                                     {{ message.content }}
                                 </div>
+                                {% if message.photos %}
+                                <div class="message-photos mt-2">
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% for photo in message.get_photos() %}
+                                        <img src="{{ url_for('static', filename=photo) }}" class="img-thumbnail" style="max-width: 100px;">
+                                        {% endfor %}
+                                    </div>
+                                    {% if current_user.is_admin and not message.is_approved %}
+                                    <div class="mt-2">
+                                        <a href="{{ url_for('main.approve_photos', message_id=message.id) }}" 
+                                           class="btn btn-success btn-sm">
+                                            <i class="bi bi-check"></i> Aprobar y Enviar
+                                        </a>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
                             </div>
                             {% endfor %}
                         {% else %}
@@ -94,6 +118,27 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // Preview de imágenes
+    const photosInput = document.getElementById('photos');
+    const previewDiv = document.getElementById('preview');
+
+    if (photosInput) {
+        photosInput.addEventListener('change', function() {
+            previewDiv.innerHTML = '';
+            for (let file of this.files) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.classList.add('img-thumbnail');
+                    img.style.maxWidth = '100px';
+                    previewDiv.appendChild(img);
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

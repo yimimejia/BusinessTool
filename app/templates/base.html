@@ -80,6 +80,29 @@
             margin-right: 5px;
             font-size: 1em;
         }
+        .message-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            padding: 3px 6px;
+            border-radius: 50%;
+            background: red;
+            color: white;
+            font-size: 0.7em;
+        }
+
+        .message-icon {
+            position: relative;
+            margin-left: 15px;
+            cursor: pointer;
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
@@ -114,6 +137,9 @@
             <div class="underline"></div>
         </div>
     </div>
+
+    <!-- Container para notificaciones toast -->
+    <div class="toast-container"></div>
 
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
         <div class="container">
@@ -170,6 +196,12 @@
                 </ul>
                 <div class="navbar-text text-white me-3">
                     <i class="bi bi-person-circle"></i> {{ current_user.name }}
+                    {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('main.messages') }}" class="text-white message-icon" id="messageIcon">
+                        <i class="bi bi-envelope"></i>
+                        <span class="message-badge d-none" id="unreadCount">0</span>
+                    </a>
+                    {% endif %}
                 </div>
                 <a href="{{ url_for('main.logout') }}" class="btn btn-outline-light" title="Cerrar sesión">
                     <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
@@ -214,6 +246,53 @@
                     }, 1000); // Duración de la animación de desvanecimiento
                 }, 3000); // Duración total de la animación de entrada
             });
+        </script>
+        <script>
+            // Función para actualizar el contador de mensajes no leídos
+            function updateUnreadCount() {
+                fetch('/messages/unread')
+                    .then(response => response.json())
+                    .then(data => {
+                        const badge = document.getElementById('unreadCount');
+                        if (data.count > 0) {
+                            badge.textContent = data.count;
+                            badge.classList.remove('d-none');
+                        } else {
+                            badge.classList.add('d-none');
+                        }
+                    });
+            }
+
+            // Actualizar cada 30 segundos
+            setInterval(updateUnreadCount, 30000);
+
+            // Actualizar al cargar la página
+            document.addEventListener('DOMContentLoaded', updateUnreadCount);
+
+            // Notificaciones
+            function showNotification(title, message) {
+                const toastContainer = document.querySelector('.toast-container');
+                const toastHtml = `
+                    <div class="toast" role="alert">
+                        <div class="toast-header">
+                            <strong class="me-auto">${title}</strong>
+                            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                        </div>
+                        <div class="toast-body">
+                            ${message}
+                        </div>
+                    </div>
+                `;
+                toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+                const toast = toastContainer.lastElementChild;
+                const bsToast = new bootstrap.Toast(toast);
+                bsToast.show();
+
+                // Eliminar el toast después de que se oculte
+                toast.addEventListener('hidden.bs.toast', () => {
+                    toast.remove();
+                });
+            }
         </script>
     {% endblock %}
 

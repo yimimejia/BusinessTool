@@ -16,10 +16,24 @@ class Message(db.Model):
     content = db.Column(db.Text, nullable=False)
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    photos = db.Column(db.Text)  # JSON array of photo paths
 
     # Relationships
     sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
     recipient = db.relationship('User', foreign_keys=[recipient_id], backref='received_messages')
+
+    def set_photos(self, photo_paths):
+        """Almacena las rutas de las fotos como JSON"""
+        self.photos = json.dumps(photo_paths)
+
+    def get_photos(self):
+        """Obtiene la lista de rutas de fotos"""
+        return json.loads(self.photos) if self.photos else []
+
+    @property
+    def is_photo_message(self):
+        """Verifica si el mensaje contiene fotos"""
+        return bool(self.photos)
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
