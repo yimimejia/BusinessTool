@@ -15,14 +15,21 @@
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
     <style>
-        .nav-link i {
-            margin-right: 8px;
-            font-size: 1.1em;
-        }
-        .navbar-nav .nav-link {
+        .navbar-nav {
             display: flex;
             align-items: center;
-            padding: 8px 16px;
+        }
+        .nav-item {
+            margin: 0 5px;
+        }
+        .nav-link {
+            display: inline-flex !important;
+            align-items: center;
+            white-space: nowrap;
+        }
+        .nav-link i {
+            margin-right: 5px;
+            font-size: 1em;
         }
     </style>
 </head>
@@ -40,30 +47,30 @@
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.dashboard') }}">
-                            <i class="bi bi-folder2-open"></i>Trabajos Pendientes
+                            <i class="bi bi-folder2-open"></i> Trabajos Pendientes
                         </a>
                     </li>
                     {% if current_user.is_admin %}
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.manage_users') }}">
-                            <i class="bi bi-people-fill"></i>Usuarios
+                            <i class="bi bi-people-fill"></i> Usuarios
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.new_job') }}">
-                            <i class="bi bi-plus-circle-fill"></i>Nuevo Trabajo
+                            <i class="bi bi-plus-circle-fill"></i> Nuevo Trabajo
                         </a>
                     </li>
                     {% endif %}
                     {% if current_user.is_staff %}
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.completed_jobs') }}">
-                            <i class="bi bi-clipboard2-check-fill"></i>Trabajos Completados
+                            <i class="bi bi-clipboard2-check-fill"></i> Trabajos Completados
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.delivered_jobs') }}">
-                            <i class="bi bi-box-seam-fill"></i>Trabajos Entregados
+                            <i class="bi bi-box-seam-fill"></i> Trabajos Entregados
                         </a>
                     </li>
                     {% endif %}
