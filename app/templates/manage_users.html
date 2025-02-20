@@ -171,12 +171,8 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Configurar DataTable
-    $('.datatable').DataTable({
-        language: {
-            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
-        }
-    });
+    // Usar la función segura para inicializar DataTable
+    initializeDataTable('.datatable');
 
     // Configurar modal de edición
     const editButtons = document.querySelectorAll('.edit-user');
