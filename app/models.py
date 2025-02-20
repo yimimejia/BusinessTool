@@ -282,7 +282,11 @@ class PendingJob(db.Model):
     client_name = db.Column(db.String(100))
     phone_number = db.Column(db.String(20))
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    qr_code = db.Column(db.String(100), unique=True)  # Nuevo campo
+    qr_code = db.Column(db.String(100), unique=True)
+    total_amount = db.Column(db.Numeric(10, 2))
+    deposit_amount = db.Column(db.Numeric(10, 2))
+    pending_type = db.Column(db.String(50), default='new_job')
+    photos = db.Column(db.Text)  # Para almacenar rutas de fotos en JSON
 
     # Relationships
     designer = db.relationship('User', foreign_keys=[designer_id])
