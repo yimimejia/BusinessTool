@@ -131,7 +131,11 @@
                 <tbody id="jobsTableBody">
                     {% for job in jobs %}
                     <tr>
-                        <td>{{ job.id }}</td>
+                        <td>
+                            <a href="{{ url_for('main.generate_job_pdf', job_id=job.id) }}" target="_blank" class="text-primary">
+                                {{ job.id }}
+                            </a>
+                        </td>
                         <td>{{ job.description }}</td>
                         <td>{{ job.client_name }}</td>
                         <td>{{ job.invoice_number }}</td>

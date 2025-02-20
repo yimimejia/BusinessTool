@@ -909,7 +909,7 @@ def generate_job_pdf(job_id):
     qr_image = base64.b64encode(buffered.getvalue()).decode()
 
     # Renderizar el HTML
-    html = render_template('job_qr.html', job=job, qr_image=qr_image)
+    html = render_template('invoice_pdf.html', job=job, qr_image=qr_image)
 
     # Convertir a PDF usando WeasyPrint
     from weasyprint import HTML

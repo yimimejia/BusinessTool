@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Factura Digital - FOTO VIDEO MOJICA</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1f2e;
+            color: white;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #1a1f2e;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header img {
+            max-width: 200px;
+            margin-bottom: 10px;
+        }
+        .factura-title {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .details {
+            margin-bottom: 30px;
+        }
+        .details-row {
+            display: flex;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #2d3446;
+            padding: 8px 0;
+        }
+        .label {
+            font-weight: bold;
+            width: 150px;
+        }
+        .value {
+            flex: 1;
+        }
+        .qr-container {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .qr-container img {
+            max-width: 200px;
+        }
+        .qr-text {
+            font-size: 12px;
+            color: #8a8d93;
+            margin-top: 10px;
+            text-align: center;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 12px;
+            color: #8a8d93;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="FOTO VIDEO MOJICA">
+            <h1 class="factura-title">Factura Digital</h1>
+        </div>
+
+        <div class="details">
+            <div class="details-row">
+                <span class="label">No. Factura:</span>
+                <span class="value">{{ job.invoice_number }}</span>
+            </div>
+            <div class="details-row">
+                <span class="label">Cliente:</span>
+                <span class="value">{{ job.client_name }}</span>
+            </div>
+            <div class="details-row">
+                <span class="label">Descripción:</span>
+                <span class="value">{{ job.description }}</span>
+            </div>
+            <div class="details-row">
+                <span class="label">Teléfono:</span>
+                <span class="value">{{ job.phone_number }}</span>
+            </div>
+            <div class="details-row">
+                <span class="label">Fecha:</span>
+                <span class="value">{{ job.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+            </div>
+            {% if job.deposit_amount %}
+            <div class="details-row">
+                <span class="label">Abono:</span>
+                <span class="value">${{ "%.2f"|format(job.deposit_amount) }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="qr-container">
+            <img src="data:image/png;base64,{{ qr_image }}" alt="Código QR">
+            <p class="qr-text">Escanee este código para verificar su trabajo</p>
+        </div>
+
+        <div class="footer">
+            <p>FOTO VIDEO MOJICA - Gracias por su preferencia</p>
+            <p>Este documento es una representación digital de su factura</p>
+        </div>
+    </div>
+</body>
+</html>
