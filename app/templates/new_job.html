@@ -16,12 +16,17 @@
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Diseñador</label>
+                    {% if current_user.is_staff %}
                     <select name="designer_id" class="form-select" required>
                         <option value="">Seleccionar diseñador...</option>
                         {% for designer in designers %}
                         <option value="{{ designer.id }}">{{ designer.name }}</option>
                         {% endfor %}
                     </select>
+                    {% else %}
+                    <input type="hidden" name="designer_id" value="{{ current_user.id }}">
+                    <input type="text" class="form-control" value="{{ current_user.name }}" readonly>
+                    {% endif %}
                 </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label">No. Factura</label>

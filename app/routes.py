@@ -668,9 +668,15 @@ def delete_job(job_id):
 
 @bp.route('/completed-jobs')
 @login_required
-@staff_required
 def completed_jobs():
-    jobs = CompletedJob.query.all()
+    """Ver trabajos completados"""
+    # Si es staff (admin o supervisor) ve todos los trabajos
+    if current_user.is_staff:
+        jobs = CompletedJob.query.all()
+    else:
+        # Si es diseñador, solo ve sus trabajos
+        jobs = CompletedJob.query.filter_by(designer_id=current_user.id).all()
+
     return render_template('completed_jobs.html', jobs=jobs)
 
 @bp.route('/jobs/<int:job_id>/complete', methods=['POST'])
@@ -833,8 +839,7 @@ def export_jobs(format):
 
         return Response(
             output,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            headers={'Content-Disposition': f'attachment;filename=trabajos_{datetime.now().strftime("%Y%m%d")}.xlsx'}
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',            headers={'Content-Disposition': f'attachment;filename=trabajos_{datetime.now().strftime("%Y%m%d")}.xlsx'}
         )
 
     else:  # PDF
