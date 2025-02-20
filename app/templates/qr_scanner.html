@@ -12,7 +12,21 @@
                 </div>
                 <div class="card-body">
                     <div class="text-center mb-3">
-                        <video id="qr-video" class="img-fluid"></video>
+                        <div id="video-container" style="position: relative; max-width: 640px; margin: 0 auto;">
+                            <video id="qr-video" style="width: 100%; border-radius: 8px;"></video>
+                            <div id="scan-region-highlight" style="
+                                position: absolute;
+                                top: 50%;
+                                left: 50%;
+                                transform: translate(-50%, -50%);
+                                width: 250px;
+                                height: 250px;
+                                border: 2px solid #fff;
+                                border-radius: 12px;
+                                box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.5);
+                                pointer-events: none;
+                            "></div>
+                        </div>
                     </div>
                     <div class="d-flex justify-content-center">
                         <button id="startButton" class="btn btn-primary me-2">
@@ -63,11 +77,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (scanning) {
                             scanning = false;
                             loadingIndicator.style.display = 'block';
-                            
+
                             try {
                                 // Intentar parsear el QR como JSON
                                 const qrData = JSON.parse(decodedText);
-                                
+
                                 // Enviar los datos al servidor
                                 const response = await fetch('/process-qr', {
                                     method: 'POST',
@@ -94,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 alert('Error al procesar el código QR. Por favor, intente nuevamente.');
                                 scanning = true;
                             }
-                            
+
                             loadingIndicator.style.display = 'none';
                         }
                     },
