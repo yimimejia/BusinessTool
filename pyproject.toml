@@ -23,4 +23,5 @@ dependencies = [
     "pyotp>=2.9.0",
     "qrcode>=8.0",
     "twilio>=9.4.5",
+    "reportlab>=4.3.1",
 ]

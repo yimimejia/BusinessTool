@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response, send_from_directory
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from app import db
@@ -9,6 +9,7 @@ from functools import wraps
 import logging
 from flask_sse import sse
 from sqlalchemy.exc import DataError
+import os
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -347,6 +348,11 @@ def setup():
     db.session.commit()
     flash('Usuarios creados exitosamente', 'success')
     return redirect(url_for('main.login'))
+
+@bp.route('/static/reports/<path:filename>')
+def serve_report(filename):
+    """Servir archivos de reporte"""
+    return send_from_directory('static/reports', filename)
 
 @bp.route('/send-report', methods=['POST'])
 @login_required
