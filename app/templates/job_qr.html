@@ -9,9 +9,15 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">Factura Digital</h4>
-                    <button class="btn btn-outline-primary btn-sm" onclick="window.print()">
-                        <i class="bi bi-printer"></i> Imprimir
-                    </button>
+                    <div class="dropdown">
+                        <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-printer"></i> Acciones
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                            <li><a class="dropdown-item" href="#" onclick="window.print()"><i class="bi bi-printer"></i> Imprimir Factura</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="sendToWhatsApp()"><i class="bi bi-whatsapp"></i> Enviar por WhatsApp</a></li>
+                        </ul>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="row">
@@ -48,7 +54,7 @@
 
 <style>
 @media print {
-    .btn-outline-primary {
+    .dropdown {
         display: none;
     }
     .card {
@@ -60,4 +66,28 @@
     }
 }
 </style>
+
+<script>
+function sendToWhatsApp() {
+    // Obtener el número de teléfono y quitar el formato
+    let phoneNumber = "{{ job.phone_number }}".replace(/\D/g, '');
+
+    // Construir el mensaje
+    let message = "FOTO VIDEO MOJICA - Factura Digital\n\n";
+    message += "Factura: {{ job.invoice_number }}\n";
+    message += "Cliente: {{ job.client_name }}\n";
+    message += "Descripción: {{ job.description }}\n";
+    {% if job.deposit_amount %}
+    message += "Abono: ${{ "%.2f"|format(job.deposit_amount) }}\n";
+    {% endif %}
+    message += "Fecha: {{ job.created_at.strftime('%d/%m/%Y %H:%M') }}\n\n";
+    message += "Gracias por su preferencia";
+
+    // Crear el enlace de WhatsApp
+    let whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+
+    // Abrir WhatsApp en una nueva ventana
+    window.open(whatsappUrl, '_blank');
+}
+</script>
 {% endblock %}
