@@ -497,8 +497,12 @@ def new_job():
             if deposit_amount:
                 deposit_amount = float(deposit_amount)
 
-            # Si no es staff, usar el ID del usuario actual como diseñador
-            designer_id = request.form.get('designer_id') if current_user.is_staff else current_user.id
+            # Forzar el designer_id al usuario actual si no es staff
+            designer_id = (
+                request.form.get('designer_id') 
+                if current_user.is_staff 
+                else current_user.id
+            )
 
             job = Job(
                 description=request.form.get('description'),
