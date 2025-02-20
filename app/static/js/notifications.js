@@ -1,35 +1,48 @@
-// Solicitar permisos para notificaciones
-function requestNotificationPermission() {
-    if ('Notification' in window) {
-        Notification.requestPermission();
+
+// Manejar notificaciones
+document.addEventListener('DOMContentLoaded', function() {
+    const toastContainer = document.querySelector('.toast-container');
+    
+    // Verificar si los elementos existen antes de usarlos
+    const pendingCount = document.getElementById('pendingCount');
+    const pendingPhotosCount = document.getElementById('pendingPhotosCount');
+    const messageCount = document.querySelector('.message-count');
+
+    // Función para actualizar la insignia de mensajes
+    function updateMessageBadge() {
+        fetch('/messages/unread')
+            .then(response => response.json())
+            .then(data => {
+                if (messageCount) {
+                    if (data.count > 0) {
+                        messageCount.textContent = data.count;
+                        messageCount.classList.remove('d-none');
+                    } else {
+                        messageCount.classList.add('d-none');
+                    }
+                }
+            });
     }
-}
 
-// Reproducir sonido de alerta
-function playAlertSound() {
-    const audio = new Audio('/static/notification.mp3');
-    audio.play().catch(error => console.log('Error al reproducir sonido:', error));
-}
-
-// Configurar EventSource para notificaciones en tiempo real
-const evtSource = new EventSource("/stream");
-
-evtSource.onmessage = function(event) {
-    const data = JSON.parse(event.data);
-
-    // Mostrar notificación del navegador
-    if (Notification.permission === "granted") {
-        new Notification("FOTO VIDEO MOJICA", {
-            body: data.message,
-            icon: "/static/img/logo.png"
-        });
+    // Actualizar contadores si existen
+    if (pendingCount || pendingPhotosCount) {
+        fetch('/jobs/pending')
+            .then(response => response.json())
+            .then(data => {
+                if (pendingCount && data.pending_jobs > 0) {
+                    pendingCount.textContent = data.pending_jobs;
+                    pendingCount.classList.remove('d-none');
+                }
+                if (pendingPhotosCount && data.pending_photos > 0) {
+                    pendingPhotosCount.textContent = data.pending_photos;
+                    pendingPhotosCount.classList.remove('d-none');
+                }
+            });
     }
 
-    // Reproducir sonido si el mensaje es sobre un trabajo pendiente
-    if (data.type === "pending_job") {
-        playAlertSound();
+    // Actualizar mensajes cada minuto
+    if (messageCount) {
+        updateMessageBadge();
+        setInterval(updateMessageBadge, 60000);
     }
-};
-
-// Solicitar permisos al cargar la página
-document.addEventListener('DOMContentLoaded', requestNotificationPermission);
+});
