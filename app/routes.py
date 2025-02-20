@@ -1237,7 +1237,7 @@ def new_pending_job():
     designers = User.query.filter_by(is_admin=False, is_supervisor=False).all()
     return render_template('new_pending_job.html', designers=designers)
 
-@bp.route('/jobs/pending/verification')
+@bp.route('/jobs/pending/verification', methods=['GET', 'POST'])
 @login_required
 @staff_required
 def pending_verification():
