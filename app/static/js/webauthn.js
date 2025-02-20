@@ -1,34 +1,34 @@
+// Función para detectar iOS y Face ID
+function isIOSDevice() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
 // Función para verificar si el navegador soporta WebAuthn
 function isWebAuthnSupported() {
     return window.PublicKeyCredential !== undefined &&
            typeof window.PublicKeyCredential === 'function';
 }
 
-// Variable para prevenir múltiples intentos de configuración
+// Variable para prevenir múltiples intentos
 let isConfiguring = false;
 
-// Función para verificar si hay autenticador de plataforma disponible
-async function isPlatformAuthenticatorAvailable() {
+// Función para verificar si hay Face ID disponible
+async function isFaceIDAvailable() {
     if (!isWebAuthnSupported()) {
         return false;
     }
 
     try {
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-
-        if (isIOS) {
-            // En iOS con Safari, asumimos que Face ID está disponible
+        if (isIOSDevice()) {
+            // En iOS con Safari, verificamos WebAuthn
             return true;
         }
 
-        // Para otros navegadores, verificamos normalmente
+        // Para otros dispositivos, verificamos el autenticador de plataforma
         return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
     } catch (error) {
-        console.error('Error verificando autenticador:', error);
-        // En caso de error en iOS, asumimos que está disponible
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        return isIOS;
+        console.error('Error verificando Face ID:', error);
+        return isIOSDevice(); // En iOS asumimos que está disponible
     }
 }
 
@@ -81,23 +81,23 @@ function showUserFriendlyError(error) {
     alert(message);
 }
 
-// Función para registrar credenciales biométricas
+// Función para registrar Face ID
 async function registerBiometric(deviceName) {
     if (isConfiguring) {
-        console.log('Ya hay un proceso de configuración en curso');
+        console.log('Ya hay un proceso de registro en curso');
         return;
     }
 
     try {
         isConfiguring = true;
-        console.log('Iniciando registro biométrico...');
+        console.log('Iniciando registro de Face ID...');
 
-        const available = await isPlatformAuthenticatorAvailable();
+        const available = await isFaceIDAvailable();
         if (!available) {
-            throw new Error('Este dispositivo no tiene Face ID disponible');
+            throw new Error('Face ID no está disponible en este dispositivo');
         }
 
-        // Obtener opciones de creación del servidor
+        // Obtener opciones del servidor
         const response = await fetch('/webauthn/register/begin', {
             method: 'POST',
             headers: {
@@ -109,33 +109,21 @@ async function registerBiometric(deviceName) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.message || 'Error al iniciar registro biométrico');
+            throw new Error(error.error || 'Error al iniciar registro de Face ID');
         }
 
         const options = await response.json();
-        console.log('Opciones de registro recibidas');
 
-        // Convertir las opciones del formato base64 a ArrayBuffer
+        // Convertir datos para WebAuthn
         options.publicKey.challenge = base64ToArrayBuffer(options.publicKey.challenge);
         options.publicKey.user.id = base64ToArrayBuffer(options.publicKey.user.id);
 
-        // Para iOS, forzamos algunas opciones específicas
-        if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-            options.publicKey.authenticatorSelection = {
-                authenticatorAttachment: "platform",
-                requireResidentKey: false,
-                userVerification: "preferred"
-            };
-        }
-
-        console.log('Solicitando verificación Face ID...');
+        console.log('Solicitando Face ID...');
         const credential = await navigator.credentials.create({
             publicKey: options.publicKey
         });
 
-        console.log('Verificación Face ID completada');
-
-        // Preparar datos para enviar al servidor
+        // Preparar respuesta para el servidor
         const credentialResponse = {
             id: credential.id,
             rawId: arrayBufferToBase64(credential.rawId),
@@ -158,18 +146,15 @@ async function registerBiometric(deviceName) {
 
         if (!finalResponse.ok) {
             const error = await finalResponse.json();
-            throw new Error(error.message || 'Error al completar registro biométrico');
+            throw new Error(error.message || 'Error al completar registro de Face ID');
         }
 
-        console.log('Registro biométrico completado exitosamente');
-        alert('¡Registro de Face ID exitoso! Ahora puede usar Face ID para iniciar sesión.');
+        alert('¡Face ID registrado exitosamente! Ahora puede usarlo para iniciar sesión.');
         location.reload();
-        return await finalResponse.json();
 
     } catch (error) {
-        console.error('Error durante el registro biométrico:', error);
-        showUserFriendlyError(error);
-        throw error;
+        console.error('Error durante el registro de Face ID:', error);
+        alert(error.message || 'Ocurrió un error al registrar Face ID. Por favor, intente nuevamente.');
     } finally {
         isConfiguring = false;
     }
@@ -180,7 +165,7 @@ async function authenticateBiometric(username) {
     try {
         console.log('Iniciando autenticación biométrica...');
 
-        const available = await isPlatformAuthenticatorAvailable();
+        const available = await isFaceIDAvailable();
         if (!available) {
             throw new Error('Este dispositivo no tiene Face ID o Touch ID disponible');
         }
@@ -347,7 +332,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Verificar soporte inicial de WebAuthn
     try {
-        const supported = await isPlatformAuthenticatorAvailable();
+        const supported = await isFaceIDAvailable();
         console.log('Soporte de autenticación biométrica:', supported ? 'Disponible' : 'No disponible');
 
         if (!supported) {

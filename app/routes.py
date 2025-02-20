@@ -657,7 +657,11 @@ def webauthn_register_begin():
     try:
         device_name = request.json.get('device_name', 'Dispositivo sin nombre')
 
-        # Configuración específica para iOS y otros dispositivos
+        # Detectar si es un dispositivo iOS
+        user_agent = request.headers.get('User-Agent', '').lower()
+        is_ios = 'iphone' in user_agent or 'ipad' in user_agent
+
+        # Configuración optimizada para iOS/Face ID
         registration_options = generate_registration_options(
             rp_id=request.host.split(':')[0],
             rp_name="FOTO VIDEO MOJICA",
@@ -665,21 +669,21 @@ def webauthn_register_begin():
             user_name=current_user.username,
             user_display_name=current_user.name,
             authenticator_selection=AuthenticatorSelectionCriteria(
-                authenticator_attachment="platform",  # Específicamente para autenticadores de plataforma
+                authenticator_attachment="platform",  # Forzar autenticador de plataforma para Face ID
                 require_resident_key=False,
-                user_verification=UserVerificationRequirement.PREFERRED
+                user_verification=UserVerificationRequirement.PREFERRED if is_ios else UserVerificationRequirement.DISCOURAGED
             ),
-            timeout=60000,  # 1 minuto es suficiente
-            attestation="none"  # Reduce la complejidad del proceso
+            timeout=30000,  # 30 segundos es suficiente para iOS
+            attestation="none"
         )
 
-        # Guardar challenge para verificación posterior
+        # Guardar datos en la sesión
         session['webauthn_registration_challenge'] = registration_options.challenge
         session['webauthn_device_name'] = device_name
 
-        logger.info(f"Iniciando registro biométrico para usuario {current_user.username}")
+        logger.info(f"Iniciando registro biométrico para usuario {current_user.username} en {'iOS' if is_ios else 'otro dispositivo'}")
 
-        # Convertir opciones a formato JSON
+        # Convertir opciones a JSON
         options_json = options_to_json(registration_options)
         return jsonify(options_json)
 
@@ -687,9 +691,9 @@ def webauthn_register_begin():
         logger.error(f"Error en registro biométrico: {str(e)}")
         error_message = str(e)
         if "did not match the expected pattern" in error_message:
-            error_message = "Error de compatibilidad. Por favor, asegúrese de que Face ID esté habilitado en su dispositivo."
+            error_message = "Por favor, asegúrese de que Face ID esté habilitado y configurado en su dispositivo"
         elif "timeout" in error_message.lower():
-            error_message = "El proceso tomó demasiado tiempo. Por favor, intente nuevamente."
+            error_message = "No se recibió respuesta de Face ID. Por favor, intente nuevamente"
         return jsonify({'error': error_message}), 400
 
 @bp.route('/webauthn/register/complete', methods=['POST'])
