@@ -1247,59 +1247,15 @@ def pending_jobs():
 
 @bp.route('/jobs/pending/<int:job_id>/approve', methods=['POST'])
 @login_required
+@staff_required
 def approve_pending_job(job_id):
     """Aprobar un trabajo pendiente"""
     try:
         pending_job = PendingJob.query.get_or_404(job_id)
-        total_amount = float(request.form.get('total_amount', 0))
-        deposit_amount = float(request.form.get('deposit_amount', 0))
 
         if pending_job.pending_type == 'photo_verification':
-            # Lógica existente para verificación de fotos
-            photos = json.loads(pending_job.photos) if pending_job.photos else []
-            clean_phone = pending_job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
-            photo_urls = [f"{request.url_root.rstrip('/')}/static/{photo}" for photo in photos]
-            whatsapp_message = f"Hola {pending_job.client_name}, aquí están las fotos de su trabajo:\n\n"
-            whatsapp_message += "\n".join(photo_urls)
-            
-            db.session.delete(pending_job)
-            db.session.commit()
-            
-            whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(whatsapp_message)}"
-            return redirect(whatsapp_url)
-        else:
-            # Crear nuevo trabajo
-            job = Job(
-                description=pending_job.description,
-                designer_id=pending_job.designer_id,
-                registered_by_id=current_user.id,
-                invoice_number=request.form.get('invoice_number'),
-                client_name=pending_job.client_name,
-                phone_number=pending_job.phone_number,
-                total_amount=total_amount,
-                deposit_amount=deposit_amount,
-                tags=pending_job.tags
-            )
-
-            db.session.add(job)
-            db.session.delete(pending_job)
-            db.session.commit()
-
-            log_activity(
-                'trabajo_aprobado',
-                f"Trabajo aprobado: {job.client_name} (Factura: {job.invoice_number})"
-            )
-
-            flash('Trabajo aprobado exitosamente', 'success')
-            return redirect(url_for('main.pending_jobs'))
-
-    except Exception as e:
-        db.session.rollback()
-        logging.error(f"Error al aprobar trabajo pendiente: {str(e)}")
-        flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
-        return redirect(url_for('main.pending_jobs'))
             # Si es verificación de fotos, aprobar y enviar por WhatsApp
-        photos = json.loads(pending_job.photos) if pending_job.photos else []
+            photos = json.loads(pending_job.photos) if pending_job.photos else []
 
             # Preparar mensaje de WhatsApp con las fotos
             clean_phone = pending_job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
@@ -1325,16 +1281,20 @@ def approve_pending_job(job_id):
             return redirect(whatsapp_url)
 
         else:
-            # Lógica existente para otros tipos de trabajos pendientes
+            # Crear el trabajo regular
             job = Job(
                 description=pending_job.description,
                 designer_id=pending_job.designer_id,
                 registered_by_id=current_user.id,
-                invoice_number=pending_job.invoice_number,
+                invoice_number=request.form.get('invoice_number'),
                 client_name=pending_job.client_name,
                 phone_number=pending_job.phone_number,
-                tags=pending_job.tags
+                deposit_amount=request.form.get('deposit_amount', type=float),
+                tags=request.form.get('tags', '').strip()
             )
+
+            # Generar código QR
+            job.generate_qr_code()
 
             db.session.add(job)
             db.session.delete(pending_job)
