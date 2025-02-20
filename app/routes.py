@@ -931,6 +931,12 @@ def scan_qr():
     """Página para escanear códigos QR"""
     return render_template('qr_scanner.html')
 
+from flask import Blueprint, jsonify, request
+from datetime import datetime
+from app import db
+from app.models import CompletedJob, DeliveredJob
+from app.utils.activity_logger import log_activity
+
 @bp.route('/process-qr', methods=['POST'])
 @login_required
 @staff_required
@@ -938,27 +944,31 @@ def process_qr():
     """Procesa el código QR escaneado y marca el trabajo como entregado"""
     try:
         qr_data = request.json
-
-        # Verificar que el QR contenga los datos necesarios
-        if not qr_data or 'id' not in qr_data:
+        if not qr_data or 'job_id' not in qr_data:
             return jsonify({
                 'success': False,
-                'message': 'Código QR inválido'
+                'message': 'Datos del QR inválidos o incompletos'
             }), 400
 
-        # Buscar el trabajo completado
-        job = CompletedJob.query.filter_by(original_job_id=qr_data['id']).first()
-
+        # Buscar el trabajo original
+        job = Job.query.get(qr_data['job_id'])
         if not job:
             return jsonify({
                 'success': False,
-                'message': 'Trabajo no encontrado o ya entregado'
+                'message': 'Trabajo no encontrado'
             }), 404
+
+        # Verificar si el trabajo ya está entregado
+        delivered_job = DeliveredJob.query.filter_by(original_job_id=job.id).first()
+        if delivered_job:
+            return jsonify({
+                'success': False,
+                'message': 'Este trabajo ya fue marcado como entregado'
+            }), 400
 
         # Crear registro de trabajo entregado
         delivered_job = DeliveredJob(
-            original_job_id=job.original_job_id,
-            completed_job_id=job.id,
+            original_job_id=job.id,
             description=job.description,
             designer_id=job.designer_id,
             registered_by_id=job.registered_by_id,
@@ -966,13 +976,11 @@ def process_qr():
             client_name=job.client_name,
             phone_number=job.phone_number,
             created_at=job.created_at,
-            completed_at=job.completed_at,
-            called_at=job.called_at,
             delivered_at=datetime.utcnow(),
             tags=job.tags
         )
 
-        # Agregar el trabajo entregado y eliminar el completado
+        # Eliminar el trabajo original y guardar el entregado
         db.session.add(delivered_job)
         db.session.delete(job)
         db.session.commit()
@@ -984,12 +992,13 @@ def process_qr():
 
         return jsonify({
             'success': True,
-            'message': 'Trabajo marcado como entregado',
+            'message': 'Trabajo marcado como entregado exitosamente',
             'redirect_url': url_for('main.delivered_jobs')
         })
 
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Error procesando QR: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Error al procesar el código QR: {str(e)}'
