@@ -1289,6 +1289,7 @@ def approve_pending_job(job_id):
                 invoice_number=request.form.get('invoice_number'),
                 client_name=pending_job.client_name,
                 phone_number=pending_job.phone_number,
+                total_amount=request.form.get('total_amount', type=float),
                 deposit_amount=request.form.get('deposit_amount', type=float),
                 tags=request.form.get('tags', '').strip()
             )
