@@ -14,57 +14,17 @@
     <!-- DataTables JS -->
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-    <!-- Notificaciones -->
-    <script>
-    let notificationSound;
-
-    document.addEventListener('DOMContentLoaded', () => {
-        // Cargar sonido de notificación
-        notificationSound = new Audio("{{ url_for('static', filename='notification.mp3') }}");
-
-        // Solicitar permisos para notificaciones
-        if (Notification.permission !== 'granted') {
-            Notification.requestPermission();
+    <style>
+        .nav-link i {
+            margin-right: 8px;
+            font-size: 1.1em;
         }
-
-        // Configurar SSE
-        const eventSource = new EventSource("{{ url_for('main.stream') }}");
-
-        eventSource.onmessage = function(e) {
-            const data = JSON.parse(e.data);
-
-            // Reproducir sonido
-            notificationSound.play();
-
-            // Mostrar notificación del navegador
-            if (Notification.permission === 'granted') {
-                new Notification('FOTO VIDEO MOJICA', {
-                    body: data.message,
-                    icon: '/static/icon.png'
-                });
-            }
-
-            // Mostrar alerta en la página
-            const alert = `
-                <div class="alert alert-${data.type} alert-dismissible fade show" role="alert">
-                    ${data.message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            `;
-            document.querySelector('main').insertAdjacentHTML('afterbegin', alert);
-        };
-
-        // Inicializar DataTables en todas las tablas con la clase .datatable
-        $('.datatable').DataTable({
-            language: {
-                url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
-            },
-            responsive: true,
-            pageLength: 10,
-            lengthMenu: [[5, 10, 25, 50, -1], [5, 10, 25, 50, "Todos"]]
-        });
-    });
-    </script>
+        .navbar-nav .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+        }
+    </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
@@ -80,30 +40,30 @@
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.dashboard') }}">
-                            <i class="bi bi-folder2-open"></i> Trabajos Pendientes
+                            <i class="bi bi-folder2-open"></i>Trabajos Pendientes
                         </a>
                     </li>
                     {% if current_user.is_admin %}
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.manage_users') }}">
-                            <i class="bi bi-people-fill"></i> Usuarios
+                            <i class="bi bi-people-fill"></i>Usuarios
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.new_job') }}">
-                            <i class="bi bi-plus-circle-fill"></i> Nuevo Trabajo
+                            <i class="bi bi-plus-circle-fill"></i>Nuevo Trabajo
                         </a>
                     </li>
                     {% endif %}
                     {% if current_user.is_staff %}
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.completed_jobs') }}">
-                            <i class="bi bi-clipboard2-check-fill"></i> Trabajos Completados
+                            <i class="bi bi-clipboard2-check-fill"></i>Trabajos Completados
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.delivered_jobs') }}">
-                            <i class="bi bi-box-seam-fill"></i> Trabajos Entregados
+                            <i class="bi bi-box-seam-fill"></i>Trabajos Entregados
                         </a>
                     </li>
                     {% endif %}
