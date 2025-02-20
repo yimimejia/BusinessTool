@@ -18,6 +18,7 @@ class User(UserMixin, db.Model):
     can_edit = db.Column(db.Boolean, default=True)
     is_service = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    remember_token = db.Column(db.String(100))  # Para "mantener sesión iniciada"
 
     # Relationships with explicit foreign keys
     assigned_jobs = db.relationship('Job', 
@@ -27,7 +28,7 @@ class User(UserMixin, db.Model):
                                     foreign_keys='Job.registered_by_id',
                                     backref='registered_by')
     activities = db.relationship('ActivityLog', backref='user', lazy='dynamic')
-    webauthn_credentials = db.relationship('WebAuthnCredential', backref='user', lazy=True)
+    notifications = db.relationship('Notification', backref='user', lazy='dynamic')
 
     def set_password(self, password):
         if len(password) < 8:
@@ -52,6 +53,47 @@ class User(UserMixin, db.Model):
     @property
     def can_delete_jobs(self):
         return self.is_admin
+
+    def get_pending_jobs(self):
+        """Obtiene los trabajos pendientes del diseñador"""
+        return Job.query.filter_by(designer_id=self.id, is_completed=False).all()
+
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    type = db.Column(db.String(50), nullable=False)  # 'pending_job', 'admin_alert', etc.
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    job_id = db.Column(db.Integer, db.ForeignKey('jobs.id'), nullable=True)
+
+    @classmethod
+    def create_pending_job_notification(cls, user, job):
+        """Crea una notificación para un trabajo pendiente"""
+        message = f"Tienes un trabajo pendiente: {job.description}"
+        notification = cls(
+            user_id=user.id,
+            message=message,
+            type='pending_job',
+            job_id=job.id
+        )
+        db.session.add(notification)
+        db.session.commit()
+        return notification
+
+    @classmethod
+    def create_admin_notification(cls, admin, pending_count):
+        """Crea una notificación para administradores sobre trabajos pendientes"""
+        message = f"Hay {pending_count} trabajos pendientes en el sistema"
+        notification = cls(
+            user_id=admin.id,
+            message=message,
+            type='admin_alert'
+        )
+        db.session.add(notification)
+        db.session.commit()
+        return notification
 
 class WebAuthnCredential(db.Model):
     __tablename__ = 'webauthn_credentials'
