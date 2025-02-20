@@ -3,7 +3,7 @@
 {% block title %}Escanear QR{% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="container py-4">
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card">
@@ -38,50 +38,45 @@
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const html5QrCode = new Html5Qrcode("qrFile");
-    const loadingIndicator = document.getElementById('loadingIndicator');
     const qrFileInput = document.getElementById('qrFile');
     const preview = document.getElementById('preview');
     const imagePreview = document.getElementById('imagePreview');
+    const loadingIndicator = document.getElementById('loadingIndicator');
     let scanning = false;
 
     // Función para procesar el resultado del QR
     async function processQrResult(decodedText) {
-        if (scanning) {
-            scanning = false;
+        try {
             loadingIndicator.style.display = 'block';
+            console.log('Texto decodificado:', decodedText);
 
-            try {
-                // Intentar parsear el QR como JSON
-                const qrData = JSON.parse(decodedText);
+            // Intentar parsear el QR como JSON
+            const qrData = JSON.parse(decodedText);
+            console.log('Datos del QR:', qrData);
 
-                // Enviar los datos al servidor
-                const response = await fetch('/process-qr', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(qrData)
-                });
+            // Enviar los datos al servidor
+            const response = await fetch('/process-qr', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(qrData)
+            });
 
-                if (response.ok) {
-                    const result = await response.json();
-                    if (result.success) {
-                        alert('Trabajo marcado como entregado exitosamente');
-                        window.location.href = result.redirect_url;
-                    } else {
-                        alert(result.message || 'Error al procesar el código QR');
-                    }
-                } else {
-                    throw new Error('Error en la respuesta del servidor');
-                }
-            } catch (error) {
-                console.error('Error procesando QR:', error);
-                alert('Error al procesar el código QR. Por favor, intente con otra imagen.');
+            const result = await response.json();
+            console.log('Respuesta del servidor:', result);
+
+            if (result.success) {
+                alert('Trabajo marcado como entregado exitosamente');
+                window.location.href = result.redirect_url;
+            } else {
+                throw new Error(result.message || 'Error al procesar el código QR');
             }
-
+        } catch (error) {
+            console.error('Error detallado:', error);
+            alert(error.message || 'Error al procesar el código QR. Por favor, intente con otra imagen.');
+        } finally {
             loadingIndicator.style.display = 'none';
-            scanning = true;
         }
     }
 
@@ -89,6 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
     qrFileInput.addEventListener('change', event => {
         if (event.target.files && event.target.files[0]) {
             const file = event.target.files[0];
+            console.log('Archivo seleccionado:', file.name, file.type);
 
             // Mostrar preview de la imagen
             const reader = new FileReader();
@@ -98,24 +94,25 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             reader.readAsDataURL(file);
 
-            scanning = true;
-            loadingIndicator.style.display = 'block';
-
-            // Configurar opciones de escaneo más permisivas
-            const config = {
-                experimentalFeatures: {
-                    useBarCodeDetectorIfSupported: false
-                },
-                formatsToSupport: ['qr_code'],
-                verbose: true
+            // Configuración mejorada para el escaneo
+            const qrConfig = {
+                experimenteralFeatures: true,
+                useBarCodeDetectorIfSupported: false,
+                attemptCount: 10,
+                formatsToSupport: ['qr_code']
             };
 
-            html5QrCode.scanFile(file, true, config)
+            // Crear nueva instancia para cada escaneo
+            const html5QrCode = new Html5Qrcode("qrFile");
+            loadingIndicator.style.display = 'block';
+
+            html5QrCode.scanFile(file, true)
                 .then(decodedText => {
+                    console.log('QR escaneado exitosamente');
                     processQrResult(decodedText);
                 })
                 .catch(err => {
-                    console.error('Error al escanear archivo:', err);
+                    console.error('Error al escanear:', err);
                     alert('No se pudo leer el código QR. Por favor, asegúrese que la imagen sea clara y vuelva a intentar.');
                     loadingIndicator.style.display = 'none';
                 });
