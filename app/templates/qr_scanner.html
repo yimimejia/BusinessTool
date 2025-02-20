@@ -67,12 +67,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 stopButton.style.display = 'inline-block';
                 scanning = true;
 
-                html5QrCode.start(
+                const config = {
+                    fps: 10,
+                    qrbox: 250,
+                    aspectRatio: 1.0,
+                    disableFlip: false,
+                    videoConstraints: {
+                        facingMode: { exact: "environment" }
+                    }
+                };
+
+                await html5QrCode.start(
                     { facingMode: "environment" },
-                    {
-                        fps: 10,
-                        qrbox: 250
-                    },
+                    config,
                     async (decodedText) => {
                         if (scanning) {
                             scanning = false;
@@ -115,7 +122,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     (error) => {
                         console.error('Error al escanear:', error);
                     }
-                );
+                ).catch((err) => {
+                    console.error("Error al iniciar la cámara:", err);
+                    if (err.name === "NotAllowedError") {
+                        alert("Por favor, permita el acceso a la cámara para escanear códigos QR.");
+                    } else if (err.name === "NotFoundError") {
+                        alert("No se encontró una cámara compatible en su dispositivo.");
+                    } else {
+                        alert("Error al iniciar la cámara. Por favor, intente nuevamente.");
+                    }
+                    startButton.style.display = 'inline-block';
+                    stopButton.style.display = 'none';
+                });
             } else {
                 alert('No se encontró ninguna cámara en el dispositivo');
             }
