@@ -177,6 +177,13 @@ def send_job_photos(job_id):
         return redirect(url_for('main.completed_jobs'))
 
 
+def get_job_photos(job_id):
+    """Obtiene los mensajes con fotos para un trabajo específico"""
+    return Message.query.filter(
+        Message.content.like(f'%trabajo #{job_id}%'),
+        Message.photos.isnot(None)
+    ).order_by(Message.created_at.desc()).all()
+
 @bp.route('/messages/<int:message_id>/approve-photos', methods=['POST'])
 @login_required
 @admin_required
@@ -186,14 +193,14 @@ def approve_photos(message_id):
 
     if not message.photos:
         flash('Este mensaje no contiene fotos', 'error')
-        return redirect(url_for('main.messages'))
+        return redirect(url_for('main.completed_jobs'))
 
     # Extraer el ID del trabajo desde el contenido del mensaje
     import re
     job_id_match = re.search(r'trabajo #(\d+)', message.content)
     if not job_id_match:
         flash('No se pudo identificar el trabajo asociado', 'error')
-        return redirect(url_for('main.messages'))
+        return redirect(url_for('main.completed_jobs'))
 
     job_id = int(job_id_match.group(1))
     job = CompletedJob.query.get_or_404(job_id)
