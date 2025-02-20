@@ -10,6 +10,9 @@ import logging
 from flask_sse import sse
 from sqlalchemy.exc import DataError
 import os
+from openpyxl import Workbook
+from datetime import datetime
+import io
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -99,7 +102,16 @@ def dashboard():
         jobs = Job.query.all()
     else:
         jobs = Job.query.filter_by(designer_id=current_user.id).all()
-    return render_template('dashboard.html', jobs=jobs)
+
+    # Estadísticas
+    stats = {
+        'total_jobs': len(jobs),
+        'completed_jobs': len([j for j in jobs if j.is_completed]),
+        'pending_jobs': len([j for j in jobs if not j.is_completed]),
+        'designers': len(set(job.designer_id for job in jobs))
+    }
+
+    return render_template('dashboard.html', jobs=jobs, stats=stats)
 
 @bp.route('/manage-users')
 @login_required
@@ -384,3 +396,98 @@ def send_manual_report():
         'message': 'Enlaces de WhatsApp generados',
         'links': report_links
     })
+
+
+@bp.route('/jobs/export/<format>')
+@login_required
+@staff_required
+def export_jobs(format):
+    """Exportar trabajos a Excel o PDF"""
+    if format not in ['excel', 'pdf']:
+        flash('Formato no soportado', 'error')
+        return redirect(url_for('main.dashboard'))
+
+    jobs = Job.query.all()
+
+    if format == 'excel':
+        # Crear un nuevo libro de Excel
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Trabajos"
+
+        # Encabezados
+        headers = ['ID', 'Descripción', 'Cliente', 'Factura', 'Teléfono', 'Diseñador', 'Estado', 'Fecha Creación']
+        ws.append(headers)
+
+        # Datos
+        for job in jobs:
+            ws.append([
+                job.id,
+                job.description,
+                job.client_name,
+                job.invoice_number,
+                job.phone_number,
+                job.designer.name,
+                'Completado' if job.is_completed else 'Pendiente',
+                job.created_at.strftime('%Y-%m-%d %H:%M')
+            ])
+
+        # Crear el archivo en memoria
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        return Response(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            headers={'Content-Disposition': f'attachment;filename=trabajos_{datetime.now().strftime("%Y%m%d")}.xlsx'}
+        )
+
+    else:  # PDF
+        html = render_template(
+            'export_pdf.html',
+            jobs=jobs,
+            current_time=datetime.now().strftime('%Y-%m-%d %H:%M')
+        )
+
+        return Response(
+            html,
+            mimetype='text/html',
+            headers={'Content-Disposition': f'attachment;filename=trabajos_{datetime.now().strftime("%Y%m%d")}.pdf'}
+        )
+
+@bp.route('/jobs/search', methods=['GET'])
+@login_required
+def search_jobs():
+    query = request.args.get('q', '')
+    status = request.args.get('status')
+    designer = request.args.get('designer')
+    tag = request.args.get('tag')
+
+    jobs_query = Job.query
+
+    if query:
+        jobs_query = jobs_query.filter(
+            (Job.description.ilike(f'%{query}%')) |
+            (Job.client_name.ilike(f'%{query}%')) |
+            (Job.invoice_number.ilike(f'%{query}%'))
+        )
+
+    if status:
+        jobs_query = jobs_query.filter_by(is_completed=(status == 'completed'))
+
+    if designer and current_user.is_staff:
+        jobs_query = jobs_query.filter_by(designer_id=designer)
+
+    if tag:
+        jobs_query = jobs_query.filter(Job.tags.ilike(f'%{tag}%'))
+
+    jobs = jobs_query.all()
+    return jsonify([{
+        'id': job.id,
+        'description': job.description,
+        'client_name': job.client_name,
+        'invoice_number': job.invoice_number,
+        'designer': job.designer.name,
+        'status': 'Completado' if job.is_completed else 'Pendiente'
+    } for job in jobs])

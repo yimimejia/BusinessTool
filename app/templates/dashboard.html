@@ -3,6 +3,42 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
+<!-- Estadísticas -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Total Trabajos</h5>
+                <h2>{{ stats.total_jobs }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Completados</h5>
+                <h2>{{ stats.completed_jobs }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Pendientes</h5>
+                <h2>{{ stats.pending_jobs }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Diseñadores</h5>
+                <h2>{{ stats.designers }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h4 class="mb-0">
@@ -12,20 +48,69 @@
             {% if current_user.is_staff %}Trabajos Pendientes{% else %}Mis Trabajos Pendientes{% endif %}
             {% endif %}
         </h4>
-        {% if current_user.is_staff %}
         <div>
-            {% if current_user.can_manage_users %}
-            <a href="{{ url_for('main.manage_users') }}" class="btn btn-info me-2">
-                <i class="bi bi-people"></i> Gestionar Usuarios
-            </a>
+            <!-- Botones de exportación -->
+            <div class="btn-group me-2">
+                <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="bi bi-download"></i> Exportar
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{{ url_for('main.export_jobs', format='excel') }}">
+                        <i class="bi bi-file-excel"></i> Excel
+                    </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('main.export_jobs', format='pdf') }}">
+                        <i class="bi bi-file-pdf"></i> PDF
+                    </a></li>
+                </ul>
+            </div>
+
+            {% if current_user.is_staff %}
+                {% if current_user.can_manage_users %}
+                <a href="{{ url_for('main.manage_users') }}" class="btn btn-info me-2">
+                    <i class="bi bi-people"></i> Gestionar Usuarios
+                </a>
+                {% endif %}
+                <a href="{{ url_for('main.new_job') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Nuevo Trabajo
+                </a>
             {% endif %}
-            <a href="{{ url_for('main.new_job') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> Nuevo Trabajo
-            </a>
         </div>
-        {% endif %}
     </div>
     <div class="card-body">
+        <!-- Búsqueda Avanzada -->
+        <div class="mb-4">
+            <div class="row">
+                <div class="col-md-4">
+                    <input type="text" id="searchQuery" class="form-control" placeholder="Buscar trabajo...">
+                </div>
+                <div class="col-md-2">
+                    <select id="statusFilter" class="form-select">
+                        <option value="">Estado</option>
+                        <option value="pending">Pendiente</option>
+                        <option value="completed">Completado</option>
+                    </select>
+                </div>
+                {% if current_user.is_staff %}
+                <div class="col-md-2">
+                    <select id="designerFilter" class="form-select">
+                        <option value="">Diseñador</option>
+                        {% for designer in designers %}
+                        <option value="{{ designer.id }}">{{ designer.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="col-md-2">
+                    <input type="text" id="tagFilter" class="form-control" placeholder="Etiqueta">
+                </div>
+                <div class="col-md-2">
+                    <button id="searchBtn" class="btn btn-primary w-100">
+                        <i class="bi bi-search"></i> Buscar
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
@@ -39,10 +124,11 @@
                         <th>Diseñador</th>
                         {% endif %}
                         <th>Estado</th>
+                        <th>Etiquetas</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="jobsTableBody">
                     {% for job in jobs %}
                     <tr>
                         <td>{{ job.id }}</td>
@@ -54,10 +140,15 @@
                         <td>{{ job.designer.name }}</td>
                         {% endif %}
                         <td>
-                            {% if job.is_completed %}
-                            <span class="badge bg-success">Completado</span>
-                            {% else %}
-                            <span class="badge bg-warning">Pendiente</span>
+                            <span class="badge {% if job.is_completed %}bg-success{% else %}bg-warning{% endif %}">
+                                {{ 'Completado' if job.is_completed else 'Pendiente' }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if job.tags %}
+                            {% for tag in job.tags.split(',') %}
+                            <span class="badge bg-info">{{ tag }}</span>
+                            {% endfor %}
                             {% endif %}
                         </td>
                         <td>
@@ -76,7 +167,7 @@
                                 {% endif %}
                                 <button type="button" class="btn btn-success btn-sm complete-job"
                                         data-job-id="{{ job.id }}">
-                                    <i class="bi bi-check-circle"></i> Confirmar
+                                    <i class="bi bi-check-circle"></i>
                                 </button>
                             {% endif %}
                         </td>
@@ -153,6 +244,44 @@ $(document).ready(function() {
         var jobId = $(this).data('job-id');
         $('#completeForm').attr('action', '/jobs/' + jobId + '/complete');
         $('#completeModal').modal('show');
+    });
+
+    // Búsqueda avanzada
+    $('#searchBtn').click(function() {
+        const query = $('#searchQuery').val();
+        const status = $('#statusFilter').val();
+        const designer = $('#designerFilter').val();
+        const tag = $('#tagFilter').val();
+
+        $.get('/jobs/search', {
+            q: query,
+            status: status,
+            designer: designer,
+            tag: tag
+        }, function(data) {
+            // Actualizar tabla con resultados
+            const tbody = $('#jobsTableBody');
+            tbody.empty();
+
+            data.forEach(job => {
+                const row = `
+                    <tr>
+                        <td>${job.id}</td>
+                        <td>${job.description}</td>
+                        <td>${job.client_name}</td>
+                        <td>${job.invoice_number}</td>
+                        <td>${job.phone_number}</td>
+                        <td>${job.designer}</td>
+                        <td><span class="badge ${job.status === 'Completado' ? 'bg-success' : 'bg-warning'}">${job.status}</span></td>
+                        <td>${job.tags ? job.tags.split(',').map(tag => `<span class="badge bg-info">${tag}</span>`).join(' ') : ''}</td>
+                        <td>
+                            <!-- Acciones... -->
+                        </td>
+                    </tr>
+                `;
+                tbody.append(row);
+            });
+        });
     });
 });
 </script>

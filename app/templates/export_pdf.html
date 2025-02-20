@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de Trabajos</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .header { margin-bottom: 20px; }
+        .footer { margin-top: 20px; font-size: 0.8em; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>FOTO VIDEO MOJICA</h1>
+        <h2>Reporte de Trabajos</h2>
+        <p>Generado: {{ current_time }}</p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Descripción</th>
+                <th>Cliente</th>
+                <th>Factura</th>
+                <th>Teléfono</th>
+                <th>Diseñador</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in jobs %}
+            <tr>
+                <td>{{ job.id }}</td>
+                <td>{{ job.description }}</td>
+                <td>{{ job.client_name }}</td>
+                <td>{{ job.invoice_number }}</td>
+                <td>{{ job.phone_number }}</td>
+                <td>{{ job.designer.name }}</td>
+                <td>{{ 'Completado' if job.is_completed else 'Pendiente' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        <p>FOTO VIDEO MOJICA - Sistema de Gestión de Trabajos</p>
+    </div>
+</body>
+</html>
