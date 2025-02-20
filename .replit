@@ -34,14 +34,6 @@ task = "shell.exec"
 args = "python main.py"
 waitForPort = 5000
 
-[[workflows.workflow]]
-name = "Flask"
-author = 39760997
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python main.py"
-
 [[ports]]
 localPort = 3000
 externalPort = 3001
