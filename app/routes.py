@@ -1040,6 +1040,7 @@ def approve_pending_job(job_id):
         job = pending_job.to_job()
 
         # Agregar campos adicionales
+        job.invoice_number = request.form.get('invoice_number')
         job.deposit_amount = request.form.get('deposit_amount', type=float)
         job.tags = request.form.get('tags', '').strip()
 
