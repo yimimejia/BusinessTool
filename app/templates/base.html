@@ -20,67 +20,46 @@
     <link rel="apple-touch-icon" sizes="192x192" href="{{ url_for('static', filename='icons/logo-192x192.png') }}">
     <link rel="apple-touch-icon" sizes="512x512" href="{{ url_for('static', filename='icons/logo-512x512.png') }}">
 
-    <!-- Existing CSS -->
+    <!-- CSS -->
     <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/animations.css') }}" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
 
     <!-- Scripts -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-
-    <!-- PWA Service Worker Registration -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/static/js/service-worker.js')
-                    .then(function(registration) {
-                        console.log('ServiceWorker registrado exitosamente:', registration.scope);
-                    })
-                    .catch(function(error) {
-                        console.log('Error al registrar ServiceWorker:', error);
-                    });
-            });
-        }
-
-        // Función para inicializar DataTables de manera segura
-        function initializeDataTable(tableId) {
-            const table = $(tableId);
-            if ($.fn.DataTable.isDataTable(tableId)) {
-                table.DataTable().destroy();
-            }
-            table.DataTable({
-                language: {
-                    url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
-                },
-                responsive: true,
-                order: [[0, 'desc']]
-            });
-        }
-    </script>
-
-    <style>
-        .navbar-nav {
-            display: flex;
-            align-items: center;
-        }
-        .nav-item {
-            margin: 0 5px;
-        }
-        .nav-link {
-            display: inline-flex !important;
-            align-items: center;
-            white-space: nowrap;
-        }
-        .nav-link i {
-            margin-right: 5px;
-            font-size: 1em;
-        }
-    </style>
 </head>
 <body>
+    <!-- Splash Screen Animation -->
+    <div class="splash-screen">
+        <div class="logo-animation">
+            <div class="company-name">
+                <span>F</span>
+                <span>O</span>
+                <span>T</span>
+                <span>O</span>
+                <span>&nbsp;</span>
+                <span>V</span>
+                <span>I</span>
+                <span>D</span>
+                <span>E</span>
+                <span>O</span>
+                <span>&nbsp;</span>
+                <span>M</span>
+                <span>O</span>
+                <span>J</span>
+                <span>I</span>
+                <span>C</span>
+                <span>A</span>
+            </div>
+            <div class="underline"></div>
+        </div>
+    </div>
+
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
         <div class="container">
             <a class="navbar-brand text-white" href="{{ url_for('main.index') }}">
@@ -168,6 +147,19 @@
             // Call initializeDataTable for each DataTable on the page, passing the table ID as a selector string.
             // Example:  initializeDataTable('#myTable');
         </script>
+        <script>
+            //Animation Script (Add your animation logic here)
+            window.addEventListener('load', () => {
+                const splashScreen = document.querySelector('.splash-screen');
+                setTimeout(() => {
+                    splashScreen.classList.add('fade-out');
+                    setTimeout(() => {
+                        splashScreen.remove();
+                    }, 1000); // Adjust duration as needed
+                }, 3000); // Adjust duration as needed
+            });
+        </script>
+
     {% endblock %}
 
     <!-- Made by Yimi signature -->
