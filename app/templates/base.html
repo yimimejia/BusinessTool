@@ -80,7 +80,7 @@
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.dashboard') }}">
-                            <i class="bi bi-speedometer2"></i> Dashboard
+                            <i class="bi bi-folder2-open"></i> Trabajos Pendientes
                         </a>
                     </li>
                     {% if current_user.is_admin %}
@@ -98,7 +98,7 @@
                     {% if current_user.is_staff %}
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.completed_jobs') }}">
-                            <i class="bi bi-check2-circle-fill"></i> Trabajos Completados
+                            <i class="bi bi-clipboard2-check-fill"></i> Trabajos Completados
                         </a>
                     </li>
                     {% endif %}
