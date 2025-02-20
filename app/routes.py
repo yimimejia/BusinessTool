@@ -13,9 +13,6 @@ import os
 from openpyxl import Workbook
 from datetime import datetime
 import io
-import pyotp
-import qrcode
-import io
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -83,28 +80,9 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        two_factor_code = request.form.get('two_factor_code')
 
         user = User.query.filter_by(username=username).first()
         if user and user.check_password(password):
-            # Verificar 2FA para administradores
-            if user.is_admin:
-                if not user.two_factor_enabled:
-                    # Primera vez: configurar 2FA
-                    user.two_factor_secret = pyotp.random_base32()
-                    user.two_factor_enabled = True
-                    db.session.commit()
-                    qr_uri = user.get_2fa_uri()
-                    return render_template('setup_2fa.html', qr_uri=qr_uri)
-
-                # Verificar código 2FA
-                if not two_factor_code:
-                    return render_template('verify_2fa.html')
-
-                if not user.verify_2fa(two_factor_code):
-                    flash('Código de verificación incorrecto', 'error')
-                    return render_template('verify_2fa.html')
-
             login_user(user)
             log_activity('login', f'Inicio de sesión exitoso - Usuario: {user.username}')
             flash('¡Bienvenido!', 'success')

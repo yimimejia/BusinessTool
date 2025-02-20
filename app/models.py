@@ -4,7 +4,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
 from sqlalchemy.orm import validates
 import re
-import pyotp
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -17,8 +16,6 @@ class User(UserMixin, db.Model):
     can_edit = db.Column(db.Boolean, default=True)
     is_service = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    two_factor_enabled = db.Column(db.Boolean, default=False)
-    two_factor_secret = db.Column(db.String(32))
 
     # Relationships
     assigned_jobs = db.relationship('Job', backref='designer', lazy='dynamic')
@@ -35,20 +32,6 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
-
-    def get_2fa_uri(self):
-        if not self.two_factor_secret:
-            self.two_factor_secret = pyotp.random_base32()
-        return pyotp.totp.TOTP(self.two_factor_secret).provisioning_uri(
-            name=self.username,
-            issuer_name="FOTO VIDEO MOJICA"
-        )
-
-    def verify_2fa(self, code):
-        if not self.two_factor_secret:
-            return False
-        totp = pyotp.TOTP(self.two_factor_secret)
-        return totp.verify(code)
 
     @property
     def is_staff(self):
