@@ -595,3 +595,10 @@ def search_jobs():
         'designer': job.designer.name,
         'status': 'Completado' if job.is_completed else 'Pendiente'
     } for job in jobs])
+
+@bp.route('/delivered-jobs')
+@login_required
+@staff_required
+def delivered_jobs():
+    jobs = DeliveredJob.query.all()
+    return render_template('delivered_jobs.html', jobs=jobs)

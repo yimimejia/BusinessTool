@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Trabajos Entregados</h2>
+    
+    <div class="table-responsive">
+        <table class="table table-striped" id="deliveredJobsTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Cliente</th>
+                    <th>Descripción</th>
+                    <th>Factura</th>
+                    <th>Teléfono</th>
+                    <th>Diseñador</th>
+                    <th>Fecha de Creación</th>
+                    <th>Fecha de Entrega</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in jobs %}
+                <tr>
+                    <td>{{ job.id }}</td>
+                    <td>{{ job.client_name }}</td>
+                    <td>{{ job.description }}</td>
+                    <td>{{ job.invoice_number }}</td>
+                    <td>{{ job.phone_number }}</td>
+                    <td>{{ job.designer.name }}</td>
+                    <td>{{ job.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>{{ job.delivered_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    $('#deliveredJobsTable').DataTable({
+        "order": [[ 7, "desc" ]],  // Ordenar por fecha de entrega (descendente)
+        "language": {
+            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+        }
+    });
+});
+</script>
+{% endblock %}
