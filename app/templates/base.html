@@ -107,6 +107,7 @@
     </style>
 </head>
 <body>
+    {% if request.endpoint == 'main.index' %}
     <!-- Splash Screen Animation -->
     <div class="splash-screen">
         <div class="logo-animation">
@@ -138,6 +139,7 @@
             <div class="underline"></div>
         </div>
     </div>
+    {% endif %}
 
     <!-- Container para notificaciones toast -->
     <div class="toast-container"></div>
