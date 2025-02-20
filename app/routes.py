@@ -141,42 +141,36 @@ def send_job_photos(job_id):
                 photo.save(full_path)
                 photo_paths.append(photo_path)
 
-        # Buscar un admin para enviar el mensaje
-        admin = User.query.filter_by(is_admin=True).first()
-        if not admin:
-            flash('No se encontró un administrador para revisar las fotos', 'error')
-            return redirect(url_for('main.completed_jobs'))
-
-        # Crear mensaje con las fotos adjuntas
-        message = Message(
-            sender_id=current_user.id,
-            recipient_id=admin.id,
-            content=f"Fotos para el trabajo #{job.id} - Cliente: {job.client_name}\n" +
-                    request.form.get('message', ''),
-            photos=json.dumps(photo_paths)
+        # Crear un PendingJob para la verificación de fotos
+        pending_job = PendingJob(
+            original_job_id=job.id,
+            description=f"Verificación de fotos - Trabajo #{job.id}",
+            designer_id=job.designer_id,
+            registered_by_id=current_user.id,
+            invoice_number=job.invoice_number,
+            client_name=job.client_name,
+            phone_number=job.phone_number,
+            photos=json.dumps(photo_paths),
+            pending_type='photo_verification',
+            message=request.form.get('message', '')
         )
 
-        db.session.add(message)
+        db.session.add(pending_job)
         db.session.commit()
 
         log_activity(
             'enviar_fotos',
-            f"Fotos enviadas para aprobación - Trabajo #{job.id}, Cliente: {job.client_name}"
+            f"Fotos enviadas para verificación - Trabajo #{job.id}, Cliente: {job.client_name}"
         )
 
-        flash('Fotos enviadas para aprobación', 'success')
+        flash('Fotos enviadas para verificación', 'success')
         return redirect(url_for('main.completed_jobs'))
 
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        logging.error(f"Database error in send_job_photos: {str(e)}")
-        flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
-        return redirect(url_for('main.completed_jobs'))
     except Exception as e:
-        logging.error(f"Unexpected error in send_job_photos: {str(e)}")
+        db.session.rollback()
+        logging.error(f"Error al procesar fotos: {str(e)}")
         flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.completed_jobs'))
-
 
 @bp.route('/messages/<int:message_id>/approve-photos', methods=['POST'])
 @login_required
