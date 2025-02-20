@@ -171,6 +171,8 @@ class Job(db.Model):
 
     def to_qr_data(self):
         """Convierte los datos del trabajo en un formato adecuado para el QR"""
+        # Generamos una URL pública para el trabajo
+        public_url = f"/jobs/public/{self.qr_code}"
         return {
             'id': self.id,
             'invoice': self.invoice_number,
@@ -178,7 +180,8 @@ class Job(db.Model):
             'description': self.description,
             'deposit': float(self.deposit_amount) if self.deposit_amount else 0,
             'created': self.created_at.isoformat(),
-            'qr_code': self.qr_code
+            'qr_code': self.qr_code,
+            'url': public_url
         }
 
 class CompletedJob(db.Model):

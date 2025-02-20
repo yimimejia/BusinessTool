@@ -315,19 +315,17 @@ def show_job_qr(job_id):
         job.generate_qr_code()
         db.session.commit()
 
-    # Convertir los datos del trabajo a QR
-    import qrcode
-    import io
-    import base64
-
     # Crear QR con mejor calidad y tamaño
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_H,
-        box_size=15,  # Aumentado de 10 a 15
+        box_size=15,
         border=4
     )
-    qr.add_data(json.dumps(job.to_qr_data()))
+
+    # Usar solo la URL en el QR para simplicidad
+    qr_data = f"{request.url_root.rstrip('/')}/jobs/public/{job.qr_code}"
+    qr.add_data(qr_data)
     qr.make(fit=True)
 
     # Crear imagen con mejor contraste
@@ -339,6 +337,7 @@ def show_job_qr(job_id):
     qr_image = base64.b64encode(buffered.getvalue()).decode()
 
     return render_template('job_qr.html', job=job, qr_image=qr_image)
+
 
 
 @bp.route('/jobs/<int:job_id>/edit', methods=['GET', 'POST'])
@@ -841,13 +840,13 @@ def webauthn_authenticate_complete():
             raise ValueError("Datos de autenticación no encontrados. Por favor, inicie el proceso nuevamente.")
 
         user = User.query.filter_by(username=username).first()
-        if not user:
-            raise ValueError("Usuario no encontrado")
+        if not user:            raise ValueError("Usuario no encontrado")
 
         credential = AuthenticationCredential.from_json(request.json)
 
         # Buscar lacredencial en la base de datos
-        db_credential = WebAuthnCredential.query.filter_by(            credential_id=base64.b64encode(credential.raw_id).decode()
+        db_credential = WebAuthnCredential.query.filter_by(
+            credential_id=base64.b64encode(credential.raw_id).decode()
         ).first()
 
         if not db_credential:
@@ -1013,3 +1012,33 @@ def process_qr():
             'success': False,
             'message': f'Error al procesar el código QR: {str(e)}'
         }), 500
+
+@bp.route('/jobs/public/<qr_code>')
+def public_job_view(qr_code):
+    """Vista pública de la factura a través del código QR"""
+    job = Job.query.filter_by(qr_code=qr_code).first_or_404()
+
+    # Generar QR
+    import qrcode
+    import io
+    import base64
+
+    # Crear QR con mejor calidad y tamaño
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
+        box_size=15,
+        border=4
+    )
+    qr.add_data(json.dumps(job.to_qr_data()))
+    qr.make(fit=True)
+
+    # Crear imagen con mejor contraste
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    # Convertir a base64
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG", quality=100)
+    qr_image = base64.b64encode(buffered.getvalue()).decode()
+
+    return render_template('invoice_pdf.html', job=job, qr_image=qr_image)
