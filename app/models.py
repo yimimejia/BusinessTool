@@ -62,7 +62,7 @@ class Job(db.Model):
     invoice_number = db.Column(db.String(50))
     client_name = db.Column(db.String(100))
     phone_number = db.Column(db.String(20))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     completed_at = db.Column(db.DateTime)
     is_completed = db.Column(db.Boolean, default=False)
     tags = db.Column(db.String(200))  # Comma-separated tags
@@ -92,8 +92,8 @@ class CompletedJob(db.Model):
     invoice_number = db.Column(db.String(50))
     client_name = db.Column(db.String(100))
     phone_number = db.Column(db.String(20))
-    created_at = db.Column(db.DateTime)
-    completed_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime, default=datetime.utcnow)
     called_at = db.Column(db.DateTime)
     is_called = db.Column(db.Boolean, default=False)
     tags = db.Column(db.String(200))  # Comma-separated tags
@@ -108,7 +108,7 @@ class DeliveredJob(db.Model):
     invoice_number = db.Column(db.String(50))
     client_name = db.Column(db.String(100))
     phone_number = db.Column(db.String(20))
-    created_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow) #Added  nullable=False, default=datetime.utcnow
     completed_at = db.Column(db.DateTime)
     called_at = db.Column(db.DateTime)
     delivered_at = db.Column(db.DateTime, default=datetime.utcnow)

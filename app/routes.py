@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from app import db
-from app.models import User, Job, CompletedJob, ActivityLog
+from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob # Added DeliveredJob import
 from datetime import datetime
 import json
 from functools import wraps
@@ -54,7 +54,7 @@ def log_activity(action, details=None):
         db.session.commit()
 
         # Enviar notificación en tiempo real si es una acción importante
-        if action in ['nuevo_trabajo', 'trabajo_completado', 'trabajo_eliminado']:
+        if action in ['nuevo_trabajo', 'trabajo_completado', 'trabajo_eliminado', 'trabajo_entregado']: #Added 'trabajo_entregado'
             sse.publish({
                 "message": f"{action}: {details}",
                 "type": "info"
@@ -313,9 +313,33 @@ def mark_called(job_id):
 @staff_required
 def mark_delivered(job_id):
     job = CompletedJob.query.get_or_404(job_id)
-    job.is_delivered = True
-    job.delivered_at = datetime.utcnow()
+
+    # Crear un nuevo trabajo entregado
+    delivered_job = DeliveredJob(
+        original_job_id=job.original_job_id,
+        completed_job_id=job.id,
+        description=job.description,
+        designer_id=job.designer_id,
+        invoice_number=job.invoice_number,
+        client_name=job.client_name,
+        phone_number=job.phone_number,
+        created_at=job.created_at,
+        completed_at=job.completed_at,
+        called_at=job.called_at,
+        delivered_at=datetime.utcnow(),
+        tags=job.tags
+    )
+
+    # Agregar el nuevo trabajo entregado y eliminar el trabajo completado
+    db.session.add(delivered_job)
+    db.session.delete(job)
     db.session.commit()
+
+    log_activity(
+        'trabajo_entregado',
+        f"Trabajo entregado: {delivered_job.client_name} (Factura: {delivered_job.invoice_number})"
+    )
+
     flash('Trabajo marcado como entregado', 'success')
     return redirect(url_for('main.completed_jobs'))
 
