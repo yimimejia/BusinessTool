@@ -657,7 +657,7 @@ def webauthn_register_begin():
     try:
         device_name = request.json.get('device_name', 'Dispositivo sin nombre')
 
-        # Configuración más flexible para soportar tanto Face ID como Touch ID
+        # Configuración específica para iOS y otros dispositivos
         registration_options = generate_registration_options(
             rp_id=request.host.split(':')[0],
             rp_name="FOTO VIDEO MOJICA",
@@ -665,11 +665,12 @@ def webauthn_register_begin():
             user_name=current_user.username,
             user_display_name=current_user.name,
             authenticator_selection=AuthenticatorSelectionCriteria(
-                authenticator_attachment=None,  # Permite cualquier tipo de autenticador
+                authenticator_attachment="platform",  # Específicamente para autenticadores de plataforma
                 require_resident_key=False,
                 user_verification=UserVerificationRequirement.PREFERRED
             ),
-            timeout=180000,  # 3 minutos para dar más tiempo
+            timeout=60000,  # 1 minuto es suficiente
+            attestation="none"  # Reduce la complejidad del proceso
         )
 
         # Guardar challenge para verificación posterior
@@ -686,7 +687,7 @@ def webauthn_register_begin():
         logger.error(f"Error en registro biométrico: {str(e)}")
         error_message = str(e)
         if "did not match the expected pattern" in error_message:
-            error_message = "Error de compatibilidad con el dispositivo biométrico. Por favor, intente con otro método."
+            error_message = "Error de compatibilidad. Por favor, asegúrese de que Face ID esté habilitado en su dispositivo."
         elif "timeout" in error_message.lower():
             error_message = "El proceso tomó demasiado tiempo. Por favor, intente nuevamente."
         return jsonify({'error': error_message}), 400
@@ -828,6 +829,6 @@ def webauthn_authenticate_complete():
         error_message = str(e)
         if "user verification" in error_message.lower():
             error_message = "La verificación biométrica falló. Por favor, intente nuevamente."
-        elif "challenge" in error_message.lower():
+        elif "challenge" in error_message.lower.lower():
             error_message = "La sesión ha expirado. Por favor, inicie el proceso nuevamente."
         return jsonify({'status': 'error', 'message': error_message}), 400

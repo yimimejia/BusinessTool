@@ -15,15 +15,20 @@ async function isPlatformAuthenticatorAvailable() {
 
     try {
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
         if (isIOS) {
-            // En iOS asumimos que está disponible si WebAuthn está soportado
+            // En iOS con Safari, asumimos que Face ID está disponible
             return true;
         }
 
+        // Para otros navegadores, verificamos normalmente
         return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
     } catch (error) {
         console.error('Error verificando autenticador:', error);
-        return false;
+        // En caso de error en iOS, asumimos que está disponible
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        return isIOS;
     }
 }
 
@@ -89,7 +94,7 @@ async function registerBiometric(deviceName) {
 
         const available = await isPlatformAuthenticatorAvailable();
         if (!available) {
-            throw new Error('Este dispositivo no tiene Face ID o Touch ID disponible');
+            throw new Error('Este dispositivo no tiene Face ID disponible');
         }
 
         // Obtener opciones de creación del servidor
@@ -114,12 +119,21 @@ async function registerBiometric(deviceName) {
         options.publicKey.challenge = base64ToArrayBuffer(options.publicKey.challenge);
         options.publicKey.user.id = base64ToArrayBuffer(options.publicKey.user.id);
 
-        console.log('Solicitando credenciales al navegador...');
+        // Para iOS, forzamos algunas opciones específicas
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+            options.publicKey.authenticatorSelection = {
+                authenticatorAttachment: "platform",
+                requireResidentKey: false,
+                userVerification: "preferred"
+            };
+        }
+
+        console.log('Solicitando verificación Face ID...');
         const credential = await navigator.credentials.create({
             publicKey: options.publicKey
         });
 
-        console.log('Credenciales creadas exitosamente');
+        console.log('Verificación Face ID completada');
 
         // Preparar datos para enviar al servidor
         const credentialResponse = {
@@ -148,7 +162,7 @@ async function registerBiometric(deviceName) {
         }
 
         console.log('Registro biométrico completado exitosamente');
-        alert('¡Registro biométrico exitoso! Ahora puede usar Face ID o Touch ID para iniciar sesión.');
+        alert('¡Registro de Face ID exitoso! Ahora puede usar Face ID para iniciar sesión.');
         location.reload();
         return await finalResponse.json();
 
