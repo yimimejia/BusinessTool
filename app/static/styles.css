@@ -1,3 +1,73 @@
+/* Estilos base responsivos */
+html {
+    font-size: 16px;
+}
+
+body {
+    background-color: #f8f9fa;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.navbar {
+    margin-bottom: 1rem;
+    padding: 0.5rem 1rem;
+    width: 100%;
+}
+
+/* Container responsivo */
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 15px;
+    box-sizing: border-box;
+}
+
+/* Media queries para diferentes tamaños de pantalla */
+@media (max-width: 768px) {
+    html {
+        font-size: 14px;
+    }
+
+    .container {
+        padding: 0 10px;
+    }
+
+    .navbar-brand {
+        font-size: 1.2rem;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+    }
+}
+
+@media (max-width: 576px) {
+    html {
+        font-size: 12px;
+    }
+
+    .btn {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.9rem;
+    }
+
+    .card {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Ajustes para pantallas grandes */
+@media (min-width: 1200px) {
+    .container {
+        max-width: 1140px;
+    }
+}
+
 /* Estilos personalizados */
 body {
     background-color: var(--bs-body-bg);
