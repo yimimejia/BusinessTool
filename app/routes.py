@@ -68,7 +68,7 @@ def log_activity(action, details=None):
         db.session.commit()
 
         # Enviar notificación en tiempo real si es una acción importante
-        if action in ['nuevo_trabajo', 'trabajo_completado', 'trabajo_eliminado', 'trabajo_entregado']: #Added 'trabajo_entregado'
+        if action in ['nuevo_trabajo', 'trabajo_completado', 'trabajo_eliminado', 'trabajo_entregado']:
             sse.publish({
                 "message": f"{action}: {details}",
                 "type": "info"
@@ -264,15 +264,25 @@ def new_job():
             if tags:
                 tags = ','.join([tag.strip() for tag in tags.split(',') if tag.strip()])
 
+            # Procesar el monto del abono
+            deposit_amount = request.form.get('deposit_amount')
+            if deposit_amount:
+                deposit_amount = float(deposit_amount)
+
             job = Job(
                 description=request.form.get('description'),
                 designer_id=request.form.get('designer_id'),
-                registered_by_id=current_user.id,  # Agregar el usuario que registra
+                registered_by_id=current_user.id,
                 invoice_number=request.form.get('invoice_number'),
                 client_name=request.form.get('client_name'),
                 phone_number=phone_number,
+                deposit_amount=deposit_amount,
                 tags=tags
             )
+
+            # Generar código QR único
+            job.generate_qr_code()
+
             db.session.add(job)
             db.session.commit()
 
@@ -281,8 +291,9 @@ def new_job():
                 f"Trabajo creado para {job.client_name} (Factura: {job.invoice_number})"
             )
 
-            flash('Trabajo creado exitosamente', 'success')
-            return redirect(url_for('main.dashboard'))
+            # Redirigir a la página del QR
+            return redirect(url_for('main.show_job_qr', job_id=job.id))
+
         except ValueError as e:
             flash(str(e), 'error')
             db.session.rollback()
@@ -292,6 +303,38 @@ def new_job():
 
     designers = User.query.filter_by(is_admin=False, is_supervisor=False).all()
     return render_template('new_job.html', designers=designers)
+
+@bp.route('/jobs/<int:job_id>/qr')
+@login_required
+def show_job_qr(job_id):
+    """Muestra la página con el QR del trabajo"""
+    job = Job.query.get_or_404(job_id)
+
+    # Generar el QR si no existe
+    if not job.qr_code:
+        job.generate_qr_code()
+        db.session.commit()
+
+    # Convertir los datos del trabajo a QR
+    import qrcode
+    import io
+    import base64
+
+    # Crear QR
+    qr = qrcode.QRCode(version=1, box_size=10, border=5)
+    qr.add_data(json.dumps(job.to_qr_data()))
+    qr.make(fit=True)
+
+    # Crear imagen
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    # Convertir a base64 para mostrar en HTML
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    qr_image = base64.b64encode(buffered.getvalue()).decode()
+
+    return render_template('job_qr.html', job=job, qr_image=qr_image)
+
 
 @bp.route('/jobs/<int:job_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -798,7 +841,7 @@ def webauthn_authenticate_complete():
 
         credential = AuthenticationCredential.from_json(request.json)
 
-        # Buscar la credencial en la base de datos
+        # Buscar lacredencial en la base de datos
         db_credential = WebAuthnCredential.query.filter_by(
             credential_id=base64.b64encode(credential.raw_id).decode()
         ).first()
@@ -833,6 +876,6 @@ def webauthn_authenticate_complete():
         error_message = str(e)
         if "user verification" in error_message.lower():
             error_message = "La verificación biométrica falló. Por favor, intente nuevamente."
-        elif "challenge" in error_message.lower.lower():
+        elif "challenge" in error_message.lower():
             error_message = "La sesión ha expirado. Por favor, inicie el proceso nuevamente."
         return jsonify({'status': 'error', 'message': error_message}), 400
