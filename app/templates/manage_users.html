@@ -20,7 +20,11 @@
                 </div>
                 <div class="col-md-3 mb-3">
                     <label class="form-label">Contraseña</label>
-                    <input type="password" name="password" class="form-control" required>
+                    <input type="password" name="password" class="form-control" required
+                           pattern=".{8,}" title="La contraseña debe tener al menos 8 caracteres">
+                    <small class="form-text text-muted">
+                        Mínimo 8 caracteres, una mayúscula y un número
+                    </small>
                 </div>
                 <div class="col-md-3 mb-3">
                     <label class="form-label">Tipo de Usuario</label>
@@ -33,6 +37,10 @@
                     </select>
                 </div>
             </div>
+            <div class="mb-3">
+                <label class="form-label">Contraseña de Administrador</label>
+                <input type="password" name="admin_password" class="form-control" required>
+            </div>
             <button type="submit" class="btn btn-primary">Crear Usuario</button>
         </form>
     </div>
@@ -44,7 +52,7 @@
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover datatable">
                 <thead>
                     <tr>
                         <th>Nombre</th>
@@ -69,6 +77,12 @@
                         </td>
                         <td>
                             {% if current_user.is_admin and user.username != 'admin' %}
+                            <button type="button" class="btn btn-info btn-sm edit-user" 
+                                    data-user-id="{{ user.id }}"
+                                    data-user-name="{{ user.name }}"
+                                    data-user-type="{% if user.is_admin %}admin{% elif user.is_supervisor %}supervisor{% else %}designer{% endif %}">
+                                <i class="bi bi-pencil"></i> Editar
+                            </button>
                             <button type="button" class="btn btn-danger btn-sm delete-user" 
                                     data-user-id="{{ user.id }}">
                                 <i class="bi bi-trash"></i> Eliminar
@@ -83,6 +97,53 @@
     </div>
 </div>
 
+<!-- Modal de Edición -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Usuario</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editUserForm" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de Usuario</label>
+                        <select name="user_type" class="form-select" required>
+                            <option value="designer">Diseñador</option>
+                            <option value="supervisor">Supervisor</option>
+                            {% if current_user.is_admin %}
+                            <option value="admin">Administrador</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nueva Contraseña (opcional)</label>
+                        <input type="password" name="new_password" class="form-control"
+                               pattern=".{8,}" title="La contraseña debe tener al menos 8 caracteres">
+                        <small class="form-text text-muted">
+                            Dejar en blanco para mantener la contraseña actual
+                        </small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contraseña de Administrador</label>
+                        <input type="password" name="admin_password" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Eliminación -->
 <div class="modal fade" id="deleteUserModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -90,21 +151,55 @@
                 <h5 class="modal-title">Confirmar Eliminación</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                ¿Está seguro que desea eliminar este usuario?
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <form id="deleteUserForm" method="POST" action="">
+            <form id="deleteUserForm" method="POST">
+                <div class="modal-body">
+                    <p>¿Está seguro que desea eliminar este usuario?</p>
+                    <div class="mb-3">
+                        <label class="form-label">Contraseña de Administrador</label>
+                        <input type="password" name="admin_password" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-danger">Eliminar</button>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
+{% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Configurar DataTable
+    $('.datatable').DataTable({
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+        }
+    });
+
+    // Configurar modal de edición
+    const editButtons = document.querySelectorAll('.edit-user');
+    const editForm = document.getElementById('editUserForm');
+    const editModal = new bootstrap.Modal(document.getElementById('editUserModal'));
+
+    editButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            const userName = this.dataset.userName;
+            const userType = this.dataset.userType;
+
+            editForm.action = `/users/${userId}/edit`;
+            editForm.querySelector('[name="name"]').value = userName;
+            editForm.querySelector('[name="user_type"]').value = userType;
+            editForm.querySelector('[name="new_password"]').value = '';
+            editForm.querySelector('[name="admin_password"]').value = '';
+
+            editModal.show();
+        });
+    });
+
+    // Configurar modal de eliminación
     const deleteButtons = document.querySelectorAll('.delete-user');
     const deleteForm = document.getElementById('deleteUserForm');
     const deleteModal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
@@ -113,9 +208,11 @@ document.addEventListener('DOMContentLoaded', function() {
         button.addEventListener('click', function() {
             const userId = this.dataset.userId;
             deleteForm.action = `/users/${userId}/delete`;
+            deleteForm.querySelector('[name="admin_password"]').value = '';
             deleteModal.show();
         });
     });
 });
 </script>
+{% endblock %}
 {% endblock %}

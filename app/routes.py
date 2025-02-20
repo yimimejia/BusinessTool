@@ -129,6 +129,10 @@ def manage_users():
 @login_required
 @admin_required
 def create_user():
+    if not current_user.is_admin:
+        flash('Solo los administradores pueden crear usuarios', 'error')
+        return redirect(url_for('main.dashboard'))
+
     name = request.form.get('name')
     username = request.form.get('username')
     password = request.form.get('password')
@@ -138,28 +142,92 @@ def create_user():
         flash('El nombre de usuario ya existe', 'error')
         return redirect(url_for('main.manage_users'))
 
-    user = User(
-        name=name,
-        username=username,
-        is_admin=user_type == 'admin',
-        is_supervisor=user_type == 'supervisor',
-        can_edit=True
-    )
-    user.set_password(password)
-    db.session.add(user)
-    db.session.commit()
+    try:
+        user = User(
+            name=name,
+            username=username,
+            is_admin=user_type == 'admin',
+            is_supervisor=user_type == 'supervisor',
+            can_edit=True
+        )
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
 
-    flash('Usuario creado exitosamente', 'success')
+        log_activity(
+            'crear_usuario',
+            f'Usuario creado: {username} (Tipo: {user_type})'
+        )
+
+        flash('Usuario creado exitosamente', 'success')
+    except ValueError as e:
+        flash(str(e), 'error')
+        return redirect(url_for('main.manage_users'))
+
+    return redirect(url_for('main.manage_users'))
+
+@bp.route('/users/<int:user_id>/edit', methods=['POST'])
+@login_required
+@admin_required
+def edit_user(user_id):
+    if not current_user.is_admin:
+        flash('Solo los administradores pueden editar usuarios', 'error')
+        return redirect(url_for('main.dashboard'))
+
+    user = User.query.get_or_404(user_id)
+
+    # Verificar contraseña de administrador
+    admin_password = request.form.get('admin_password')
+    if not current_user.check_password(admin_password):
+        flash('Contraseña de administrador incorrecta', 'error')
+        return redirect(url_for('main.manage_users'))
+
+    name = request.form.get('name')
+    user_type = request.form.get('user_type')
+    new_password = request.form.get('new_password')
+
+    try:
+        user.name = name
+        user.is_admin = user_type == 'admin'
+        user.is_supervisor = user_type == 'supervisor'
+
+        if new_password:
+            user.set_password(new_password)
+
+        db.session.commit()
+        log_activity(
+            'editar_usuario',
+            f'Usuario editado: {user.username}'
+        )
+        flash('Usuario actualizado exitosamente', 'success')
+    except ValueError as e:
+        flash(str(e), 'error')
+
     return redirect(url_for('main.manage_users'))
 
 @bp.route('/users/<int:user_id>/delete', methods=['POST'])
 @login_required
 @admin_required
 def delete_user(user_id):
+    if not current_user.is_admin:
+        flash('Solo los administradores pueden eliminar usuarios', 'error')
+        return redirect(url_for('main.dashboard'))
+
+    # Verificar contraseña de administrador
+    admin_password = request.form.get('admin_password')
+    if not current_user.check_password(admin_password):
+        flash('Contraseña de administrador incorrecta', 'error')
+        return redirect(url_for('main.manage_users'))
+
     user = User.query.get_or_404(user_id)
     if user.username == 'admin':
         flash('No se puede eliminar el usuario administrador principal', 'error')
         return redirect(url_for('main.manage_users'))
+
+    log_activity(
+        'eliminar_usuario',
+        f'Usuario eliminado: {user.username}'
+    )
 
     db.session.delete(user)
     db.session.commit()
