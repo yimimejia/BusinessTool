@@ -30,4 +30,5 @@ dependencies = [
     "webauthn>=2.5.1",
     "trafilatura>=2.0.0",
     "pillow>=11.1.0",
+    "oauthlib>=3.2.2",
 ]
