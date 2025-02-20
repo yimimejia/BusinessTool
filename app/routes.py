@@ -68,7 +68,7 @@ def log_activity(action, details=None):
         db.session.commit()
 
         # Enviar notificación en tiempo real si es una acción importante
-        if action in ['nuevo_trabajo', 'trabajo_completado', 'trabajo_eliminado', 'trabajo_entregado']:
+        if action in ['nuevo_trabajo', 'trabajo_completado', 'trabajo_eliminado', 'trabajo_entregado', 'trabajo_entregado_qr']:
             sse.publish({
                 "message": f"{action}: {details}",
                 "type": "info"
@@ -923,3 +923,74 @@ def generate_job_pdf(job_id):
             'Content-Type': 'application/pdf'
         }
     )
+
+@bp.route('/scan-qr')
+@login_required
+@staff_required
+def scan_qr():
+    """Página para escanear códigos QR"""
+    return render_template('qr_scanner.html')
+
+@bp.route('/process-qr', methods=['POST'])
+@login_required
+@staff_required
+def process_qr():
+    """Procesa el código QR escaneado y marca el trabajo como entregado"""
+    try:
+        qr_data = request.json
+
+        # Verificar que el QR contenga los datos necesarios
+        if not qr_data or 'id' not in qr_data:
+            return jsonify({
+                'success': False,
+                'message': 'Código QR inválido'
+            }), 400
+
+        # Buscar el trabajo completado
+        job = CompletedJob.query.filter_by(original_job_id=qr_data['id']).first()
+
+        if not job:
+            return jsonify({
+                'success': False,
+                'message': 'Trabajo no encontrado o ya entregado'
+            }), 404
+
+        # Crear registro de trabajo entregado
+        delivered_job = DeliveredJob(
+            original_job_id=job.original_job_id,
+            completed_job_id=job.id,
+            description=job.description,
+            designer_id=job.designer_id,
+            registered_by_id=job.registered_by_id,
+            invoice_number=job.invoice_number,
+            client_name=job.client_name,
+            phone_number=job.phone_number,
+            created_at=job.created_at,
+            completed_at=job.completed_at,
+            called_at=job.called_at,
+            delivered_at=datetime.utcnow(),
+            tags=job.tags
+        )
+
+        # Agregar el trabajo entregado y eliminar el completado
+        db.session.add(delivered_job)
+        db.session.delete(job)
+        db.session.commit()
+
+        log_activity(
+            'trabajo_entregado_qr',
+            f"Trabajo entregado por QR: {delivered_job.client_name} (Factura: {delivered_job.invoice_number})"
+        )
+
+        return jsonify({
+            'success': True,
+            'message': 'Trabajo marcado como entregado',
+            'redirect_url': url_for('main.delivered_jobs')
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Error al procesar el código QR: {str(e)}'
+        }), 500

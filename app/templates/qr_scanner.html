@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Escanear QR{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Escanear Código QR</h4>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <video id="qr-video" class="img-fluid"></video>
+                    </div>
+                    <div class="d-flex justify-content-center">
+                        <button id="startButton" class="btn btn-primary me-2">
+                            <i class="bi bi-camera"></i> Iniciar Cámara
+                        </button>
+                        <button id="stopButton" class="btn btn-secondary" style="display: none;">
+                            <i class="bi bi-stop-circle"></i> Detener
+                        </button>
+                    </div>
+                    <div id="loadingIndicator" class="text-center mt-3" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-2">Procesando código QR...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const html5QrCode = new Html5Qrcode("qr-video");
+    const startButton = document.getElementById('startButton');
+    const stopButton = document.getElementById('stopButton');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    let scanning = false;
+
+    startButton.addEventListener('click', async () => {
+        try {
+            const devices = await Html5Qrcode.getCameras();
+            if (devices && devices.length) {
+                startButton.style.display = 'none';
+                stopButton.style.display = 'inline-block';
+                scanning = true;
+
+                html5QrCode.start(
+                    { facingMode: "environment" },
+                    {
+                        fps: 10,
+                        qrbox: 250
+                    },
+                    async (decodedText) => {
+                        if (scanning) {
+                            scanning = false;
+                            loadingIndicator.style.display = 'block';
+                            
+                            try {
+                                // Intentar parsear el QR como JSON
+                                const qrData = JSON.parse(decodedText);
+                                
+                                // Enviar los datos al servidor
+                                const response = await fetch('/process-qr', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify(qrData)
+                                });
+
+                                if (response.ok) {
+                                    const result = await response.json();
+                                    if (result.success) {
+                                        alert('Trabajo marcado como entregado exitosamente');
+                                        window.location.href = result.redirect_url;
+                                    } else {
+                                        alert(result.message || 'Error al procesar el código QR');
+                                        scanning = true;
+                                    }
+                                } else {
+                                    throw new Error('Error en la respuesta del servidor');
+                                }
+                            } catch (error) {
+                                console.error('Error procesando QR:', error);
+                                alert('Error al procesar el código QR. Por favor, intente nuevamente.');
+                                scanning = true;
+                            }
+                            
+                            loadingIndicator.style.display = 'none';
+                        }
+                    },
+                    (error) => {
+                        console.error('Error al escanear:', error);
+                    }
+                );
+            } else {
+                alert('No se encontró ninguna cámara en el dispositivo');
+            }
+        } catch (error) {
+            console.error('Error al iniciar la cámara:', error);
+            alert('Error al acceder a la cámara. Por favor, asegúrese de dar permiso de acceso.');
+        }
+    });
+
+    stopButton.addEventListener('click', () => {
+        html5QrCode.stop();
+        startButton.style.display = 'inline-block';
+        stopButton.style.display = 'none';
+        scanning = false;
+    });
+});
+</script>
+{% endblock %}
