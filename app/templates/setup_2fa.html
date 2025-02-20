@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Configurar Autenticación de Dos Factores{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4 class="mb-0">Configurar Autenticación de Dos Factores</h4>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <p>Para aumentar la seguridad de su cuenta, necesita configurar la autenticación de dos factores.</p>
+            <ol>
+                <li>Instale Google Authenticator en su teléfono</li>
+                <li>Escanee el código QR o ingrese el código manualmente</li>
+                <li>Ingrese el código de verificación que aparece en su aplicación</li>
+            </ol>
+        </div>
+
+        <div class="text-center mb-4">
+            <img src="https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl={{ qr_uri|urlencode }}"
+                 alt="QR Code" class="img-fluid">
+        </div>
+
+        <form method="POST" action="{{ url_for('main.verify_2fa_setup') }}">
+            <div class="mb-3">
+                <label class="form-label">Código de Verificación</label>
+                <input type="text" name="verification_code" class="form-control" required
+                       pattern="[0-9]{6}" maxlength="6" placeholder="Ingrese el código de 6 dígitos">
+            </div>
+            <div class="text-end">
+                <button type="submit" class="btn btn-primary">Verificar y Activar</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

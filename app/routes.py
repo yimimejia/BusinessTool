@@ -13,6 +13,9 @@ import os
 from openpyxl import Workbook
 from datetime import datetime
 import io
+import pyotp
+import qrcode
+import io
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -47,13 +50,14 @@ def log_activity(action, details=None):
             user_id=current_user.id if current_user.is_authenticated else None,
             action=action,
             details=details,
+            ip_address=request.remote_addr,
             timestamp=datetime.utcnow()
         )
         db.session.add(activity)
         db.session.commit()
 
-        # Enviar notificación en tiempo real
-        if details:
+        # Enviar notificación en tiempo real si es una acción importante
+        if action in ['nuevo_trabajo', 'trabajo_completado', 'trabajo_eliminado']:
             sse.publish({
                 "message": f"{action}: {details}",
                 "type": "info"
@@ -79,19 +83,42 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+        two_factor_code = request.form.get('two_factor_code')
 
         user = User.query.filter_by(username=username).first()
         if user and user.check_password(password):
+            # Verificar 2FA para administradores
+            if user.is_admin:
+                if not user.two_factor_enabled:
+                    # Primera vez: configurar 2FA
+                    user.two_factor_secret = pyotp.random_base32()
+                    user.two_factor_enabled = True
+                    db.session.commit()
+                    qr_uri = user.get_2fa_uri()
+                    return render_template('setup_2fa.html', qr_uri=qr_uri)
+
+                # Verificar código 2FA
+                if not two_factor_code:
+                    return render_template('verify_2fa.html')
+
+                if not user.verify_2fa(two_factor_code):
+                    flash('Código de verificación incorrecto', 'error')
+                    return render_template('verify_2fa.html')
+
             login_user(user)
+            log_activity('login', f'Inicio de sesión exitoso - Usuario: {user.username}')
             flash('¡Bienvenido!', 'success')
             return redirect(url_for('main.dashboard'))
 
         flash('Usuario o contraseña incorrectos', 'error')
+        log_activity('login_failed', f'Intento de inicio de sesión fallido - Usuario: {username}')
     return render_template('login.html')
 
 @bp.route('/logout')
 @login_required
 def logout():
+    if current_user.is_authenticated:
+        log_activity('logout', f'Cierre de sesión - Usuario: {current_user.username}')
     logout_user()
     return redirect(url_for('main.login'))
 

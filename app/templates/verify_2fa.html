@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Verificar Autenticación de Dos Factores{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4 class="mb-0">Verificar Autenticación de Dos Factores</h4>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('main.login') }}">
+            <div class="mb-3">
+                <label class="form-label">Código de Verificación</label>
+                <input type="text" name="two_factor_code" class="form-control" required
+                       pattern="[0-9]{6}" maxlength="6" placeholder="Ingrese el código de 6 dígitos">
+                <div class="form-text">
+                    Ingrese el código de 6 dígitos de su aplicación Google Authenticator
+                </div>
+            </div>
+            <input type="hidden" name="username" value="{{ request.form.username }}">
+            <input type="hidden" name="password" value="{{ request.form.password }}">
+            <div class="text-end">
+                <button type="submit" class="btn btn-primary">Verificar</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

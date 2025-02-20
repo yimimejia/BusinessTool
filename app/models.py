@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
 from sqlalchemy.orm import validates
 import re
+import pyotp
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -24,10 +25,30 @@ class User(UserMixin, db.Model):
     activities = db.relationship('ActivityLog', backref='user', lazy='dynamic')
 
     def set_password(self, password):
+        if len(password) < 8:
+            raise ValueError("La contraseña debe tener al menos 8 caracteres")
+        if not any(c.isupper() for c in password):
+            raise ValueError("La contraseña debe contener al menos una mayúscula")
+        if not any(c.isdigit() for c in password):
+            raise ValueError("La contraseña debe contener al menos un número")
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    def get_2fa_uri(self):
+        if not self.two_factor_secret:
+            self.two_factor_secret = pyotp.random_base32()
+        return pyotp.totp.TOTP(self.two_factor_secret).provisioning_uri(
+            name=self.username,
+            issuer_name="FOTO VIDEO MOJICA"
+        )
+
+    def verify_2fa(self, code):
+        if not self.two_factor_secret:
+            return False
+        totp = pyotp.TOTP(self.two_factor_secret)
+        return totp.verify(code)
 
     @property
     def is_staff(self):
