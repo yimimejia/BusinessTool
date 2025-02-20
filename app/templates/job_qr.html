@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Factura Digital - {{ job.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Factura Digital</h4>
+                    <button class="btn btn-outline-primary btn-sm" onclick="window.print()">
+                        <i class="bi bi-printer"></i> Imprimir
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Detalles del Trabajo</h5>
+                            <p><strong>No. Factura:</strong> {{ job.invoice_number }}</p>
+                            <p><strong>Cliente:</strong> {{ job.client_name }}</p>
+                            <p><strong>Descripción:</strong> {{ job.description }}</p>
+                            {% if job.deposit_amount %}
+                            <p><strong>Abono:</strong> ${{ "%.2f"|format(job.deposit_amount) }}</p>
+                            {% endif %}
+                            <p><strong>Fecha:</strong> {{ job.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                        </div>
+                        <div class="col-md-6 text-center">
+                            <img src="data:image/png;base64,{{ qr_image }}" 
+                                 alt="Código QR" 
+                                 class="img-fluid"
+                                 style="max-width: 200px;">
+                            <p class="mt-2 text-muted">
+                                <small>Escanee este código para verificar su trabajo</small>
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <p class="mb-0"><strong>FOTO VIDEO MOJICA</strong></p>
+                        <p class="text-muted"><small>Gracias por su preferencia</small></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn-outline-primary {
+        display: none;
+    }
+    .card {
+        border: none;
+    }
+    .card-header {
+        background: none;
+        border-bottom: 1px solid #ddd;
+    }
+}
+</style>
+{% endblock %}

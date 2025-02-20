@@ -6,6 +6,7 @@ from sqlalchemy.orm import validates
 import re
 import base64
 import json
+import random
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -135,6 +136,8 @@ class Job(db.Model):
     completed_at = db.Column(db.DateTime)
     is_completed = db.Column(db.Boolean, default=False)
     tags = db.Column(db.String(200))  # Comma-separated tags
+    deposit_amount = db.Column(db.Numeric(10, 2))  # Nuevo campo para el abono
+    qr_code = db.Column(db.String(100), unique=True)  # Identificador único para el QR
 
     @validates('phone_number')
     def validate_phone_number(self, key, phone_number):
@@ -157,6 +160,26 @@ class Job(db.Model):
         # Formatear el número para almacenamiento: +1-XXX-XXXXXXX
         formatted_number = f'+{cleaned_number[0]}-{cleaned_number[1:4]}-{cleaned_number[4:]}'
         return formatted_number
+
+    def generate_qr_code(self):
+        """Genera un identificador único para el código QR"""
+        if not self.qr_code:
+            # Generar un identificador único basado en timestamp y random
+            unique_id = f"{int(datetime.utcnow().timestamp())}-{self.id}-{random.randint(1000, 9999)}"
+            self.qr_code = base64.urlsafe_b64encode(unique_id.encode()).decode()
+        return self.qr_code
+
+    def to_qr_data(self):
+        """Convierte los datos del trabajo en un formato adecuado para el QR"""
+        return {
+            'id': self.id,
+            'invoice': self.invoice_number,
+            'client': self.client_name,
+            'description': self.description,
+            'deposit': float(self.deposit_amount) if self.deposit_amount else 0,
+            'created': self.created_at.isoformat(),
+            'qr_code': self.qr_code
+        }
 
 class CompletedJob(db.Model):
     __tablename__ = 'completed_jobs'
