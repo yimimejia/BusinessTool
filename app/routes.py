@@ -320,17 +320,22 @@ def show_job_qr(job_id):
     import io
     import base64
 
-    # Crear QR
-    qr = qrcode.QRCode(version=1, box_size=10, border=5)
+    # Crear QR con mejor calidad y tamaño
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
+        box_size=15,  # Aumentado de 10 a 15
+        border=4
+    )
     qr.add_data(json.dumps(job.to_qr_data()))
     qr.make(fit=True)
 
-    # Crear imagen
+    # Crear imagen con mejor contraste
     img = qr.make_image(fill_color="black", back_color="white")
 
-    # Convertir a base64 para mostrar en HTML
+    # Convertir a base64
     buffered = io.BytesIO()
-    img.save(buffered, format="PNG")
+    img.save(buffered, format="PNG", quality=100)
     qr_image = base64.b64encode(buffered.getvalue()).decode()
 
     return render_template('job_qr.html', job=job, qr_image=qr_image)
@@ -895,17 +900,22 @@ def generate_job_pdf(job_id):
     import io
     import base64
 
-    # Crear QR
-    qr = qrcode.QRCode(version=1, box_size=10, border=5)
+    # Crear QR con mejor calidad y tamaño
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
+        box_size=15,  # Aumentado de 10 a 15
+        border=4
+    )
     qr.add_data(json.dumps(job.to_qr_data()))
     qr.make(fit=True)
 
-    # Crear imagen
+    # Crear imagen con mejor contraste
     img = qr.make_image(fill_color="black", back_color="white")
 
     # Convertir a base64
     buffered = io.BytesIO()
-    img.save(buffered, format="PNG")
+    img.save(buffered, format="PNG", quality=100)
     qr_image = base64.b64encode(buffered.getvalue()).decode()
 
     # Renderizar el HTML
