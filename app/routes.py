@@ -1458,3 +1458,11 @@ def utility_processor():
         pending_jobs_count=get_pending_jobs_count(),
         pending_photos_count=get_pending_photos_count()
     )
+
+@bp.route('/jobs/pending')
+@login_required
+@staff_required
+def pending_jobs():
+    """Ver trabajos pendientes"""
+    jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
+    return render_template('pending_jobs.html', jobs=jobs)
