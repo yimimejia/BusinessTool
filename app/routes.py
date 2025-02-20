@@ -340,7 +340,6 @@ def show_job_qr(job_id):
     return render_template('job_qr.html', job=job, qr_image=qr_image)
 
 
-
 @bp.route('/jobs/<int:job_id>/edit', methods=['GET', 'POST'])
 @login_required
 @staff_required
@@ -406,7 +405,6 @@ def mark_delivered(job_id):
 
     flash('Trabajo marcado como entregado', 'success')
     return redirect(url_for('main.completed_jobs'))
-
 
 @bp.route('/jobs/<int:job_id>/delete', methods=['POST'])
 @login_required
@@ -566,7 +564,6 @@ def send_manual_report():
         'message': 'Enlaces de WhatsApp generados',
         'links': report_links
     })
-
 
 @bp.route('/jobs/export/<format>')
 @login_required
@@ -885,9 +882,8 @@ def webauthn_authenticate_complete():
         return jsonify({'status': 'error', 'message': error_message}), 400
 
 @bp.route('/jobs/<int:job_id>/pdf')
-@login_required
 def generate_job_pdf(job_id):
-    """Genera un PDF de la factura"""
+    """Genera un PDF de la factura - accesible públicamente"""
     job = Job.query.get_or_404(job_id)
 
     # Generar el QR si no existe
@@ -896,15 +892,10 @@ def generate_job_pdf(job_id):
         db.session.commit()
 
     # Generar QR
-    import qrcode
-    import io
-    import base64
-
-    # Crear QR con mejor calidad y tamaño
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_H,
-        box_size=15,  # Aumentado de 10 a 15
+        box_size=15,
         border=4
     )
     qr.add_data(json.dumps(job.to_qr_data()))
@@ -936,7 +927,7 @@ def generate_job_pdf(job_id):
 
 @bp.route('/process-qr', methods=['POST'])
 def process_qr():
-    """Procesa un código QR escaneado y marca el trabajo como entregado"""
+    """Procesa un código QR escaneado sin requerir autenticación"""
     try:
         data = request.json
         if not data:
@@ -952,48 +943,25 @@ def process_qr():
         if not job:
             return jsonify({'success': False, 'message': 'Trabajo no encontrado'}), 404
 
-        # Si el trabajo ya está completado, devolver error
-        if job.is_completed:
-            return jsonify({'success': False, 'message': 'Este trabajo ya fue completado'}), 400
-
-        # Marcar el trabajo como completado
-        job.is_completed = True
-        job.completed_at = datetime.utcnow()
-
-        # Crear un nuevo trabajo completado
-        completed_job = CompletedJob(
-            original_job_id=job.id,
-            description=job.description,
-            designer_id=job.designer_id,
-            registered_by_id=job.registered_by_id,
-            invoice_number=job.invoice_number,
-            client_name=job.client_name,
-            phone_number=job.phone_number,
-            created_at=job.created_at,
-            completed_at=datetime.utcnow(),
-            tags=job.tags
-        )
-
-        db.session.add(completed_job)
-        db.session.delete(job)
-        db.session.commit()
-
-        log_activity(
-            'trabajo_entregado_qr',
-            f"Trabajo marcado como entregado vía QR: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
-        )
-
+        # Redirigir a la vista pública del trabajo
         return jsonify({
             'success': True,
-            'message': 'Trabajo marcado como entregado exitosamente',
-            'redirect_url': url_for('main.completed_jobs')
+            'message': 'Trabajo encontrado',
+            'redirect_url': url_for('main.generate_job_pdf', job_id=job.id)
         })
 
     except Exception as e:
-        db.session.rollback()
+        logger.error(f"Error procesando QR: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @bp.route('/qr-scanner')
 def qr_scanner():
     """Página pública para escanear códigos QR"""
     return render_template('qr_scanner.html')
+
+@bp.route('/jobs/public/<qr_code>')
+def public_job(qr_code):
+    job = Job.query.filter_by(qr_code=qr_code).first()
+    if not job:
+        return "Trabajo no encontrado", 404
+    return render_template('public_job.html', job=job)

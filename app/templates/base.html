@@ -90,6 +90,11 @@
                             <i class="bi bi-folder2-open"></i> Trabajos Pendientes
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{{ url_for('main.qr_scanner') }}">
+                            <i class="bi bi-qr-code-scan"></i> Escanear QR
+                        </a>
+                    </li>
                     {% if current_user.is_admin %}
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.manage_users') }}">
@@ -111,11 +116,6 @@
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.delivered_jobs') }}">
                             <i class="bi bi-box-seam-fill"></i> Trabajos Entregados
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="{{ url_for('main.qr_scanner') }}">
-                            <i class="bi bi-qr-code-scan"></i> Escanear QR
                         </a>
                     </li>
                     {% endif %}
