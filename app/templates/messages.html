@@ -5,23 +5,49 @@
 {% block content %}
 <div class="container">
     <div class="row">
+        <!-- Lista de Usuarios -->
         <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Usuarios</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for user in users %}
+                            {% if user.id != current_user.id %}
+                            <a href="#" class="list-group-item list-group-item-action user-select" data-user-id="{{ user.id }}" data-user-name="{{ user.name }}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="bi bi-person-circle me-2"></i>
+                                        {{ user.name }}
+                                        <small class="text-muted d-block">{{ user.username }}</small>
+                                    </div>
+                                    {% if user.is_admin %}
+                                        <span class="badge bg-primary">Admin</span>
+                                    {% elif user.is_staff %}
+                                        <span class="badge bg-info">Staff</span>
+                                    {% endif %}
+                                </div>
+                            </a>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulario de Mensaje y Mensajes -->
+        <div class="col-md-8">
+            <!-- Formulario de Nuevo Mensaje -->
             <div class="card mb-3">
                 <div class="card-header">
                     <h5 class="mb-0">Nuevo Mensaje</h5>
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('main.send_message') }}" enctype="multipart/form-data">
+                        <input type="hidden" id="recipient_id" name="recipient_id" required>
                         <div class="mb-3">
-                            <label for="recipient_id" class="form-label">Destinatario</label>
-                            <select class="form-select" id="recipient_id" name="recipient_id" required>
-                                <option value="" selected disabled>Seleccionar usuario...</option>
-                                {% for user in users %}
-                                    {% if user.id != current_user.id %}
-                                    <option value="{{ user.id }}">{{ user.name }} ({{ user.username }})</option>
-                                    {% endif %}
-                                {% endfor %}
-                            </select>
+                            <label class="form-label">Para: <span id="recipient_name">Seleccione un usuario</span></label>
                         </div>
                         <div class="mb-3">
                             <label for="content" class="form-label">Mensaje</label>
@@ -34,14 +60,14 @@
                             <div id="preview" class="mt-2 d-flex flex-wrap gap-2"></div>
                         </div>
                         {% endif %}
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" id="sendButton" disabled>
                             <i class="bi bi-send"></i> Enviar
                         </button>
                     </form>
                 </div>
             </div>
-        </div>
-        <div class="col-md-8">
+
+            <!-- Lista de Mensajes -->
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">Mensajes</h5>
@@ -96,12 +122,72 @@
         </div>
     </div>
 </div>
+
+<style>
+.user-select {
+    cursor: pointer;
+}
+.user-select:hover {
+    background-color: rgba(13, 110, 253, 0.1);
+}
+.user-select.active {
+    background-color: rgba(13, 110, 253, 0.2);
+}
+.messages-container {
+    max-height: 500px;
+    overflow-y: auto;
+}
+.message-card {
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+.message-card.sent {
+    background-color: rgba(13, 110, 253, 0.1);
+    margin-left: 20%;
+}
+.message-card.received {
+    background-color: rgba(33, 37, 41, 0.1);
+    margin-right: 20%;
+}
+.message-card.unread {
+    border-left: 4px solid #0d6efd;
+}
+.message-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+}
+</style>
 {% endblock %}
 
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Marcar mensajes como leídos al abrirlos
+    // Selección de usuario
+    const userSelects = document.querySelectorAll('.user-select');
+    const recipientIdInput = document.getElementById('recipient_id');
+    const recipientNameSpan = document.getElementById('recipient_name');
+    const sendButton = document.getElementById('sendButton');
+
+    userSelects.forEach(function(userSelect) {
+        userSelect.addEventListener('click', function(e) {
+            e.preventDefault();
+            // Remover clase activa de todos los usuarios
+            userSelects.forEach(u => u.classList.remove('active'));
+            // Agregar clase activa al usuario seleccionado
+            this.classList.add('active');
+
+            // Actualizar el formulario
+            const userId = this.dataset.userId;
+            const userName = this.dataset.userName;
+            recipientIdInput.value = userId;
+            recipientNameSpan.textContent = userName;
+            sendButton.disabled = false;
+        });
+    });
+
+    // Marcar mensajes como leídos
     const unreadMessages = document.querySelectorAll('.message-card.unread');
     unreadMessages.forEach(function(message) {
         const messageId = message.dataset.messageId;
