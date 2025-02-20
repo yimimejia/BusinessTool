@@ -42,7 +42,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const preview = document.getElementById('preview');
     const imagePreview = document.getElementById('imagePreview');
     const loadingIndicator = document.getElementById('loadingIndicator');
-    let scanning = false;
 
     // Función para procesar el resultado del QR
     async function processQrResult(decodedText) {
@@ -50,8 +49,14 @@ document.addEventListener('DOMContentLoaded', function() {
             loadingIndicator.style.display = 'block';
             console.log('Texto decodificado:', decodedText);
 
-            // Intentar parsear el QR como JSON
-            const qrData = JSON.parse(decodedText);
+            // Intentar parsear el QR
+            let qrData;
+            try {
+                qrData = JSON.parse(decodedText);
+            } catch (error) {
+                // Si no es JSON, asumimos que es una URL o texto plano
+                qrData = { qr_code: decodedText };
+            }
             console.log('Datos del QR:', qrData);
 
             // Enviar los datos al servidor
@@ -81,43 +86,37 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Manejar la subida de archivo
-    qrFileInput.addEventListener('change', event => {
-        if (event.target.files && event.target.files[0]) {
-            const file = event.target.files[0];
-            console.log('Archivo seleccionado:', file.name, file.type);
+    if (qrFileInput) {
+        qrFileInput.addEventListener('change', event => {
+            if (event.target.files && event.target.files[0]) {
+                const file = event.target.files[0];
+                console.log('Archivo seleccionado:', file.name, file.type);
 
-            // Mostrar preview de la imagen
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                imagePreview.src = e.target.result;
-                preview.style.display = 'block';
+                // Mostrar preview de la imagen
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    preview.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+
+                // Configuración mejorada para el escaneo
+                const html5QrCode = new Html5Qrcode("qrFile");
+                loadingIndicator.style.display = 'block';
+
+                html5QrCode.scanFile(file, true)
+                    .then(decodedText => {
+                        console.log('QR escaneado exitosamente');
+                        processQrResult(decodedText);
+                    })
+                    .catch(err => {
+                        console.error('Error al escanear:', err);
+                        alert('No se pudo leer el código QR. Por favor, asegúrese que la imagen sea clara y vuelva a intentar.');
+                        loadingIndicator.style.display = 'none';
+                    });
             }
-            reader.readAsDataURL(file);
-
-            // Configuración mejorada para el escaneo
-            const qrConfig = {
-                experimenteralFeatures: true,
-                useBarCodeDetectorIfSupported: false,
-                attemptCount: 10,
-                formatsToSupport: ['qr_code']
-            };
-
-            // Crear nueva instancia para cada escaneo
-            const html5QrCode = new Html5Qrcode("qrFile");
-            loadingIndicator.style.display = 'block';
-
-            html5QrCode.scanFile(file, true)
-                .then(decodedText => {
-                    console.log('QR escaneado exitosamente');
-                    processQrResult(decodedText);
-                })
-                .catch(err => {
-                    console.error('Error al escanear:', err);
-                    alert('No se pudo leer el código QR. Por favor, asegúrese que la imagen sea clara y vuelva a intentar.');
-                    loadingIndicator.style.display = 'none';
-                });
-        }
-    });
+        });
+    }
 });
 </script>
 {% endblock %}
