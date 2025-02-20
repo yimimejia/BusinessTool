@@ -232,6 +232,9 @@
 {% block scripts %}
 <script>
 $(document).ready(function() {
+    // Inicializar la tabla de manera segura
+    initializeDataTable('.table');
+
     // Configurar botones de eliminar
     $('.delete-job').click(function() {
         var jobId = $(this).data('job-id');
@@ -259,6 +262,9 @@ $(document).ready(function() {
             designer: designer,
             tag: tag
         }, function(data) {
+            // Destruir la tabla actual antes de actualizar
+            $('.table').DataTable().destroy();
+
             // Actualizar tabla con resultados
             const tbody = $('#jobsTableBody');
             tbody.empty();
@@ -281,6 +287,9 @@ $(document).ready(function() {
                 `;
                 tbody.append(row);
             });
+
+            // Reinicializar la tabla de manera segura después de actualizar los datos
+            initializeDataTable('.table');
         });
     });
 });
