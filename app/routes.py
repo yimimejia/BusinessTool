@@ -171,12 +171,19 @@ def new_job():
             if not phone_number.startswith('+1'):
                 phone_number = f'+1{phone_number}' if phone_number.startswith('1') else f'+1{phone_number}'
 
+            # Procesar etiquetas
+            tags = request.form.get('tags', '').strip()
+            # Limpiar y normalizar las etiquetas
+            if tags:
+                tags = ','.join([tag.strip() for tag in tags.split(',') if tag.strip()])
+
             job = Job(
                 description=request.form.get('description'),
                 designer_id=request.form.get('designer_id'),
                 invoice_number=request.form.get('invoice_number'),
                 client_name=request.form.get('client_name'),
-                phone_number=phone_number
+                phone_number=phone_number,
+                tags=tags
             )
             db.session.add(job)
             db.session.commit()

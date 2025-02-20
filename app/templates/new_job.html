@@ -35,6 +35,11 @@
                     <label class="form-label">Teléfono</label>
                     <input type="text" name="phone_number" class="form-control" required>
                 </div>
+                <div class="col-md-12 mb-3">
+                    <label class="form-label">Etiquetas (separadas por comas)</label>
+                    <input type="text" name="tags" class="form-control" placeholder="Ejemplo: urgente, fotografía, edición">
+                    <small class="text-muted">Las etiquetas ayudan a categorizar y buscar trabajos más fácilmente</small>
+                </div>
             </div>
             <div class="text-end">
                 <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary me-2">Cancelar</a>
