@@ -9,14 +9,10 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">Factura Digital</h4>
-                    <div class="dropdown">
-                        <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-printer"></i> Acciones
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="printAndSendWhatsApp()">
+                            <i class="bi bi-printer"></i> Imprimir y Enviar
                         </button>
-                        <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                            <li><a class="dropdown-item" href="#" onclick="window.print()"><i class="bi bi-printer"></i> Imprimir Factura</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="sendToWhatsApp()"><i class="bi bi-whatsapp"></i> Enviar por WhatsApp</a></li>
-                        </ul>
                     </div>
                 </div>
                 <div class="card-body">
@@ -54,7 +50,7 @@
 
 <style>
 @media print {
-    .dropdown {
+    .btn-group {
         display: none;
     }
     .card {
@@ -68,7 +64,7 @@
 </style>
 
 <script>
-async function sendToWhatsApp() {
+async function printAndSendWhatsApp() {
     try {
         // Primero descargar el PDF
         const response = await fetch(`/jobs/{{ job.id }}/pdf`);
@@ -92,22 +88,34 @@ async function sendToWhatsApp() {
         message += "Adjunto encontrará su factura digital con código QR.\n\n";
         message += "Gracias por su preferencia";
 
-        // Crear el enlace de WhatsApp con el PDF adjunto
-        let whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+        // Imprimir la factura
+        window.print();
 
-        // Abrir WhatsApp en una nueva ventana
-        window.open(whatsappUrl, '_blank');
+        // Esperar un momento para que se complete la impresión
+        setTimeout(async () => {
+            try {
+                // Crear el enlace de WhatsApp con el PDF adjunto
+                let whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
 
-        // Descargar el PDF automáticamente
-        const link = document.createElement('a');
-        link.href = pdfUrl;
-        link.download = `factura_${encodeURIComponent("{{ job.invoice_number }}")}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+                // Abrir WhatsApp en una nueva ventana
+                window.open(whatsappUrl, '_blank');
 
-        // Limpiar la URL temporal
-        URL.revokeObjectURL(pdfUrl);
+                // Descargar el PDF automáticamente
+                const link = document.createElement('a');
+                link.href = pdfUrl;
+                link.download = `factura_${encodeURIComponent("{{ job.invoice_number }}")}.pdf`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                // Limpiar la URL temporal
+                URL.revokeObjectURL(pdfUrl);
+            } catch (error) {
+                console.error('Error al enviar por WhatsApp:', error);
+                alert('La factura se imprimió, pero hubo un error al enviar por WhatsApp. Por favor, intente enviar manualmente.');
+            }
+        }, 1000); // Esperar 1 segundo después de imprimir
+
     } catch (error) {
         console.error('Error al generar o enviar el PDF:', error);
         alert('Hubo un error al generar el PDF. Por favor, intente nuevamente.');
