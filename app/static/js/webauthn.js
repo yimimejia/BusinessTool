@@ -6,15 +6,20 @@ function isWebAuthnSupported() {
 
 // Función para convertir ArrayBuffer a Base64
 function arrayBufferToBase64(buffer) {
-    return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
 // Función para convertir Base64 a ArrayBuffer
 function base64ToArrayBuffer(base64) {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
+    const binary = atob(base64.replace(/-/g, '+').replace(/_/g, '/'));
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
     }
     return bytes.buffer;
 }
@@ -35,6 +40,12 @@ async function registerBiometric(deviceName) {
             credentials: 'same-origin',
             body: JSON.stringify({ device_name: deviceName })
         });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Error al iniciar registro biométrico');
+        }
+
         const options = await response.json();
 
         // Convertir las opciones del formato base64 a ArrayBuffer
@@ -46,7 +57,7 @@ async function registerBiometric(deviceName) {
             publicKey: options.publicKey
         });
 
-        // Enviar la respuesta al servidor
+        // Preparar datos para enviar al servidor
         const credentialResponse = {
             id: credential.id,
             rawId: arrayBufferToBase64(credential.rawId),
@@ -67,12 +78,12 @@ async function registerBiometric(deviceName) {
             body: JSON.stringify(credentialResponse)
         });
 
-        const result = await finalResponse.json();
         if (!finalResponse.ok) {
-            throw new Error(result.message || 'Error al registrar credenciales biométricas');
+            const error = await finalResponse.json();
+            throw new Error(error.message || 'Error al completar registro biométrico');
         }
 
-        return result;
+        return await finalResponse.json();
 
     } catch (error) {
         console.error('Error durante el registro biométrico:', error);
@@ -107,12 +118,10 @@ async function authenticateBiometric(username) {
         // Convertir las opciones del formato base64 a ArrayBuffer
         options.publicKey.challenge = base64ToArrayBuffer(options.publicKey.challenge);
         if (options.publicKey.allowCredentials) {
-            options.publicKey.allowCredentials = options.publicKey.allowCredentials.map(credential => {
-                return {
-                    ...credential,
-                    id: base64ToArrayBuffer(credential.id)
-                };
-            });
+            options.publicKey.allowCredentials = options.publicKey.allowCredentials.map(credential => ({
+                ...credential,
+                id: base64ToArrayBuffer(credential.id)
+            }));
         }
 
         // Obtener credenciales
@@ -120,7 +129,7 @@ async function authenticateBiometric(username) {
             publicKey: options.publicKey
         });
 
-        // Enviar la respuesta al servidor
+        // Preparar respuesta para el servidor
         const assertionResponse = {
             id: assertion.id,
             rawId: arrayBufferToBase64(assertion.rawId),
@@ -143,13 +152,13 @@ async function authenticateBiometric(username) {
             body: JSON.stringify(assertionResponse)
         });
 
-        const result = await finalResponse.json();
         if (!finalResponse.ok) {
-            throw new Error(result.message || 'Error en la autenticación biométrica');
+            const error = await finalResponse.json();
+            throw new Error(error.message || 'Error en la autenticación biométrica');
         }
 
         window.location.href = '/dashboard';
-        return result;
+        return await finalResponse.json();
 
     } catch (error) {
         console.error('Error durante la autenticación biométrica:', error);
@@ -186,13 +195,49 @@ async function loginWithBiometric(username) {
 document.addEventListener('DOMContentLoaded', async () => {
     const biometricSetupButton = document.getElementById('setup-biometric');
     const biometricLoginButton = document.getElementById('biometric-login');
+    const usernameInput = document.getElementById('username');
 
     if (biometricSetupButton) {
         biometricSetupButton.addEventListener('click', setupBiometricAuth);
     }
 
     if (biometricLoginButton) {
-        const username = biometricLoginButton.dataset.username;
-        biometricLoginButton.addEventListener('click', () => loginWithBiometric(username));
+        biometricLoginButton.addEventListener('click', () => {
+            const username = usernameInput.value;
+            if (!username) {
+                alert('Por favor, ingrese su nombre de usuario primero');
+                return;
+            }
+            loginWithBiometric(username);
+        });
+    }
+
+    // Verificar credenciales al cambiar el nombre de usuario
+    if (usernameInput) {
+        usernameInput.addEventListener('change', async () => {
+            const username = usernameInput.value;
+            if (username) {
+                try {
+                    const response = await fetch('/webauthn/status', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ username })
+                    });
+                    const data = await response.json();
+
+                    if (data.enabled) {
+                        biometricLoginButton.style.display = 'block';
+                        biometricSetupButton.style.display = 'none';
+                    } else {
+                        biometricLoginButton.style.display = 'none';
+                        biometricSetupButton.style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('Error verificando estado biométrico:', error);
+                }
+            }
+        });
     }
 });
