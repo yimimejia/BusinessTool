@@ -842,8 +842,7 @@ def webauthn_authenticate_complete():
         credential = AuthenticationCredential.from_json(request.json)
 
         # Buscar lacredencial en la base de datos
-        db_credential = WebAuthnCredential.query.filter_by(
-            credential_id=base64.b64encode(credential.raw_id).decode()
+        db_credential = WebAuthnCredential.query.filter_by(            credential_id=base64.b64encode(credential.raw_id).decode()
         ).first()
 
         if not db_credential:
@@ -879,3 +878,48 @@ def webauthn_authenticate_complete():
         elif "challenge" in error_message.lower():
             error_message = "La sesión ha expirado. Por favor, inicie el proceso nuevamente."
         return jsonify({'status': 'error', 'message': error_message}), 400
+
+@bp.route('/jobs/<int:job_id>/pdf')
+@login_required
+def generate_job_pdf(job_id):
+    """Genera un PDF de la factura"""
+    job = Job.query.get_or_404(job_id)
+
+    # Generar el QR si no existe
+    if not job.qr_code:
+        job.generate_qr_code()
+        db.session.commit()
+
+    # Generar QR
+    import qrcode
+    import io
+    import base64
+
+    # Crear QR
+    qr = qrcode.QRCode(version=1, box_size=10, border=5)
+    qr.add_data(json.dumps(job.to_qr_data()))
+    qr.make(fit=True)
+
+    # Crear imagen
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    # Convertir a base64
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    qr_image = base64.b64encode(buffered.getvalue()).decode()
+
+    # Renderizar el HTML
+    html = render_template('job_qr.html', job=job, qr_image=qr_image)
+
+    # Convertir a PDF usando WeasyPrint
+    from weasyprint import HTML
+    pdf = HTML(string=html).write_pdf()
+
+    return Response(
+        pdf,
+        mimetype='application/pdf',
+        headers={
+            'Content-Disposition': f'attachment; filename=factura_{job.invoice_number}.pdf',
+            'Content-Type': 'application/pdf'
+        }
+    )
