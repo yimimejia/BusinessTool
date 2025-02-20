@@ -8,6 +8,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const pendingPhotosCount = document.getElementById('pendingPhotosCount');
     const messageCount = document.querySelector('.message-count');
 
+    // Función para actualizar la insignia de mensajes de forma segura
+    function updateMessageBadge() {
+        fetch('/messages/unread')
+            .then(response => response.json())
+            .then(data => {
+                if (messageCount) {
+                    if (data.count > 0) {
+                        messageCount.textContent = data.count;
+                        messageCount.classList.remove('d-none');
+                    } else {
+                        messageCount.classList.add('d-none');
+                    }
+                }
+            })
+            .catch(error => console.error('Error fetching unread messages:', error));
+    }
+
     // Función para actualizar la insignia de mensajes
     function updateMessageBadge() {
         fetch('/messages/unread')
