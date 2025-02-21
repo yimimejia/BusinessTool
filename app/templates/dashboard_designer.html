@@ -71,11 +71,7 @@
         <div id="authError" class="alert alert-danger d-none"></div>
         <form id="authForm">
           <div class="mb-3">
-            <label for="authUsername" class="form-label">Usuario Administrador</label>
-            <input type="text" class="form-control" id="authUsername" required>
-          </div>
-          <div class="mb-3">
-            <label for="authPassword" class="form-label">Contraseña</label>
+            <label for="authPassword" class="form-label">Contraseña de Administrador</label>
             <input type="password" class="form-control" id="authPassword" required>
           </div>
         </form>
@@ -104,7 +100,6 @@
   }
 
   document.getElementById('submitAuth').addEventListener('click', function() {
-    const username = document.getElementById('authUsername').value;
     const password = document.getElementById('authPassword').value;
 
     fetch('/api/complete_job', {
@@ -115,7 +110,6 @@
       },
       body: JSON.stringify({
         job_id: currentJobId,
-        auth_username: username,
         auth_password: password
       })
     })

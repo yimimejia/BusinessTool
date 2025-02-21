@@ -1610,22 +1610,26 @@ def api_complete_job():
     """API endpoint para completar un trabajo con autorización"""
     data = request.get_json()
     job_id = data.get('job_id')
-    auth_username = data.get('auth_username')
     auth_password = data.get('auth_password')
 
-    if not all([job_id, auth_username, auth_password]):
+    if not all([job_id, auth_password]):
         return jsonify({
             'success': False,
             'message': 'Faltan datos requeridos'
         })
 
-    # Verificar credenciales de administrador
-    admin = User.query.filter(
-        User.username == auth_username,
+    # Verificar si algún admin tiene esta contraseña
+    admins = User.query.filter(
         (User.is_admin == True) | (User.is_supervisor == True)
-    ).first()
+    ).all()
+    
+    valid_password = False
+    for admin in admins:
+        if admin.check_password(auth_password):
+            valid_password = True
+            break
 
-    if not admin or not admin.check_password(auth_password):
+    if not valid_password:
         return jsonify({
             'success': False,
             'message': 'Credenciales de administrador inválidas'
