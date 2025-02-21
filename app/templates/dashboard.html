@@ -8,28 +8,50 @@
         ¡Bienvenido!
     </div>
 
-    <div class="stats-panel mb-4">
-        <div class="row">
-            <div class="col-md-4">
-                <div class="stats-item">
-                    <h3>{{ stats.total_jobs }}</h3>
-                    <p>Total Trabajos</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="stats-item">
-                    <h3>{{ stats.completed_jobs }}</h3>
-                    <p>Completados</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="stats-item">
-                    <h3>{{ stats.pending_jobs }}</h3>
-                    <p>Pendientes</p>
-                </div>
-            </div>
+    <div class="stats-panel">
+    <h2 class="panel-title">Panel de Administración</h2>
+    <div class="stat-row">
+        <div class="stat-item">
+            Total Trabajos
+            <div class="value">{{ stats.total_jobs }}</div>
+        </div>
+        <div class="stat-item">
+            Completados
+            <div class="value">{{ stats.completed_jobs }}</div>
+        </div>
+        <div class="stat-item">
+            Pendientes
+            <div class="value">{{ stats.pending_jobs }}</div>
+        </div>
+        <div class="stat-item">
+            Diseñadores
+            <div class="value">{{ stats.designers_count|default(0) }}</div>
         </div>
     </div>
+</div>
+
+<div class="recent-jobs">
+    <div class="recent-jobs-header">
+        <h3 class="recent-jobs-title">Trabajos Recientes</h3>
+        <button class="btn-new-job">Nuevo Trabajo</button>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Factura</th>
+                    <th>Cliente</th>
+                    <th>Diseñador</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Table content here -->
+            </tbody>
+        </table>
+    </div>
+</div>
 
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">

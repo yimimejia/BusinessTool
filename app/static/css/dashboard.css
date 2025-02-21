@@ -6,54 +6,70 @@
     margin-bottom: 30px;
 }
 
-.stats-item {
-    background-color: #2a2f35;
-    border-radius: 8px;
-    padding: 20px;
-    text-align: center;
+.panel-title {
+    color: #fff;
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+}
+
+.stat-row {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
     margin-bottom: 15px;
+}
+
+.stat-item {
+    color: #fff;
+    font-size: 1rem;
+}
+
+.stat-item .value {
+    font-size: 1.5rem;
+    margin: 5px 0;
 }
 
 .stats-item h3 {
     color: #fff;
-    font-size: 2.5rem;
-    margin-bottom: 10px;
+    font-size: 1.2rem;
+    margin-bottom: 5px;
 }
 
-.stats-item p {
-    color: #a0a0a0;
-    margin: 0;
-    font-size: 1rem;
-}
-
-.btn-primary {
-    background-color: #7c4dff;
-    border: none;
-}
-
-.btn-primary:hover {
-    background-color: #6c3fff;
-}
-
-.card {
+.recent-jobs {
     background-color: #1a1e24;
-    border: 1px solid #2a2f35;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
 }
 
-.card-header {
-    background-color: #2a2f35;
-    border-bottom: 1px solid #3a3f45;
+.recent-jobs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.recent-jobs-title {
+    color: #fff;
+    font-size: 1.2rem;
+    margin: 0;
+}
+
+.btn-new-job {
+    background-color: #7c4dff;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
 }
 
 .table {
     color: #fff;
+    margin-top: 10px;
 }
 
-.table thead th {
-    background-color: #2a2f35;
-    border-bottom: 2px solid #3a3f45;
-}
-
-.table td {
-    border-color: #2a2f35;
+.table th {
+    color: #fff;
+    border-bottom: 1px solid #2a2f35;
+    padding: 10px;
 }
