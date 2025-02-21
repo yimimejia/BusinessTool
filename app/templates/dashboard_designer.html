@@ -44,9 +44,8 @@
               <td>
                 <div class="btn-group">
                   {% if job.status == 'pending' %}
-                  <button type="button" class="btn btn-success btn-sm" 
-                          onclick="completeJobWithAuth({{ job.id }})">
-                    Completar
+                  <button class="btn btn-success btn-sm complete-job" data-job-id="{{ job.id }}">
+                    <i class="bi bi-check-circle"></i> Completar
                   </button>
                   {% endif %}
                 </div>
@@ -60,7 +59,7 @@
   </div>
 </div>
 
-<!-- Modal para autorización -->
+<!-- Modal de Autenticación -->
 <div class="modal fade" id="authModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -95,12 +94,13 @@
   const submitAuthBtn = document.getElementById('submitAuth');
   const authForm = document.getElementById('authForm');
 
-  function completeJobWithAuth(jobId) {
-    currentJobId = jobId;
+  // Configurar botones de completar
+  $('.complete-job').click(function() {
+    currentJobId = $(this).data('job-id');
     if (errorDiv) errorDiv.classList.add('d-none');
     if (authForm) authForm.reset();
     authModal.show();
-  }
+  });
 
   if (submitAuthBtn) {
     submitAuthBtn.addEventListener('click', function() {

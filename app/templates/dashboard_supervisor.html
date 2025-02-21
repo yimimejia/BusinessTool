@@ -57,7 +57,7 @@
             {% if job.status != 'pending_verification' %}
             <tr>
               <td>
-                <a href="{{ url_for('main.generate_invoice', job_id=job.id) }}" class="text-primary">
+                <a href="{{ url_for('main.show_job_qr', job_id=job.id) }}" class="text-primary">
                   {{ job.id }}
                 </a>
               </td>
@@ -80,12 +80,9 @@
               <td>
                 <div class="btn-group">
                   <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-sm btn-primary">Editar</a>
-                  {% if job.phone_number %}
-                  <a href="https://wa.me/{{ job.phone_number.replace('+', '').replace('-', '') }}?text=Hola, adjunto la factura de su trabajo" 
-                     class="btn btn-sm btn-success" target="_blank">
-                      <i class="bi bi-whatsapp"></i> Enviar Factura
-                  </a>
-                  {% endif %}
+                  <button class="btn btn-sm btn-success complete-job" data-job-id="{{ job.id }}">
+                    <i class="bi bi-check-circle"></i> Completar
+                  </button>
                 </div>
               </td>
             </tr>
@@ -97,18 +94,81 @@
     </div>
   </div>
 </div>
+
+<!-- Modal de Autenticación -->
+<div class="modal fade" id="completeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Autenticación Requerida</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="completeForm" method="POST">
+                    <div class="mb-3">
+                        <label for="authPassword" class="form-label">Contraseña de Administrador</label>
+                        <input type="password" class="form-control" id="authPassword" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="submitAuth">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
-  // Inicializar DataTable
   $(document).ready(function() {
+    // Inicializar DataTable
     $('#jobsTable').DataTable({
       language: {
         url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
       },
       order: [[0, 'desc']]
+    });
+
+    let currentJobId = null;
+
+    // Configurar botones de completar
+    $('.complete-job').click(function() {
+        currentJobId = $(this).data('job-id');
+        $('#completeModal').modal('show');
+    });
+
+    // Manejar el envío del formulario de autenticación
+    $('#submitAuth').click(function() {
+        const password = $('#authPassword').val();
+
+        fetch(`/jobs/${currentJobId}/complete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                admin_password: password
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || 'Error al completar el trabajo');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al procesar la solicitud');
+        })
+        .finally(() => {
+            $('#completeModal').modal('hide');
+            $('#authPassword').val('');
+        });
     });
   });
 </script>
