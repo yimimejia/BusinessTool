@@ -1,4 +1,3 @@
-
 import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
@@ -14,25 +13,10 @@ login_manager = LoginManager()
 
 def create_app():
     app = Flask(__name__)
-    max_retries = 3
-    retry_count = 0
-    
-    while retry_count < max_retries:
-        try:
-            app = Flask(__name__)
-            break
-        except Exception as e:
-            retry_count += 1
-            if retry_count == max_retries:
-                raise Exception(f"No se pudo inicializar la aplicación después de {max_retries} intentos")
-            time.sleep(1)
     app.secret_key = os.environ.get("SESSION_SECRET")
 
-    # Database configuration
-    database_url = os.environ.get("DATABASE_URL")
-if database_url and database_url.startswith("postgres://"):
-    database_url = database_url.replace("postgres://", "postgresql://", 1)
-app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+    # Configuración de la base de datos
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_recycle": 280,
         "pool_timeout": 30,
@@ -49,30 +33,26 @@ app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     }
     app.config["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379")
 
-    # Initialize extensions
+    # Inicializar extensiones
     db.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
 
-    # Register SSE blueprint
+    # Registrar blueprint para SSE
     app.register_blueprint(sse, url_prefix='/stream')
 
     with app.app_context():
-        # Import models and routes
-        from app import models, routes
+        # Importar modelos y rutas
+        from app import models
         from app.tasks import init_scheduler
 
-        # Create tables
+        # Crear tablas
         db.create_all()
 
-        # Initialize scheduler
+        # Inicializar el planificador de tareas
         scheduler = init_scheduler()
 
         return app
-
-def init_db(app):
-    with app.app_context():
-        db.create_all()
 
 app = create_app()
 
@@ -80,6 +60,3 @@ app = create_app()
 def load_user(user_id):
     from app.models import User
     return User.query.get(int(user_id))
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)

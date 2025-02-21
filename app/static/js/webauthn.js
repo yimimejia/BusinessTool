@@ -315,12 +315,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     if (data.enabled) {
                         console.log('Credenciales biométricas encontradas');
-                        if (biometricLoginButton && biometricLoginButton.classList) biometricLoginButton.style.display = 'block';
-                        if (biometricSetupButton && biometricSetupButton.classList) biometricSetupButton.style.display = 'none';
+                        if (biometricLoginButton) biometricLoginButton.style.display = 'block';
+                        if (biometricSetupButton) biometricSetupButton.style.display = 'none';
                     } else {
                         console.log('No se encontraron credenciales biométricas');
-                        if (biometricLoginButton && biometricLoginButton.classList) biometricLoginButton.style.display = 'none';
-                        if (biometricSetupButton && biometricSetupButton.classList) biometricSetupButton.style.display = 'block';
+                        if (biometricLoginButton) biometricLoginButton.style.display = 'none';
+                        if (biometricSetupButton) biometricSetupButton.style.display = 'block';
                     }
                 } catch (error) {
                     console.error('Error verificando estado biométrico:', error);
@@ -336,8 +336,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('Soporte de autenticación biométrica:', supported ? 'Disponible' : 'No disponible');
 
         if (!supported) {
-            if (biometricSetupButton && biometricSetupButton.classList) biometricSetupButton.style.display = 'none';
-            if (biometricLoginButton && biometricLoginButton.classList) biometricLoginButton.style.display = 'none';
+            if (biometricSetupButton) biometricSetupButton.style.display = 'none';
+            if (biometricLoginButton) biometricLoginButton.style.display = 'none';
         }
     } catch (error) {
         console.error('Error verificando soporte de WebAuthn:', error);

@@ -1237,56 +1237,13 @@ def new_pending_job():
     designers = User.query.filter_by(is_admin=False, is_supervisor=False).all()
     return render_template('new_pending_job.html', designers=designers)
 
-@bp.route('/jobs/pending/verification')
+@bp.route('/jobs/pending/verification', methods=['GET', 'POST'])
 @login_required
 @staff_required
 def pending_verification():
-    """Ver trabajos pendientes de verificación"""
-    try:
-        jobs = PendingJob.query.filter_by(pending_type='new_job').order_by(PendingJob.created_at.desc()).all()
-        return render_template('pending_jobs.html', jobs=jobs)
-    except Exception as e:
-        logger.error(f"Error al obtener trabajos pendientes: {str(e)}")
-        flash('Error al cargar los trabajos pendientes', 'error')
-        return redirect(url_for('main.dashboard'))
-
-@bp.route('/jobs/<int:job_id>/approve', methods=['POST'])
-@login_required
-@staff_required
-def approve_pending_job(job_id):
-    """Aprobar un trabajo pendiente"""
-    pending_job = PendingJob.query.get_or_404(job_id)
-
-    # Convertir el trabajo pendiente en un trabajo regular
-    job = pending_job.to_job()
-    db.session.add(job)
-    db.session.delete(pending_job)
-    db.session.commit()
-
-    log_activity(
-        'trabajo_aprobado',
-        f"Trabajo aprobado: {job.client_name} (Factura: {job.invoice_number})"
-    )
-
-    flash('Trabajo aprobado exitosamente', 'success')
-    return redirect(url_for('main.pending_verification'))
-
-@bp.route('/jobs/<int:job_id>/reject', methods=['POST'])
-@login_required
-@staff_required
-def reject_pending_job(job_id):
-    """Rechazar un trabajo pendiente"""
-    pending_job = PendingJob.query.get_or_404(job_id)
-    db.session.delete(pending_job)
-    db.session.commit()
-
-    log_activity(
-        'trabajo_rechazado',
-        f"Trabajo rechazado: {pending_job.client_name}"
-    )
-
-    flash('Trabajo rechazado exitosamente', 'success')
-    return redirect(url_for('main.pending_verification'))
+    """Vista de trabajos pendientes por verificar"""
+    jobs = PendingJob.query.filter_by(pending_type='new_job').all()
+    return render_template('pending_verification.html', jobs=jobs)
 
 @bp.route('/jobs/pending/photos')
 @login_required
@@ -1299,68 +1256,95 @@ def pending_photos():
 @bp.route('/jobs/pending/<int:job_id>/approve', methods=['POST'])
 @login_required
 @staff_required
-def approve_pending_job_photos(job_id):
-    """Aprobar un trabajo pendiente con fotos"""
+def approve_pending_job(job_id):
+    """Aprobar un trabajo pendiente"""
     try:
         pending_job = PendingJob.query.get_or_404(job_id)
 
-        if pending_job.pending_type != 'photo_verification':
-            flash('Este trabajo no requiere verificación de fotos', 'error')
-            return redirect(url_for('main.pending_photos'))
+        if pending_job.pending_type == 'photo_verification':
+            # Si es verificación de fotos, aprobar y enviar por WhatsApp
+            photos = json.loads(pending_job.photos) if pending_job.photos else []
 
-        photos = json.loads(pending_job.photos) if pending_job.photos else []
+            # Preparar mensaje de WhatsApp con las fotos
+            clean_phone = pending_job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+            photo_urls = [
+                f"{request.url_root.rstrip('/')}/static/{photo}"
+                for photo in photos
+            ]
 
-        # Preparar mensaje de WhatsApp con las fotos
-        clean_phone = pending_job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
-        photo_urls = [
-            f"{request.url_root.rstrip('/')}/static/{photo}"
-            for photo in photos
-        ]
+            whatsapp_message = f"Hola {pending_job.client_name}, aquí están las fotos de su trabajo:\n\n"
+            whatsapp_message += "\n".join(photo_urls)
 
-        whatsapp_message = f"Hola {pending_job.client_name}, aquí están las fotos de su trabajo:\n\n"
-        whatsapp_message += "\n".join(photo_urls)
+            # Eliminar el trabajo pendiente
+            db.session.delete(pending_job)
+            db.session.commit()
 
-        # Eliminar el trabajo pendiente
-        db.session.delete(pending_job)
-        db.session.commit()
+            log_activity(
+                'fotos_aprobadas',
+                f"Fotos aprobadas y enviadas - Trabajo #{pending_job.original_job_id}, Cliente: {pending_job.client_name}"
+            )
 
-        log_activity(
-            'fotos_aprobadas',
-            f"Fotos aprobadas y enviadas - Trabajo #{pending_job.original_job_id}, Cliente: {pending_job.client_name}"
-        )
+            # Redirigir a WhatsApp con el mensaje
+            whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(whatsapp_message)}"
+            return redirect(whatsapp_url)
 
-        # Redirigir a WhatsApp con el mensaje
-        whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(whatsapp_message)}"
-        return redirect(whatsapp_url)
+        else:
+            # Crear el trabajo regular
+            job = Job(
+                description=pending_job.description,
+                designer_id=pending_job.designer_id,
+                registered_by_id=current_user.id,
+                invoice_number=request.form.get('invoice_number'),
+                client_name=pending_job.client_name,
+                phone_number=pending_job.phone_number,
+                total_amount=request.form.get('total_amount', type=float),
+                deposit_amount=request.form.get('deposit_amount', type=float),
+                tags=request.form.get('tags', '').strip()
+            )
+
+            # Generar código QR
+            job.generate_qr_code()
+
+            db.session.add(job)
+            db.session.delete(pending_job)
+            db.session.commit()
+
+            log_activity(
+                'trabajo_aprobado',
+                f"Trabajo aprobado: {job.client_name} (Factura: {job.invoice_number})"
+            )
+
+            flash('Trabajo aprobado exitosamente', 'success')
+            return redirect(url_for('main.pending_jobs'))
 
     except Exception as e:
         db.session.rollback()
-        logging.error(f"Error al aprobar trabajo pendiente con fotos: {str(e)}")
+        logging.error(f"Error al aprobar trabajo pendiente: {str(e)}")
         flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
-        return redirect(url_for('main.pending_photos'))
+        return redirect(url_for('main.pending_jobs'))
 
 @bp.route('/jobs/pending/<int:job_id>/reject', methods=['POST'])
 @login_required
 @staff_required
-def reject_pending_job_photos(job_id):
-    """Rechazar un trabajo pendiente con fotos"""
+def reject_pending_job(job_id):
+    """Rechazar un trabajo pendiente"""
     pending_job = PendingJob.query.get_or_404(job_id)
 
     try:
         log_activity(
             'trabajo_rechazado',
-            f"Trabajo rechazado: {pending_job.client_name}"
+            f"Trabajo rechazado para {pending_job.client_name} (Factura: {pending_job.invoice_number})"
         )
 
         db.session.delete(pending_job)
         db.session.commit()
 
-        flash('Trabajo rechazado exitosamente', 'success')
+        flash('Trabajo rechazado', 'warning')
     except Exception as e:
         db.session.rollback()
         flash(f'Error al rechazar el trabajo: {str(e)}', 'error')
 
-    return redirect(url_for('main.pending_photos'))
+    return redirect(url_for('main.pending_jobs'))
 
 @bp.route('/jobs/public/<qr_code>')
 def verify_job_qr(qr_code):
