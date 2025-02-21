@@ -28,7 +28,7 @@
             {% for job in jobs %}
             <tr>
               <td>
-                <a href="{{ url_for('main.generate_invoice', job_id=job.id) }}" class="text-primary">
+                <a href="{{ url_for('main.show_job_qr', job_id=job.id) }}" class="text-primary">
                   {{ job.id }}
                 </a>
               </td>
@@ -106,14 +106,13 @@
     submitAuthBtn.addEventListener('click', function() {
       const password = document.getElementById('authPassword').value;
 
-      fetch('/api/complete_job', {
+      fetch(`/jobs/${currentJobId}/complete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          job_id: currentJobId,
-          auth_password: password
+          admin_password: password
         })
       })
       .then(response => response.json())

@@ -10,8 +10,11 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">Factura Digital</h4>
                     <div class="btn-group">
-                        <button class="btn btn-primary" onclick="printAndSendWhatsApp()">
-                            <i class="bi bi-printer"></i> Imprimir y Enviar
+                        <button class="btn btn-secondary me-2" onclick="window.print()">
+                            <i class="bi bi-printer"></i> Imprimir
+                        </button>
+                        <button class="btn btn-primary" onclick="sendWhatsApp()">
+                            <i class="bi bi-whatsapp"></i> Enviar por WhatsApp
                         </button>
                     </div>
                 </div>
@@ -64,62 +67,26 @@
 </style>
 
 <script>
-async function printAndSendWhatsApp() {
-    try {
-        // Primero descargar el PDF
-        const response = await fetch(`/jobs/{{ job.id }}/pdf`);
-        const pdfBlob = await response.blob();
+function sendWhatsApp() {
+    // Obtener el número de teléfono y quitar el formato
+    let phoneNumber = "{{ job.phone_number }}".replace(/\D/g, '');
 
-        // Crear una URL temporal para el PDF
-        const pdfUrl = URL.createObjectURL(pdfBlob);
+    // Construir el mensaje
+    let message = "FOTO VIDEO MOJICA - Factura Digital\n\n";
+    message += "Factura: {{ job.invoice_number }}\n";
+    message += "Cliente: {{ job.client_name }}\n";
+    message += "Descripción: {{ job.description }}\n";
+    {% if job.deposit_amount %}
+    message += "Abono: ${{ "%.2f"|format(job.deposit_amount) }}\n";
+    {% endif %}
+    message += "Fecha: {{ job.created_at.strftime('%d/%m/%Y %H:%M') }}\n\n";
+    message += "Gracias por su preferencia";
 
-        // Obtener el número de teléfono y quitar el formato
-        let phoneNumber = "{{ job.phone_number }}".replace(/\D/g, '');
+    // Crear el enlace de WhatsApp
+    let whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
 
-        // Construir el mensaje
-        let message = "FOTO VIDEO MOJICA - Factura Digital\n\n";
-        message += "Factura: {{ job.invoice_number }}\n";
-        message += "Cliente: {{ job.client_name }}\n";
-        message += "Descripción: {{ job.description }}\n";
-        {% if job.deposit_amount %}
-        message += "Abono: ${{ "%.2f"|format(job.deposit_amount) }}\n";
-        {% endif %}
-        message += "Fecha: {{ job.created_at.strftime('%d/%m/%Y %H:%M') }}\n\n";
-        message += "Adjunto encontrará su factura digital con código QR.\n\n";
-        message += "Gracias por su preferencia";
-
-        // Imprimir la factura
-        window.print();
-
-        // Esperar un momento para que se complete la impresión
-        setTimeout(async () => {
-            try {
-                // Crear el enlace de WhatsApp con el PDF adjunto
-                let whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
-
-                // Abrir WhatsApp en una nueva ventana
-                window.open(whatsappUrl, '_blank');
-
-                // Descargar el PDF automáticamente
-                const link = document.createElement('a');
-                link.href = pdfUrl;
-                link.download = `factura_${encodeURIComponent("{{ job.invoice_number }}")}.pdf`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
-                // Limpiar la URL temporal
-                URL.revokeObjectURL(pdfUrl);
-            } catch (error) {
-                console.error('Error al enviar por WhatsApp:', error);
-                alert('La factura se imprimió, pero hubo un error al enviar por WhatsApp. Por favor, intente enviar manualmente.');
-            }
-        }, 1000); // Esperar 1 segundo después de imprimir
-
-    } catch (error) {
-        console.error('Error al generar o enviar el PDF:', error);
-        alert('Hubo un error al generar el PDF. Por favor, intente nuevamente.');
-    }
+    // Abrir WhatsApp en una nueva ventana
+    window.open(whatsappUrl, '_blank');
 }
 </script>
 {% endblock %}
