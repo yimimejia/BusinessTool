@@ -51,7 +51,6 @@
                         {% endwith %}
 
                         <form method="POST">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <div class="mb-3">
                                 <label for="username" class="form-label">Usuario</label>
                                 <input type="text" class="form-control bg-dark text-white" id="username" name="username" required>

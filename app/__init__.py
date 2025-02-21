@@ -26,7 +26,6 @@ def create_app():
 
     # Configure Flask app
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
-    # Mejorar configuración de conexión
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_pre_ping": True,  # Verificar conexión antes de usar
         "pool_recycle": 300,    # Reciclar conexiones cada 5 minutos
@@ -43,8 +42,10 @@ def create_app():
     }
     app.secret_key = os.environ.get("SESSION_SECRET", "dev-key-temporary")
     app.config["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379")
-    app.config['WTF_CSRF_ENABLED'] = True
-    app.config['WTF_CSRF_SECRET_KEY'] = os.environ.get("CSRF_SECRET_KEY", "csrf-key-temporary")
+
+    # Deshabilitar CSRF globalmente
+    app.config['WTF_CSRF_ENABLED'] = False
+    app.config['WTF_CSRF_CHECK_DEFAULT'] = False
 
     # Create uploads directory
     upload_folder = os.path.join(app.static_folder, 'uploads')
@@ -55,7 +56,6 @@ def create_app():
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
-    csrf.init_app(app)
 
     # Register blueprints
     app.register_blueprint(sse, url_prefix='/stream')
