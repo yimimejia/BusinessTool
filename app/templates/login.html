@@ -23,17 +23,17 @@
         <div class="logo-animation">
             <div class="logo-container">
                 <img src="{{ url_for('static', filename='icons/logo-192x192.png') }}" alt="Logo">
+                <div class="company-name-animated">
+                    {% for letter in "FOTO VIDEO MOJICA" %}
+                        {% if letter == " " %}
+                            <span>&nbsp;</span>
+                        {% else %}
+                            <span style="animation: fadeInUp 0.5s ease-out {{ loop.index * 0.1 }}s forwards;">{{ letter }}</span>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <div class="underline"></div>
             </div>
-            <div class="company-name-animated">
-                {% for letter in "FOTO VIDEO MOJICA" %}
-                    {% if letter == " " %}
-                        <span>&nbsp;</span>
-                    {% else %}
-                        <span style="animation: fadeInUp 0.5s ease-out {{ loop.index * 0.1 }}s forwards;">{{ letter }}</span>
-                    {% endif %}
-                {% endfor %}
-            </div>
-            <div class="underline"></div>
         </div>
     </div>
 
