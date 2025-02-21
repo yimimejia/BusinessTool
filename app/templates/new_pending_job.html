@@ -3,38 +3,37 @@
 {% block title %}Nuevo Trabajo Pendiente{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="card">
-        <div class="card-header">
-            <h4 class="mb-0">Registrar Nuevo Trabajo Pendiente</h4>
-        </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('main.new_pending_job') }}">
-                <div class="row">
-                    <div class="col-md-12 mb-3">
-                        <label for="description" class="form-label">Descripción del Trabajo</label>
-                        <textarea name="description" id="description" class="form-control" rows="3" required></textarea>
-                    </div>
+<div class="card">
+    <div class="card-header">
+        <h4 class="mb-0">Registrar Nuevo Trabajo Pendiente</h4>
+    </div>
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label class="form-label">Descripción</label>
+                    <textarea name="description" class="form-control" rows="3" required></textarea>
                 </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="client_name" class="form-label">Nombre del Cliente</label>
-                        <input type="text" name="client_name" id="client_name" class="form-control" required>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="phone_number" class="form-label">Teléfono</label>
-                        <input type="tel" name="phone_number" id="phone_number" class="form-control" placeholder="+1-XXX-XXXXXXX">
-                        <small class="text-muted">Formato: +1-XXX-XXXXXXX</small>
-                    </div>
+                <input type="hidden" name="designer_id" value="{{ current_user.id }}">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">No. Factura</label>
+                    <input type="text" name="invoice_number" class="form-control" required>
                 </div>
-                <div class="text-end mt-3">
-                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary me-2">Cancelar</a>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-save"></i> Guardar Trabajo
-                    </button>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Cliente</label>
+                    <input type="text" name="client_name" class="form-control" required>
                 </div>
-            </form>
-        </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Teléfono</label>
+                    <input type="tel" name="phone_number" class="form-control" required>
+                    <small class="text-muted">Formato: +1-XXX-XXXXXXX</small>
+                </div>
+            </div>
+            <div class="text-end">
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary me-2">Cancelar</a>
+                <button type="submit" class="btn btn-primary">Guardar Trabajo</button>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}

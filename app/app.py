@@ -18,14 +18,25 @@ def create_app():
     # Configuración de la base de datos
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_recycle": 300,
-        "pool_pre_ping": True
+        "pool_recycle": 280,
+        "pool_timeout": 30,
+        "pool_pre_ping": True,
+        "pool_size": 5,
+        "max_overflow": 2,
+        "connect_args": {
+            "connect_timeout": 10,
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 5
+        }
     }
+    app.config["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379")
 
     # Inicializar extensiones
     db.init_app(app)
     login_manager.init_app(app)
-    login_manager.login_view = 'main.login'
+    login_manager.login_view = 'auth.login'
 
     # Registrar blueprint para SSE
     app.register_blueprint(sse, url_prefix='/stream')
@@ -33,13 +44,13 @@ def create_app():
     with app.app_context():
         # Importar modelos y rutas
         from app import models
-        from app.routes import bp
-
-        # Registrar blueprint principal
-        app.register_blueprint(bp)
+        from app.tasks import init_scheduler
 
         # Crear tablas
         db.create_all()
+
+        # Inicializar el planificador de tareas
+        scheduler = init_scheduler()
 
         return app
 
