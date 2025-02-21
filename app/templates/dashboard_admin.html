@@ -4,104 +4,110 @@
 <div class="container mt-4">
   <h2>Panel de Administración</h2>
   
-  <div class="row">
-    <div class="col-md-3">
-      <div class="card bg-primary text-white mb-4">
-        <div class="card-body">
-          <h5>Trabajos Totales</h5>
-          <h2>{{ stats.total_jobs }}</h2>
-        </div>
-      </div>
+  <div class="dashboard-stats">
+    <div class="stat-card">
+      <h3>Total Trabajos</h3>
+      <div class="stat-value">{{ stats.total_jobs or 0 }}</div>
     </div>
-    <div class="col-md-3">
-      <div class="card bg-success text-white mb-4">
-        <div class="card-body">
-          <h5>Completados</h5>
-          <h2>{{ stats.completed_jobs }}</h2>
-        </div>
-      </div>
+
+    <div class="stat-card">
+      <h3>Completados</h3>
+      <div class="stat-value">{{ stats.completed_jobs or 0 }}</div>
     </div>
-    <div class="col-md-3">
-      <div class="card bg-warning text-white mb-4">
-        <div class="card-body">
-          <h5>Pendientes</h5>
-          <h2>{{ stats.pending_jobs }}</h2>
-        </div>
-      </div>
+
+    <div class="stat-card">
+      <h3>Pendientes</h3>
+      <div class="stat-value">{{ stats.pending_jobs or 0 }}</div>
     </div>
-    <div class="col-md-3">
-      <div class="card bg-info text-white mb-4">
-        <div class="card-body">
-          <h5>Diseñadores</h5>
-          <h2>{{ stats.designers }}</h2>
-        </div>
-      </div>
+
+    <div class="stat-card">
+      <h3>Diseñadores</h3>
+      <div class="stat-value">{{ stats.designers or 0 }}</div>
     </div>
   </div>
 
-  <div class="row mt-4">
-    <div class="col-md-8">
-      <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h5 class="mb-0">Trabajos Recientes</h5>
-          <a href="{{ url_for('main.new_job') }}" class="btn btn-primary btn-sm">Nuevo Trabajo</a>
-        </div>
-        <div class="card-body">
-          <div class="table-responsive">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Factura</th>
-                  <th>Cliente</th>
-                  <th>Diseñador</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for job in jobs %}
-                <tr>
-                  <td>{{ job.invoice_number }}</td>
-                  <td>{{ job.client_name }}</td>
-                  <td>{{ job.designer.name }}</td>
-                  <td>
-                    {% if job.status == 'pending' %}
-                    <span class="badge bg-warning">Pendiente</span>
-                    {% else %}
-                    <span class="badge bg-success">Completado</span>
-                    {% endif %}
-                  </td>
-                  <td>
-                    <div class="btn-group">
-                      <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-sm btn-primary">Editar</a>
-                      <button type="button" class="btn btn-sm btn-danger" onclick="deleteJob({{ job.id }})">Eliminar</button>
-                    </div>
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+  <div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">Trabajos Recientes</h5>
+      <a href="{{ url_for('main.new_job') }}" class="btn btn-primary btn-sm">Nuevo Trabajo</a>
     </div>
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-header">
-          <h5 class="mb-0">Notificaciones</h5>
-        </div>
-        <div class="card-body">
-          <div class="notification-list">
-            {% for notification in current_user.notifications %}
-            <div class="notification-item {% if not notification.is_read %}unread{% endif %}">
-              <p>{{ notification.message }}</p>
-              <small>{{ notification.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
-            </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Factura</th>
+              <th>Cliente</th>
+              <th>Diseñador</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for job in jobs %}
+            <tr>
+              <td>{{ job.invoice_number }}</td>
+              <td>{{ job.client_name }}</td>
+              <td>{{ job.designer.name }}</td>
+              <td>
+                <span class="badge {% if job.is_completed %}bg-success{% else %}bg-warning{% endif %}">
+                  {{ 'Completado' if job.is_completed else 'Pendiente' }}
+                </span>
+              </td>
+              <td>
+                <div class="btn-group">
+                  <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-sm btn-outline-primary">Editar</a>
+                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteJob({{ job.id }})">Eliminar</button>
+                </div>
+              </td>
+            </tr>
             {% endfor %}
-          </div>
-        </div>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
 </div>
+
+<!-- Modal de eliminación -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirmar Eliminación</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>¿Está seguro de que desea eliminar este trabajo?</p>
+        <form id="deleteForm" method="POST">
+          <input type="hidden" name="admin_password" id="adminPassword">
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" onclick="confirmDelete()">Eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let jobToDelete = null;
+
+function deleteJob(jobId) {
+  jobToDelete = jobId;
+  const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+  modal.show();
+}
+
+function confirmDelete() {
+  const password = prompt('Ingrese la contraseña de administrador para confirmar:');
+  if (password) {
+    const form = document.getElementById('deleteForm');
+    form.action = `/jobs/${jobToDelete}/delete`;
+    document.getElementById('adminPassword').value = password;
+    form.submit();
+  }
+}
+</script>
 {% endblock %}
