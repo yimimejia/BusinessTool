@@ -349,19 +349,22 @@ def generate_invoice(job_id):
 @login_required
 def dashboard():
     """Vista del dashboard con estadísticas unificadas"""
-    # Estadísticas unificadas para todos los roles
-    stats = {
-        'total_jobs': Job.query.count(),
-        'completed_jobs': CompletedJob.query.count(),
-        'pending_jobs': PendingJob.query.count(),
-        'delivered_jobs': DeliveredJob.query.count()
-    }
-
-    # Obtener trabajos según el rol
     if current_user.is_staff:
+        # Vista para admin/supervisor
         jobs = Job.query.order_by(Job.created_at.desc()).all()
+        stats = {
+            'total_jobs': len(jobs),
+            'completed_jobs': CompletedJob.query.count(),
+            'pending_jobs': Job.query.filter_by(status='pending').count(),
+        }
     else:
+        # Vista para diseñador
         jobs = Job.query.filter_by(designer_id=current_user.id).order_by(Job.created_at.desc()).all()
+        stats = {
+            'total_jobs': len(jobs),
+            'completed_jobs': CompletedJob.query.filter_by(designer_id=current_user.id).count(),
+            'pending_jobs': Job.query.filter_by(designer_id=current_user.id, status='pending').count(),
+        }
 
     if current_user.is_admin:
         # Vista de administrador
@@ -1376,49 +1379,33 @@ def approve_pending_job(job_id):
             return redirect(whatsapp_url)
 
         else:
-            try:
-                # Crear el trabajo regular
-                job = Job(
-                    description=pending_job.description,
-                    designer_id=pending_job.designer_id,
-                    registered_by_id=current_user.id,
-                    invoice_number=request.form.get('invoice_number'),
-                    client_name=pending_job.client_name,
-                    phone_number=pending_job.phone_number,
-                    total_amount=request.form.get('total_amount', type=float, default=0),
-                    deposit_amount=request.form.get('deposit_amount', type=float, default=0),
-                    tags=request.form.get('tags', '').strip()
-                )
+            # Crear el trabajo regular
+            job = Job(
+                description=pending_job.description,
+                designer_id=pending_job.designer_id,
+                registered_by_id=current_user.id,
+                invoice_number=request.form.get('invoice_number'),
+                client_name=pending_job.client_name,
+                phone_number=pending_job.phone_number,
+                total_amount=request.form.get('total_amount', type=float),
+                deposit_amount=request.form.get('deposit_amount', type=float),
+                tags=request.form.get('tags', '').strip()
+            )
 
-                job.generate_qr_code()
-                db.session.add(job)
-                db.session.delete(pending_job)
-                db.session.commit()
+            # Generar código QR
+            job.generate_qr_code()
 
-                log_activity(
-                    'trabajo_aprobado',
-                    f"Trabajo aprobado: {job.client_name} (Factura: {job.invoice_number})"
-                )
+            db.session.add(job)
+            db.session.delete(pending_job)
+            db.session.commit()
 
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return jsonify({
-                        'success': True,
-                        'message': 'Trabajo aprobado exitosamente',
-                        'redirect': url_for('main.pending_jobs')
-                    })
-                
-                flash('Trabajo aprobado exitosamente', 'success')
-                return redirect(url_for('main.pending_jobs'))
-                
-            except Exception as e:
-                db.session.rollback()
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return jsonify({
-                        'success': False,
-                        'message': str(e)
-                    }), 400
-                flash(f'Error al aprobar trabajo: {str(e)}', 'error')
-                return redirect(url_for('main.pending_jobs'))
+            log_activity(
+                'trabajo_aprobado',
+                f"Trabajo aprobado: {job.client_name} (Factura: {job.invoice_number})"
+            )
+
+            flash('Trabajo aprobado exitosamente', 'success')
+            return redirect(url_for('main.pending_jobs'))
 
     except Exception as e:
         db.session.rollback()
