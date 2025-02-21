@@ -49,13 +49,10 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if not job.is_called %}
-                                <form method="POST" action="{{ url_for('main.mark_called', job_id=job.id) }}" class="d-inline">
-                                    <button type="submit" class="btn btn-info btn-sm">Llamado</button>
-                                </form>
-                                {% endif %}
-                                <form method="POST" action="{{ url_for('main.mark_delivered', job_id=job.id) }}" class="d-inline ms-2">
-                                    <button type="submit" class="btn btn-success btn-sm">Entregado</button>
+                                <form method="POST" action="{{ url_for('main.mark_called', job_id=job.id) if not job.is_called else url_for('main.mark_delivered', job_id=job.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-sm {% if not job.is_called %}btn-info{% else %}btn-success{% endif %}">
+                                        {% if not job.is_called %}Llamado{% else %}Entregado{% endif %}
+                                    </button>
                                 </form>
                             </td>
                         </tr>
