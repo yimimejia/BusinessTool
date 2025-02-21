@@ -3,6 +3,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
+from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.orm import DeclarativeBase
 from datetime import datetime
 import pytz
@@ -17,6 +18,7 @@ class Base(DeclarativeBase):
 db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 migrate = Migrate()
+csrf = CSRFProtect()
 
 # Create app factory
 def create_app():
@@ -41,6 +43,7 @@ def create_app():
     }
     app.secret_key = os.environ.get("SESSION_SECRET", "dev-key-temporary")
     app.config["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379")
+    app.config['WTF_CSRF_ENABLED'] = True
 
     # Create uploads directory
     upload_folder = os.path.join(app.static_folder, 'uploads')
@@ -51,6 +54,7 @@ def create_app():
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
+    csrf.init_app(app)
 
     # Register blueprints
     app.register_blueprint(sse, url_prefix='/stream')
