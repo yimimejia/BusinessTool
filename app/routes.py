@@ -1286,18 +1286,6 @@ def generate_job_pdf(job_id):
         pdf,
         mimetype='application/pdf',
         headers={
-
-@bp.route('/gallery/<token>')
-def view_gallery(token):
-    """Vista pública para ver galería de fotos"""
-    from app.utils.links import verify_temporary_link
-    
-    photos = verify_temporary_link(token)
-    if not photos:
-        return render_template('photos_gallery.html', expired=True)
-    
-    return render_template('photos_gallery.html', photos=photos, expired=False)
-
             'Content-Disposition': f'attachment; filename=factura_{job.invoice_number}.pdf',
             'Content-Type': 'application/pdf'
         }
