@@ -108,6 +108,24 @@
 </head>
 <body>
     {% if request.endpoint == 'main.index' %}
+    <div class="splash-screen">
+        <div class="logo-animation">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='icons/logo-192x192.png') }}" alt="Logo">
+            </div>
+            <div class="company-name-animated">
+                {% for letter in "FOTO VIDEO MOJICA" %}
+                    {% if letter == " " %}
+                        <span>&nbsp;</span>
+                    {% else %}
+                        <span style="animation: fadeInUp 0.5s ease-out {{ loop.index * 0.1 }}s forwards;">{{ letter }}</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% if request.endpoint == 'main.index' %}
     <!-- Splash Screen Animation -->
     <div class="splash-screen">
         <div class="logo-animation">
