@@ -56,6 +56,13 @@ def dashboard():
     """Vista del dashboard"""
     return render_template('dashboard.html')
 
+@bp.route('/completed-jobs')
+@login_required
+def completed_jobs():
+    """Vista de trabajos completados"""
+    jobs = CompletedJob.query.order_by(CompletedJob.completed_at.desc()).all()
+    return render_template('completed_jobs.html', jobs=jobs)
+
 @bp.route('/pending-jobs')
 @login_required
 @staff_required
