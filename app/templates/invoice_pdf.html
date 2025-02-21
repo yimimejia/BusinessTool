@@ -1,13 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <title>Factura - FOTO VIDEO MOJICA</title>
+    <title>Factura - {{ job.invoice_number }}</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
-            color: #333;
         }
         .header {
             text-align: center;
@@ -21,58 +19,47 @@
             margin: 20px 0;
         }
         .qr-code img {
-            max-width: 200px;
+            width: 150px;
+            height: 150px;
+        }
+        .total-section {
+            margin-top: 20px;
+            text-align: right;
         }
         .footer {
-            margin-top: 30px;
+            margin-top: 50px;
             text-align: center;
-            font-size: 0.9em;
-            color: #666;
-        }
-        .amounts {
-            margin: 20px 0;
-            padding: 10px;
-            background-color: #f9f9f9;
-        }
-        .whatsapp-info {
-            margin-top: 20px;
-            text-align: center;
-            color: #25D366;
+            font-size: 0.8em;
         }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>FOTO VIDEO MOJICA</h1>
-        <p>Su estudio fotográfico de confianza</p>
+        <h2>Factura #{{ job.invoice_number }}</h2>
     </div>
 
     <div class="invoice-details">
-        <h2>Factura #{{ job.invoice_number }}</h2>
         <p><strong>Cliente:</strong> {{ job.client_name }}</p>
-        <p><strong>Fecha:</strong> {{ job.created_at.strftime('%d/%m/%Y') }}</p>
+        <p><strong>Teléfono:</strong> {{ job.phone_number }}</p>
+        <p><strong>Fecha:</strong> {{ job.created_at.strftime('%Y-%m-%d') }}</p>
         <p><strong>Descripción:</strong> {{ job.description }}</p>
     </div>
 
-    <div class="amounts">
-        <p><strong>Total:</strong> ${{ "%.2f"|format(job.total_amount|float) }}</p>
-        <p><strong>Abono:</strong> ${{ "%.2f"|format(job.deposit_amount|float) }}</p>
-        <p><strong>Pendiente:</strong> ${{ "%.2f"|format((job.total_amount|float - job.deposit_amount|float)) }}</p>
+    <div class="total-section">
+        <p><strong>Total:</strong> ${{ "%.2f"|format(job.total_amount or 0) }}</p>
+        <p><strong>Abono:</strong> ${{ "%.2f"|format(job.deposit_amount or 0) }}</p>
+        <p><strong>Restante:</strong> ${{ "%.2f"|format((job.total_amount or 0) - (job.deposit_amount or 0)) }}</p>
     </div>
 
     <div class="qr-code">
-        <img src="data:image/png;base64,{{ qr_image }}" alt="Código QR">
-        <p>Escanee este código para verificar su factura</p>
-    </div>
-
-    <div class="whatsapp-info">
-        <p>Para consultas, contáctenos por WhatsApp:</p>
-        <p>+1-849-265-3436</p>
+        <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code">
+        <p>Escanee este código para verificar el estado de su trabajo</p>
     </div>
 
     <div class="footer">
         <p>Gracias por su preferencia</p>
-        <p>FOTO VIDEO MOJICA - Siempre capturando sus mejores momentos</p>
+        <p>FOTO VIDEO MOJICA - Sirviendo con calidad</p>
     </div>
 </body>
 </html>

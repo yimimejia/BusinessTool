@@ -404,12 +404,13 @@ def dashboard():
             'pending_jobs': Job.query.filter_by(designer_id=current_user.id, status='pending').count(),
             'completed_jobs': CompletedJob.query.filter_by(designer_id=current_user.id).count()
         }
-        return render_template('dashboard_designer.html', jobs=jobs, stats=designer_stats)
+        designer_stats = {
         'total_jobs': len(jobs),
         'completed_jobs': len([j for j in jobs if j.is_completed]),
         'pending_jobs': len([j for j in jobs if not j.is_completed]),
         'designers': len(set(job.designer_id for job in jobs)) if current_user.is_staff else 1
     }
+    return render_template('dashboard_designer.html', jobs=jobs, stats=designer_stats)
 
     return render_template('dashboard.html', jobs=jobs, stats=stats)
 
