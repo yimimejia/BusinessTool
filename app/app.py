@@ -1,3 +1,4 @@
+
 import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
@@ -15,7 +16,7 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SESSION_SECRET")
 
-    # Configuración de la base de datos
+    # Database configuration
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_recycle": 280,
@@ -33,26 +34,30 @@ def create_app():
     }
     app.config["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379")
 
-    # Inicializar extensiones
+    # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
 
-    # Registrar blueprint para SSE
+    # Register SSE blueprint
     app.register_blueprint(sse, url_prefix='/stream')
 
     with app.app_context():
-        # Importar modelos y rutas
-        from app import models
+        # Import models and routes
+        from app import models, routes
         from app.tasks import init_scheduler
 
-        # Crear tablas
+        # Create tables
         db.create_all()
 
-        # Inicializar el planificador de tareas
+        # Initialize scheduler
         scheduler = init_scheduler()
 
         return app
+
+def init_db(app):
+    with app.app_context():
+        db.create_all()
 
 app = create_app()
 
@@ -60,3 +65,6 @@ app = create_app()
 def load_user(user_id):
     from app.models import User
     return User.query.get(int(user_id))
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
