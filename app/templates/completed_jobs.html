@@ -13,133 +13,102 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {% extends "base.html" %}
 
-{% block title %}Trabajos Completados{% endblock %}
-
 {% block content %}
-<div class="container py-4">
-    <div class="card">
-        <div class="card-header">
-            <h4 class="mb-0">Trabajos Completados</h4>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover" id="completedJobsTable">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Factura</th>
-                            <th>Cliente</th>
-                            <th>Teléfono</th>
-                            <th>Descripción</th>
-                            <th>Fecha</th>
-                            <th>Registrado por</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for job in jobs %}
-                        <tr>
-                            <td>{{ job.id }}</td>
-                            <td>{{ job.invoice_number }}</td>
-                            <td>{{ job.client_name }}</td>
-                            <td>
-                                {% if job.phone_number %}
-                                <a href="https://wa.me/{{ job.phone_number|replace('+', '')|replace('-', '') }}?text=Hola {{ job.client_name }}, le informamos que su trabajo en FOTO VIDEO MOJICA está listo para recoger. ¡Gracias por su preferencia!" 
-                                   target="_blank" class="text-decoration-none">
-                                    <i class="bi bi-whatsapp text-success"></i> {{ job.phone_number }}
-                                </a>
-                                {% endif %}
-                            </td>
-                            <td>{{ job.description }}</td>
-                            <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
-                            <td>{{ job.registered_by.name }}</td>
-                            <td>
-                                {% if job.is_called %}
-                                <span class="badge bg-info">Llamado</span>
-                                {% else %}
-                                <span class="badge bg-warning">Pendiente llamar</span>
-                                {% endif %}
-                            </td>
-                            <td style="min-width: 200px;">
-                                <div class="d-flex gap-2">
-                                    {% if current_user.is_designer %}
-                                        <div class="d-inline">
-                                            <button type="button" class="btn btn-success btn-sm" onclick="document.getElementById('photo-input-{{ job.id }}').click()">
-                                                Enviar fotos
-                                            </button>
-                                        </div>
-                                    {% endif %}
+<div class="container mt-4">
+    <h2>Trabajos Completados</h2>
+    {% if jobs %}
+    <div class="table-responsive">
+        <table id="completedJobsTable" class="table table-striped">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Cliente</th>
+                    <th>Factura</th>
+                    <th>Diseñador</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in jobs %}
+                <tr>
+                    <td>{{ job.id }}</td>
+                    <td>{{ job.client_name }}</td>
+                    <td>{{ job.invoice_number }}</td>
+                    <td>{{ job.designer.name }}</td>
+                    <td>
+                        {% if job.is_called %}
+                        <span class="badge bg-success">Notificado</span>
+                        {% else %}
+                        <span class="badge bg-warning">Pendiente</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            {% if not job.is_called %}
+                            <form action="{{ url_for('main.mark_called', job_id=job.id) }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-success me-1">
+                                    <i class="bi bi-telephone"></i> Marcar Llamado
+                                </button>
+                            </form>
+                            {% endif %}
 
-                                        <!-- Modal para previsualización -->
-                                        <div class="modal fade" id="photoPreviewModal{{ job.id }}" tabindex="-1">
-                                            <div class="modal-dialog modal-lg">
-                                                <div class="modal-content">
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-title">Previsualización de Fotos</h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <div id="photoPreview{{ job.id }}" class="row g-2"></div>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <form method="POST" action="{{ url_for('main.send_job_photos', job_id=job.id) }}" enctype="multipart/form-data">
-                                                            <input type="file" name="photos" multiple accept="image/*" class="d-none" id="photo-input-{{ job.id }}" onchange="previewPhotos(event, {{ job.id }})">
-                                                            <button type="submit" class="btn btn-success">
-                                                                Enviar
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                            <form action="{{ url_for('main.mark_delivered', job_id=job.id) }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-check-circle"></i> Entregar
+                                </button>
+                            </form>
 
-                                        <script>
-                                            function previewPhotos(event, jobId) {
-                                                const preview = document.getElementById('photoPreview' + jobId);
-                                                preview.innerHTML = '';
-                                                const files = event.target.files;
+                            {% if job.can_send_photos %}
+                            <button type="button" class="btn btn-sm btn-info" onclick="showPhotoUpload({{ job.id }})">
+                                <i class="bi bi-camera"></i> Enviar Fotos
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        No hay trabajos completados.
+    </div>
+    {% endif %}
+</div>
 
-                                                for (const file of files) {
-                                                    const reader = new FileReader();
-                                                    reader.onload = function(e) {
-                                                        const div = document.createElement('div');
-                                                        div.className = 'col-md-4';
-                                                        div.innerHTML = `
-                                                            <img src="${e.target.result}" class="img-fluid rounded" alt="Preview">
-                                                        `;
-                                                        preview.appendChild(div);
-                                                    }
-                                                    reader.readAsDataURL(file);
-                                                }
-
-                                                // Mostrar el modal
-                                                const modal = new bootstrap.Modal(document.getElementById('photoPreviewModal' + jobId));
-                                                modal.show();
-                                            }
-                                        </script>
-                                    </div>
-                                    {% endif %}
-
-                                    <form method="POST" action="{{ url_for('main.mark_called', job_id=job.id) if not job.is_called else url_for('main.mark_delivered', job_id=job.id) }}" class="d-inline">
-                                        <button type="submit" class="btn {% if not job.is_called %}btn-info{% else %}btn-success{% endif %}" style="min-width: 120px;">
-                                            {% if not job.is_called %}Llamado{% else %}Entregado{% endif %}
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+<!-- Modal para subir fotos -->
+<div class="modal fade" id="photoUploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Enviar Fotos</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
+            <form id="photoUploadForm" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="photos" class="form-label">Seleccionar Fotos</label>
+                        <input type="file" class="form-control" id="photos" name="photos" multiple accept="image/*" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Mensaje (opcional)</label>
+                        <textarea class="form-control" id="message" name="message" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Enviar</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
-{{ super() }}
 <script>
 $(document).ready(function() {
     // Inicializar DataTables
@@ -151,5 +120,12 @@ $(document).ready(function() {
         responsive: true
     });
 });
+
+function showPhotoUpload(jobId) {
+    const modal = new bootstrap.Modal(document.getElementById('photoUploadModal'));
+    const form = document.getElementById('photoUploadForm');
+    form.action = `/jobs/${jobId}/send-photos`;
+    modal.show();
+}
 </script>
 {% endblock %}
