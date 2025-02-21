@@ -45,6 +45,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </td>
                     <td>
                         <div class="btn-group">
+                            {% if current_user.is_staff %}
                             {% if not job.is_called %}
                             <form action="{{ url_for('main.mark_called', job_id=job.id) }}" method="POST" class="d-inline">
                                 <button type="submit" class="btn btn-sm btn-success me-1">
@@ -58,6 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <i class="bi bi-check-circle"></i> Entregar
                                 </button>
                             </form>
+                            {% endif %}
 
                             {% if job.can_send_photos %}
                             <button type="button" class="btn btn-sm btn-info" onclick="showPhotoUpload({{ job.id }})">
