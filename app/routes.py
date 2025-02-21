@@ -1795,23 +1795,23 @@ def search_invoices():
 
     if query:
         # Buscar en trabajos pendientes y completados
-        invoices = (
-            Job.query.filter(
-                or_(
-                    Job.client_name.ilike(f'%{query}%'),
-                    Job.invoice_number.ilike(f'%{query}%')
-                )
+        # Buscar en trabajos activos
+        active_jobs = Job.query.filter(
+            or_(
+                Job.client_name.ilike(f'%{query}%'),
+                Job.invoice_number.ilike(f'%{query}%')
             )
-            .union(
-                CompletedJob.query.filter(
-                    or_(
-                        CompletedJob.client_name.ilike(f'%{query}%'),
-                        CompletedJob.invoice_number.ilike(f'%{query}%')
-                    )
-                )
+        ).all()
+
+        # Buscar en trabajos completados
+        completed_jobs = CompletedJob.query.filter(
+            or_(
+                CompletedJob.client_name.ilike(f'%{query}%'),
+                CompletedJob.invoice_number.ilike(f'%{query}%')
             )
-            .order_by(Job.created_at.desc())
-            .all()
-        )
+        ).all()
+
+        # Combinar resultados
+        invoices = active_jobs + completed_jobs
 
     return render_template('search_invoices.html', invoices=invoices)
