@@ -8,7 +8,7 @@
         <h4 class="mb-0">Registrar Nuevo Trabajo Pendiente</h4>
     </div>
     <div class="card-body">
-        <form method="POST">
+        <form method="POST" action="{{ url_for('main.new_pending_job') }}">
             <div class="row">
                 <div class="col-md-12 mb-3">
                     <label class="form-label">Descripción</label>

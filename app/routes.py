@@ -1297,6 +1297,7 @@ def public_job(qr_code):
 @bp.route('/jobs/pending/new', methods=['GET', 'POST'])
 @login_required
 def new_pending_job():
+    try:
     if request.method == 'POST':
         try:
             phone_number = request.form.get('phone_number')
