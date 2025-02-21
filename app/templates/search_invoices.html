@@ -11,7 +11,7 @@
         <div class="card-body">
             <form method="GET" class="mb-4">
                 <div class="input-group">
-                    <input type="text" name="query" class="form-control" placeholder="Buscar por nombre de cliente..." value="{{ request.args.get('query', '') }}">
+                    <input type="text" name="query" class="form-control" placeholder="Buscar por nombre de cliente o número de factura..." value="{{ request.args.get('query', '') }}">
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-search"></i> Buscar
                     </button>
@@ -34,8 +34,16 @@
                     <tbody>
                         {% for invoice in invoices %}
                         <tr>
-                            <td>{{ invoice.id }}</td>
-                            <td>{{ invoice.client_name }}</td>
+                            <td>
+                                <a href="{{ url_for('main.generate_job_pdf', job_id=invoice.id) }}" target="_blank" class="text-decoration-none">
+                                    {{ invoice.id }}
+                                </a>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('main.generate_job_pdf', job_id=invoice.id) }}" target="_blank" class="text-decoration-none">
+                                    {{ invoice.client_name }}
+                                </a>
+                            </td>
                             <td>{{ invoice.invoice_number }}</td>
                             <td>{{ invoice.created_at.strftime('%Y-%m-%d') }}</td>
                             <td>

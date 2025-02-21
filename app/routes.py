@@ -3,6 +3,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from functools import wraps
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
+from sqlalchemy import or_, desc, literal_column
 from app import db
 from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, PendingJob, Message
 from app.utils.notifications import send_notification
@@ -19,7 +20,7 @@ import io
 import time
 import re
 from PIL import Image
-from sqlalchemy import or_
+
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -792,8 +793,7 @@ def completed_jobs():
 @bp.route('/jobs/<int:job_id>/complete', methods=['POST'])
 @login_required
 def complete_job(job_id):
-    """Completar un trabajo y moverlo a la tabla de trabajos completados"""
-    # Obtener contraseña del admin (ya sea de JSON o form data)
+    """Completar un trabajo y moverlo a la tabla de trabajos completados"""    # Obtener contraseña del admin (ya sea de JSON o form data)
     data = request.get_json() or request.form
     admin_password = data.get('admin_password')
 
@@ -850,6 +850,50 @@ def complete_job(job_id):
         db.session.rollback()
         logger.error(f"Error al completar trabajo: {str(e)}")
         return jsonify({'success': False, 'message': 'Error de autenticación. Por favor, verifica la contraseña del administrador.'})
+
+@bp.route('/search-invoices')
+@login_required
+def search_invoices():
+    """Búsqueda de facturas por nombre de cliente o número de factura"""
+    query = request.args.get('query', '').strip()
+    invoices = []
+
+    if query:
+        # Seleccionar las columnas comunes específicamente
+        pending_jobs = (
+            db.session.query(
+                Job.id,
+                Job.client_name,
+                Job.invoice_number,
+                Job.created_at,
+                literal_column("false").label("is_completed")
+            ).filter(
+                or_(
+                    Job.client_name.ilike(f'%{query}%'),
+                    Job.invoice_number.ilike(f'%{query}%')
+                )
+            )
+        )
+
+        completed_jobs = (
+            db.session.query(
+                CompletedJob.id,
+                CompletedJob.client_name,
+                CompletedJob.invoice_number,
+                CompletedJob.created_at,
+                literal_column("true").label("is_completed")
+            ).filter(
+                or_(
+                    CompletedJob.client_name.ilike(f'%{query}%'),
+                    CompletedJob.invoice_number.ilike(f'%{query}%')
+                )
+            )
+        )
+
+        # Combinar las consultas y ordenar por fecha
+        invoices = pending_jobs.union(completed_jobs).order_by(desc('created_at')).all()
+
+    return render_template('search_invoices.html', invoices=invoices)
 
 @bp.route('/clean-database', methods=['POST'])
 @login_required
@@ -1609,7 +1653,7 @@ def create_delivered_job_from_completed(completed_job):
         description=completed_job.description,
         designer_id=completed_job.designer_id,
         registered_by_id=completed_job.registered_by_id,
-        invoice_number=completed_job.invoice_number,
+        invoice_number=completed_job.invoicenumber,
         client_name=completed_job.client_name,
         phone_number=completed_job.phone_number,
         created_at=completed_job.created_at,
@@ -1785,33 +1829,3 @@ def api_complete_job():
         db.session.rollback()
         logger.error(f"Error al completar trabajo: {str(e)}")
         return jsonify({'success': False, 'message': 'Error al procesar la solicitud'})
-
-@bp.route('/search-invoices')
-@login_required
-def search_invoices():
-    """Búsqueda de facturas por nombre de cliente"""
-    query = request.args.get('query', '').strip()
-    invoices = []
-
-    if query:
-        # Buscar en trabajos pendientes y completados
-        # Buscar en trabajos activos
-        active_jobs = Job.query.filter(
-            or_(
-                Job.client_name.ilike(f'%{query}%'),
-                Job.invoice_number.ilike(f'%{query}%')
-            )
-        ).all()
-
-        # Buscar en trabajos completados
-        completed_jobs = CompletedJob.query.filter(
-            or_(
-                CompletedJob.client_name.ilike(f'%{query}%'),
-                CompletedJob.invoice_number.ilike(f'%{query}%')
-            )
-        ).all()
-
-        # Combinar resultados
-        invoices = active_jobs + completed_jobs
-
-    return render_template('search_invoices.html', invoices=invoices)
