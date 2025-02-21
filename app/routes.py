@@ -1585,6 +1585,12 @@ def get_job_photos(job_id):
         Message.photos.isnot(None)
     ).order_by(Message.created_at.desc()).all()
 
+import json
+
+@bp.app_template_filter('fromjson')
+def fromjson_filter(value):
+    return json.loads(value)
+
 @bp.context_processor
 def utility_processor():
     def get_pending_jobs_count():
