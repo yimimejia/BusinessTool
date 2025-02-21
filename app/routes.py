@@ -1293,7 +1293,17 @@ def webauthn_authenticate_complete():
 @bp.route('/jobs/<int:job_id>/pdf')
 def generate_job_pdf(job_id):
     """Genera un PDF de la factura con código QR - accesible públicamente"""
-    job = Job.query.get_or_404(job_id)
+    # Buscar en todas las tablas de trabajos
+    job = Job.query.get(job_id)
+    if not job:
+        job = CompletedJob.query.get(job_id)
+    if not job:
+        job = DeliveredJob.query.get(job_id)
+    if not job:
+        job = PendingJob.query.get(job_id)
+    
+    if not job:
+        return "Trabajo no encontrado", 404
 
     # Generar QR si no existe
     if not job.qr_code:
