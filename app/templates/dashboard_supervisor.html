@@ -37,13 +37,17 @@
     </div>
     <div class="card-body">
       <div class="table-responsive">
-        <table class="table">
+        <table class="table" id="jobsTable">
           <thead>
             <tr>
+              <th>ID</th>
               <th>Factura</th>
               <th>Cliente</th>
               <th>Diseñador</th>
               <th>Teléfono</th>
+              <th>Descripción</th>
+              <th>Fecha</th>
+              <th>Registrado por</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -51,10 +55,18 @@
           <tbody>
             {% for job in pending_jobs %}
             <tr>
+              <td>
+                <a href="{{ url_for('main.generate_invoice', job_id=job.id) }}" class="text-primary">
+                  {{ job.id }}
+                </a>
+              </td>
               <td>{{ job.invoice_number }}</td>
               <td>{{ job.client_name }}</td>
               <td>{{ job.designer.name }}</td>
               <td>{{ job.phone_number }}</td>
+              <td>{{ job.description }}</td>
+              <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
+              <td>{{ job.created_by.name }}</td>
               <td>
                 {% if job.status == 'pending_verification' %}
                 <span class="badge bg-warning">Por Verificar</span>
@@ -83,4 +95,19 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  // Inicializar DataTable
+  $(document).ready(function() {
+    $('#jobsTable').DataTable({
+      language: {
+        url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+      },
+      order: [[0, 'desc']]
+    });
+  });
+</script>
 {% endblock %}
