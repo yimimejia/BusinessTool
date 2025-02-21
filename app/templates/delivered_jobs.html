@@ -21,7 +21,7 @@
                 <tr>
                     <td>{{ job.id }}</td>
                     <td>
-                        {{ job.client_name }}
+                        <a href="{{ url_for('main.generate_job_pdf', job_id=job.id) }}" target="_blank" class="text-decoration-none">{{ job.client_name }}</a>
                         <small class="d-block text-muted">{{ job.description }}</small>
                     </td>
                     <td>{{ job.invoice_number }}</td>

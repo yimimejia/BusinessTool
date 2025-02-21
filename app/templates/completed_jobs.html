@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 {% for job in jobs %}
                 <tr>
                     <td>{{ job.id }}</td>
-                    <td>{{ job.client_name }}</td>
+                    <td><a href="{{ url_for('main.generate_job_pdf', job_id=job.id) }}" target="_blank" class="text-decoration-none">{{ job.client_name }}</a></td>
                     <td>{{ job.invoice_number }}</td>
                     <td>{{ job.designer.name }}</td>
                     <td>
