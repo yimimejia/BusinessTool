@@ -110,25 +110,6 @@ def send_job_photos(job_id):
         upload_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], str(job_id))
         os.makedirs(upload_folder, exist_ok=True)
 
-        # Cargar el logo
-        logo_path = os.path.join(current_app.static_folder, 'logo.png')
-        try:
-            logo = Image.open(logo_path).convert('RGBA')
-            # Redimensionar el logo a un tamaño razonable (ej: 150x150)
-            logo = logo.resize((150, 150), Image.Resampling.LANCZOS)
-            # Configurar el texto del logo
-            logo_text = "@fotovideomojicaoficial"
-            draw = ImageDraw.Draw(logo)
-            font = ImageFont.truetype("arial.ttf", 20) # Reemplaza "arial.ttf" con la ruta a tu fuente
-            text_width, text_height = draw.textsize(logo_text, font=font)
-            text_x = (logo.width - text_width) / 2
-            text_y = (logo.height - text_height) / 2
-            draw.text((text_x, text_y), logo_text, font=font, fill=(255, 255, 255, 255))
-
-        except Exception as e:
-            logger.error(f"Error cargando logo: {str(e)}")
-            logo = None
-
         # Guardar las fotos
         photo_paths = []
         for photo in photos:
@@ -138,28 +119,9 @@ def send_job_photos(job_id):
                 photo_path = os.path.join('uploads', str(job_id), filename)
                 full_path = os.path.join(current_app.static_folder, photo_path)
 
-                # Procesar la imagen
-                try:
-                    with Image.open(photo) as img:
-                        # Convertir a RGBA si es necesario
-                        if img.mode != 'RGBA':
-                            img = img.convert('RGBA')
-
-                        # Si tenemos logo, agregarlo en la esquina inferior derecha
-                        if logo:
-                            # Calcular posición para el logo
-                            position = (img.width - logo.width - 20, img.height - logo.height - 20)
-                            # Pegar el logo
-                            img.paste(logo, position, logo)
-
-                        # Guardar la imagen procesada
-                        img.save(full_path, 'PNG')
-                        photo_paths.append(photo_path)
-                except Exception as e:
-                    logger.error(f"Error procesando imagen: {str(e)}")
-                    # Si hay error, guardar la imagen original
-                    photo.save(full_path)
-                    photo_paths.append(photo_path)
+                # Guardar la imagen original
+                photo.save(full_path)
+                photo_paths.append(photo_path)
 
         # Crear un PendingJob para la verificación de fotos
         pending_job = PendingJob(
