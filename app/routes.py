@@ -134,7 +134,9 @@ def send_job_photos(job_id):
             phone_number=job.phone_number,
             photos=json.dumps(photo_paths),
             pending_type='photo_verification',
-            message=request.form.get('message', '')
+            message=request.form.get('message', ''),
+            total_amount=job.total_amount,
+            deposit_amount=job.deposit_amount
         )
 
         db.session.add(pending_job)
