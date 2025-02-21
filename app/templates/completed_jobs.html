@@ -64,12 +64,17 @@ document.addEventListener('DOMContentLoaded', function() {
                             <td style="min-width: 200px;">
                                 <div class="d-flex gap-2">
                                     {% if current_user.is_designer %}
+                                        {% if job.total_amount and job.deposit_amount and job.total_amount <= job.deposit_amount %}
                                         <div class="d-inline">
                                             <button type="button" class="btn btn-success btn-sm" onclick="document.getElementById('photo-input-{{ job.id }}').click()">
                                                 Enviar fotos
                                             </button>
-                                        </div>
-                                    {% endif %}
+                                        {% else %}
+                                        <div class="d-inline">
+                                            <span class="badge bg-warning text-dark">
+                                                Pendiente de pago completo
+                                            </span>
+                                        {% endif %}
 
                                         <!-- Modal para previsualización -->
                                         <div class="modal fade" id="photoPreviewModal{{ job.id }}" tabindex="-1">
