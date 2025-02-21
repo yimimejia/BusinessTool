@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Aprobar Trabajo Pendiente</h2>
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('main.approve_job', job_id=job.id) }}">
+                <div class="mb-3">
+                    <label for="invoice_number" class="form-label">Número de Factura</label>
+                    <input type="text" class="form-control" id="invoice_number" name="invoice_number" 
+                           value="{{ job.invoice_number }}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="client_name" class="form-label">Nombre del Cliente</label>
+                    <input type="text" class="form-control" id="client_name" name="client_name" 
+                           value="{{ job.client_name }}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="phone_number" class="form-label">Teléfono (+1-XXX-XXXXXXX)</label>
+                    <input type="tel" class="form-control" id="phone_number" name="phone_number" 
+                           value="{{ job.phone_number }}" pattern="\+1-\d{3}-\d{7}">
+                    <small class="form-text text-muted">Formato: +1-XXX-XXXXXXX</small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="description" class="form-label">Descripción del Trabajo</label>
+                    <textarea class="form-control" id="description" name="description" 
+                              rows="3" required>{{ job.description }}</textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label for="total_amount" class="form-label">Monto Total</label>
+                    <input type="number" class="form-control" id="total_amount" name="total_amount" 
+                           value="{{ job.total_amount or 0 }}" step="0.01" min="0" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="deposit_amount" class="form-label">Monto del Abono</label>
+                    <input type="number" class="form-control" id="deposit_amount" name="deposit_amount" 
+                           value="{{ job.deposit_amount or 0 }}" step="0.01" min="0" required>
+                </div>
+
+                {% if current_user.is_staff %}
+                <div class="mb-3">
+                    <label for="designer_id" class="form-label">Asignar a Diseñador</label>
+                    <select class="form-select" id="designer_id" name="designer_id" required>
+                        {% for designer in designers %}
+                        <option value="{{ designer.id }}" 
+                                {% if job.designer_id == designer.id %}selected{% endif %}>
+                            {{ designer.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <div class="mb-3">
+                    <label for="tags" class="form-label">Etiquetas (separadas por coma)</label>
+                    <input type="text" class="form-control" id="tags" name="tags" 
+                           value="{{ job.tags or '' }}">
+                    <small class="form-text text-muted">Ejemplo: urgente, retoque, familia</small>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Aprobar Trabajo</button>
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

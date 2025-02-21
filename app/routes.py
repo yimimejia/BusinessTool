@@ -348,49 +348,48 @@ def generate_invoice(job_id):
 @bp.route('/dashboard')
 @login_required
 def dashboard():
-    jobs_query = Job.query
-
+    """Vista del dashboard con estadísticas unificadas"""
     # Estadísticas base
     stats = {
         'total_jobs': Job.query.count(),
         'completed_jobs': CompletedJob.query.count(),
         'pending_jobs': Job.query.filter_by(status='pending').count(),
-        'designers': User.query.filter_by(is_designer=True).count()
+        'designers': User.query.filter_by(is_designer=True).count(),
+        'pending_approval': PendingJob.query.count(),
+        'delivered_jobs': DeliveredJob.query.count()
     }
 
     if current_user.is_admin:
         # Vista de administrador
-        jobs = jobs_query.order_by(Job.created_at.desc()).all()
-        return render_template('dashboard_admin.html', jobs=jobs, stats=stats)
-    
+        jobs = Job.query.order_by(Job.created_at.desc()).all()
+        pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
+        return render_template('dashboard_admin.html', 
+                             jobs=jobs, 
+                             pending_jobs=pending_jobs,
+                             stats=stats)
+
     elif current_user.is_supervisor:
         # Vista de supervisor
         pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
         pending_verification_count = PendingJob.query.filter_by(pending_type='new_job').count()
         pending_photos_count = PendingJob.query.filter_by(pending_type='photo_verification').count()
-        
+
         return render_template('dashboard_supervisor.html',
                              pending_jobs=pending_jobs,
                              pending_verification_count=pending_verification_count,
                              pending_photos_count=pending_photos_count,
                              stats=stats)
-    
+
     else:
         # Vista de diseñador
-        jobs = jobs_query.filter_by(designer_id=current_user.id).order_by(Job.created_at.desc()).all()
-        designer_stats = {
+        jobs = Job.query.filter_by(designer_id=current_user.id).order_by(Job.created_at.desc()).all()
+        stats = {
+            'total_jobs': len(jobs),
+            'completed_jobs': CompletedJob.query.filter_by(designer_id=current_user.id).count(),
             'pending_jobs': Job.query.filter_by(designer_id=current_user.id, status='pending').count(),
-            'completed_jobs': CompletedJob.query.filter_by(designer_id=current_user.id).count()
+            'delivered_jobs': DeliveredJob.query.filter_by(designer_id=current_user.id).count()
         }
-        designer_stats = {
-        'total_jobs': len(jobs),
-        'completed_jobs': len([j for j in jobs if j.is_completed]),
-        'pending_jobs': len([j for j in jobs if not j.is_completed]),
-        'designers': len(set(job.designer_id for job in jobs)) if current_user.is_staff else 1
-    }
-    return render_template('dashboard_designer.html', jobs=jobs, stats=designer_stats)
-
-    return render_template('dashboard.html', jobs=jobs, stats=stats)
+        return render_template('dashboard_designer.html', jobs=jobs, stats=stats)
 
 @bp.route('/manage-users')
 @login_required
@@ -811,7 +810,7 @@ def setup():
             username=username,
             name=f'PC{i:02d}',
             is_admin=False,
-            is_supervisor=False,
+is_supervisor=False,
             is_designer=True
         )
         user.set_password('1245')
@@ -1206,7 +1205,7 @@ def generate_job_pdf(job_id):
     if not job.qr_code:
         job.generate_qr_code()
         db.session.commit()
-
+    
     # Generar QR
     qr = qrcode.QRCode(
         version=1,
@@ -1216,22 +1215,22 @@ def generate_job_pdf(job_id):
     )
     qr.add_data(json.dumps(job.to_qr_data()))
     qr.make(fit=True)
-
+    
     # Crear imagen con mejor contraste
     img = qr.make_image(fill_color="black", back_color="white")
-
+    
     # Convertir a base64
     buffered = io.BytesIO()
     img.save(buffered, format="PNG", quality=100)
     qr_image = base64.b64encode(buffered.getvalue()).decode()
-
+    
     # Renderizar el HTML
     html = render_template('invoice_pdf.html', job=job, qr_image=qr_image)
-
+    
     # Convertir a PDF usando WeasyPrint
     from weasyprint import HTML
     pdf = HTML(string=html).write_pdf()
-
+    
     return Response(
         pdf,
         mimetype='application/pdf',
@@ -1550,3 +1549,44 @@ def pending_jobs():
     """Ver trabajos pendientes"""
     jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
     return render_template('pending_jobs.html', jobs=jobs)
+
+@bp.route('/jobs/<int:job_id>/approve', methods=['GET', 'POST'])
+@login_required
+@staff_required
+def approve_job(job_id):
+    """Vista para aprobar un trabajo pendiente"""
+    job = PendingJob.query.get_or_404(job_id)
+
+    if request.method == 'POST':
+        try:
+            # Procesar el formulario de aprobación
+            approved_job = Job(
+                description=request.form.get('description'),
+                designer_id=request.form.get('designer_id'),
+                registered_by_id=current_user.id,
+                invoice_number=request.form.get('invoice_number'),
+                client_name=request.form.get('client_name'),
+                phone_number=request.form.get('phone_number'),
+                total_amount=float(request.form.get('total_amount', 0)),
+                deposit_amount=float(request.form.get('deposit_amount', 0)),
+                tags=request.form.get('tags')
+            )
+
+            # Generar código QR
+            approved_job.generate_qr_code()
+
+            db.session.add(approved_job)
+            db.session.delete(job)  # Eliminar el trabajo pendiente
+            db.session.commit()
+
+            flash('Trabajo aprobado exitosamente', 'success')
+            return redirect(url_for('main.show_job_qr', job_id=approved_job.id))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error al aprobar el trabajo: {str(e)}', 'error')
+            return redirect(url_for('main.dashboard'))
+
+    # GET: Mostrar formulario de aprobación
+    designers = User.query.filter_by(is_designer=True).all()
+    return render_template('approve_job.html', job=job, designers=designers)
