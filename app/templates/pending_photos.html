@@ -20,6 +20,10 @@
                         <div class="card-header">
                             <h5 class="mb-0">{{ job.client_name }}</h5>
                             <small class="text-muted">Trabajo #{{ job.original_job_id }}</small>
+                            <div class="mt-2">
+                                <span class="badge bg-success">Total: ${{ "%.2f"|format(job.total_amount or 0) }}</span>
+                                <span class="badge bg-info">Abono: ${{ "%.2f"|format(job.deposit_amount or 0) }}</span>
+                            </div>
                         </div>
                         <div class="card-body">
                             <p>{{ job.description }}</p>
