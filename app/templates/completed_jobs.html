@@ -62,25 +62,26 @@ document.addEventListener('DOMContentLoaded', function() {
                                 {% endif %}
                             </td>
                             <td style="min-width: 200px;">
-                                {% if current_user.is_designer and not job.is_called %}
-                                <form method="POST" action="{{ url_for('main.send_job_photos', job_id=job.id) }}" class="d-inline" enctype="multipart/form-data">
-                                    <input type="file" name="photos" multiple accept="image/*" class="d-none" id="photo-input-{{ job.id }}">
-                                    <button type="button" class="btn btn-sm btn-primary me-2" onclick="document.getElementById('photo-input-{{ job.id }}').click()">
-                                        Seleccionar Fotos
-                                    </button>
-                                    <button type="submit" class="btn btn-sm btn-success">
-                                        Enviar por WhatsApp
-                                    </button>
-                                    <small class="d-block mt-1" id="selected-files-{{ job.id }}"></small>
-                                </form>
-                                {% endif %}
-                                {% if not current_user.is_designer %}
-                                <form method="POST" action="{{ url_for('main.mark_called', job_id=job.id) if not job.is_called else url_for('main.mark_delivered', job_id=job.id) }}" class="d-inline">
-                                    <button type="submit" class="btn {% if not job.is_called %}btn-info{% else %}btn-success{% endif %}" style="min-width: 120px;">
-                                        {% if not job.is_called %}Llamado{% else %}Entregado{% endif %}
-                                    </button>
-                                </form>
-                                {% endif %}
+                                <div class="d-flex gap-2">
+                                    {% if current_user.is_designer %}
+                                    <form method="POST" action="{{ url_for('main.send_job_photos', job_id=job.id) }}" class="d-inline" enctype="multipart/form-data">
+                                        <input type="file" name="photos" multiple accept="image/*" class="d-none" id="photo-input-{{ job.id }}">
+                                        <button type="button" class="btn btn-primary me-2" onclick="document.getElementById('photo-input-{{ job.id }}').click()">
+                                            Seleccionar Fotos
+                                        </button>
+                                        <button type="submit" class="btn btn-success">
+                                            Enviar por WhatsApp
+                                        </button>
+                                        <small class="d-block mt-1" id="selected-files-{{ job.id }}"></small>
+                                    </form>
+                                    {% endif %}
+                                    
+                                    <form method="POST" action="{{ url_for('main.mark_called', job_id=job.id) if not job.is_called else url_for('main.mark_delivered', job_id=job.id) }}" class="d-inline">
+                                        <button type="submit" class="btn {% if not job.is_called %}btn-info{% else %}btn-success{% endif %}" style="min-width: 120px;">
+                                            {% if not job.is_called %}Llamado{% else %}Entregado{% endif %}
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
