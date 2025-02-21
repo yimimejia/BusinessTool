@@ -422,7 +422,6 @@ def create_user():
             username=username,
             is_admin=user_type == 'admin',
             is_supervisor=user_type == 'supervisor',
-            can_edit=True
         )
         user.set_password(password)
         db.session.add(user)
@@ -789,8 +788,7 @@ def setup():
         name='Administrador',
         is_admin=True,
         is_supervisor=False,
-        is_designer=False,
-        can_edit=True
+        is_designer=False
     )
     admin.set_password('admin123')
     db.session.add(admin)
@@ -801,8 +799,7 @@ def setup():
         name='Supervisor',
         is_admin=False,
         is_supervisor=True,
-        is_designer=False,
-        can_edit=True
+        is_designer=False
     )
     supervisor.set_password('super123')
     db.session.add(supervisor)
@@ -815,8 +812,7 @@ def setup():
             name=f'PC{i:02d}',
             is_admin=False,
             is_supervisor=False,
-            is_designer=True,
-            can_edit=True
+            is_designer=True
         )
         user.set_password('1245')
         db.session.add(user)
