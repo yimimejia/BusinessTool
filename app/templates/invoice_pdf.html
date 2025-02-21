@@ -145,14 +145,13 @@
 
         <div class="amounts-section">
             <div class="amount-row">
-                <span class="amount-label">Abono:</span>
-                <span class="amount-value">${{ job.deposit_amount|int if job.deposit_amount else 0 }}</span>
-            </div>
-            <div class="amount-row">
                 <span class="amount-label">Total:</span>
                 <span class="amount-value">${{ job.total_amount|int if job.total_amount else 0 }}</span>
             </div>
-            
+            <div class="amount-row">
+                <span class="amount-label">Abono:</span>
+                <span class="amount-value">${{ job.deposit_amount|int if job.deposit_amount else 0 }}</span>
+            </div>
         </div>
 
         <div class="qr-section">

@@ -339,6 +339,17 @@ def generate_invoice(job_id):
             # Si no está en completados, buscar en trabajos pendientes
             job = Job.query.get_or_404(job_id)
 
+        # Asegurar que los montos sean números
+        if hasattr(job, 'total_amount') and job.total_amount is not None:
+            total_amount = float(job.total_amount)
+        else:
+            total_amount = 0
+
+        if hasattr(job, 'deposit_amount') and job.deposit_amount is not None:
+            deposit_amount = float(job.deposit_amount)
+        else:
+            deposit_amount = 0
+
         # Generar URL pública para el QR
         if hasattr(job, 'qr_code') and job.qr_code:
             qr_url = f"https://{request.host}/jobs/public/{job.qr_code}"
@@ -361,10 +372,12 @@ def generate_invoice(job_id):
         qr_img.save(buffered, format="PNG")
         qr_code = base64.b64encode(buffered.getvalue()).decode()
 
-        # Render invoice template
+        # Render invoice template with explicit amount values
         return render_template('invoice_pdf.html',
-                            job=job,
-                            qr_code=qr_code)
+                          job=job,
+                          qr_code=qr_code,
+                          total_amount=total_amount,
+                          deposit_amount=deposit_amount)
 
     except Exception as e:
         logger.error(f"Error generando factura: {str(e)}")
