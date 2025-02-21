@@ -797,7 +797,7 @@ def complete_job(job_id):
     admin_password = data.get('admin_password')
 
     if not admin_password:
-        return jsonify({'success': False, 'message': 'Se requiere contraseña de administrador'})
+        return jsonify({''success': False, 'message': 'Se requiere contraseña de administrador'})
 
     job = Job.query.get_or_404(job_id)
 
@@ -1471,7 +1471,8 @@ Para ver todas sus fotos, haga clic en el siguiente enlace (disponible por 3 dí
                 phone_number=pending_job.phone_number,
                 total_amount=request.form.get('total_amount', type=float),
                 deposit_amount=request.form.get('deposit_amount', type=float),
-                tags=request.form.get('tags', '').strip()
+                tags=request.form.get('tags', '').strip(),
+                can_send_photos=bool(request.form.get('can_send_photos'))
             )
 
             # Generar código QR
@@ -1669,7 +1670,8 @@ def approve_job(job_id):
                     phone_number=request.form.get('phone_number'),
                     total_amount=float(request.form.get('total_amount', 0)),
                     deposit_amount=float(request.form.get('deposit_amount', 0)),
-                    tags=request.form.get('tags')
+                    tags=request.form.get('tags'),
+                    can_send_photos=bool(request.form.get('can_send_photos'))
                 )
 
                 # Generar código QR

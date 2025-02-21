@@ -312,6 +312,7 @@ class PendingJob(db.Model):
     registered_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     invoice_number = db.Column(db.String(50))
     client_name = db.Column(db.String(100))
+    can_send_photos = db.Column(db.Boolean, default=False)
     phone_number = db.Column(db.String(20))
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     qr_code = db.Column(db.String(100), unique=True)
