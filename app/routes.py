@@ -348,22 +348,33 @@ def generate_invoice(job_id):
 @bp.route('/dashboard')
 @login_required
 def dashboard():
-    """Vista del dashboard con estadísticas unificadas"""
-    if current_user.is_staff:
-        # Vista para admin/supervisor
+    """Vista del dashboard con estadísticas por rol"""
+    if current_user.is_admin:
+        # Vista de administrador
         jobs = Job.query.order_by(Job.created_at.desc()).all()
         stats = {
             'total_jobs': len(jobs),
             'completed_jobs': CompletedJob.query.count(),
             'pending_jobs': Job.query.filter_by(status='pending').count(),
+            'designers_count': User.query.filter_by(is_designer=True).count()
+        }
+    elif current_user.is_supervisor:
+        # Vista de supervisor
+        jobs = Job.query.order_by(Job.created_at.desc()).all()
+        stats = {
+            'total_jobs': len(jobs),
+            'completed_jobs': CompletedJob.query.count(),
+            'pending_jobs': Job.query.filter_by(status='pending').count(),
+            'designers_count': User.query.filter_by(is_designer=True).count()
         }
     else:
-        # Vista para diseñador
+        # Vista de diseñador
         jobs = Job.query.filter_by(designer_id=current_user.id).order_by(Job.created_at.desc()).all()
         stats = {
             'total_jobs': len(jobs),
             'completed_jobs': CompletedJob.query.filter_by(designer_id=current_user.id).count(),
             'pending_jobs': Job.query.filter_by(designer_id=current_user.id, status='pending').count(),
+            'delivered_jobs': DeliveredJob.query.filter_by(designer_id=current_user.id).count()
         }
 
     if current_user.is_admin:
