@@ -758,18 +758,18 @@ def complete_job(job_id):
     if not current_user.is_staff and job.designer_id != current_user.id:
         return jsonify({'success': False, 'message': 'No tienes permiso para completar este trabajo'})
 
-    # Verificar contraseña de administrador
-    admins = User.query.filter_by(is_admin=True).all()
-    valid_admin = False
-    for admin in admins:
-        if admin.check_password(admin_password):
-            valid_admin = True
-            break
-
-    if not valid_admin:
-        return jsonify({'success': False, 'message': 'Contraseña de administrador incorrecta'})
-
     try:
+        # Verificar contraseña de administrador
+        admins = User.query.filter_by(is_admin=True).all()
+        valid_admin = False
+        for admin in admins:
+            if admin and admin.check_password(admin_password):
+                valid_admin = True
+                break
+
+        if not valid_admin:
+            return jsonify({'success': False, 'message': 'Contraseña de administrador incorrecta'})
+
         # Crear trabajo completado
         completed_job = CompletedJob(
             original_job_id=job.id,
@@ -791,7 +791,7 @@ def complete_job(job_id):
 
         log_activity(
             'trabajo_completado',
-            f"Trabajo completado para {completed_job.client_name} (Factura: {completedjob.invoice_number})"
+            f"Trabajo completado para {completed_job.client_name} (Factura: {completed_job.invoice_number})"
         )
 
         return jsonify({'success': True, 'message': 'Trabajo completado exitosamente'})
@@ -799,7 +799,7 @@ def complete_job(job_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error al completar trabajo: {str(e)}")
-        return jsonify({'success': False, 'message': 'Error al procesar la solicitud'})
+        return jsonify({'success': False, 'message': 'Error de autenticación. Por favor, verifica la contraseña del administrador.'})
 
 @bp.route('/setup')
 def setup():
