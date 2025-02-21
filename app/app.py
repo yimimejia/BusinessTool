@@ -13,10 +13,10 @@ login_manager = LoginManager()
 
 def create_app():
     app = Flask(__name__)
-    app.secret_key = os.environ.get("SESSION_SECRET", "default-secret-key")
+    app.secret_key = os.environ.get("SESSION_SECRET")  # Using exact format as required
     app.config['TEMPLATES_AUTO_RELOAD'] = True
 
-    # Configuración de la base de datos
+    # Database configuration
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_recycle": 280,
@@ -34,24 +34,19 @@ def create_app():
     }
     app.config["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379")
 
-    # Inicializar extensiones
+    # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
 
-    # Registrar blueprint para SSE
+    # Register blueprint for SSE
     app.register_blueprint(sse, url_prefix='/stream')
 
     with app.app_context():
-        # Importar modelos y rutas
         from app import models
-        from app.tasks import init_scheduler
 
-        # Crear tablas
+        # Create tables
         db.create_all()
-
-        # Inicializar el planificador de tareas
-        scheduler = init_scheduler()
 
         return app
 
