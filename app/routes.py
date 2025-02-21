@@ -391,7 +391,7 @@ def dashboard():
                              pending_verification_count=pending_verification_count,
                              pending_photos_count=pending_photos_count,
                              stats=stats)
-    else:
+    elif current_user.is_supervisor:
         # Vista de supervisor
         jobs = Job.query.order_by(Job.created_at.desc()).all()
         stats = {
