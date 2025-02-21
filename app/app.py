@@ -13,7 +13,8 @@ login_manager = LoginManager()
 
 def create_app():
     app = Flask(__name__)
-    app.secret_key = os.environ.get("SESSION_SECRET")
+    app.secret_key = os.environ.get("SESSION_SECRET", "default-secret-key")
+    app.config['TEMPLATES_AUTO_RELOAD'] = True
 
     # Configuración de la base de datos
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
