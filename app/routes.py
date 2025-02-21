@@ -325,12 +325,22 @@ def logout():
 def send_whatsapp(job_id):
     job = Job.query.get_or_404(job_id)
     
-    if not job.client_phone:
+    if not job.phone_number:
         flash('No hay número de teléfono registrado para este cliente', 'error')
         return redirect(url_for('main.dashboard'))
-        
-    message = f"Hola {job.client_name}, tu trabajo está listo para recoger en FOTO VIDEO MOJICA."
-    whatsapp_link = generate_whatsapp_link(job.client_phone, message)
+
+    # Generar enlace de factura
+    invoice_url = url_for('main.generate_job_pdf', job_id=job.id, _external=True)
+    
+    # Obtener enlace de WhatsApp con la factura
+    whatsapp_link = job.get_whatsapp_link(with_invoice=True, invoice_url=invoice_url)
+    
+    # Registrar actividad
+    log_activity(
+        'enviar_whatsapp',
+        f"Mensaje WhatsApp enviado a {job.client_name} (Factura: {job.invoice_number})"
+    )
+    
     return redirect(whatsapp_link)
 
 @bp.route('/generate_invoice/<int:job_id>')

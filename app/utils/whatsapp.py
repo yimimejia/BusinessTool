@@ -1,7 +1,33 @@
 import os
 from urllib.parse import quote
 from datetime import datetime
-from app.models import Job
+from app.models import Job, CompletedJob
+
+def get_whatsapp_link(phone_number, message):
+    """Genera un enlace de WhatsApp con un mensaje predefinido"""
+    clean_phone = phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+    return f"https://wa.me/{clean_phone}?text={urllib.parse.quote(message)}"
+
+def get_whatsapp_report_url(phone_number):
+    """Genera un enlace de WhatsApp con el reporte de trabajos pendientes"""
+    pending_jobs = Job.query.filter_by(status='pending').all()
+    completed_jobs = CompletedJob.query.filter(CompletedJob.is_called == False).all()
+
+    message = "*FOTO VIDEO MOJICA - Reporte de Trabajos*\n\n"
+
+    if pending_jobs:
+        message += "*Trabajos Pendientes:*\n"
+        for job in pending_jobs:
+            message += f"- {job.client_name}: {job.description}\n"
+
+    if completed_jobs:
+        message += "\n*Trabajos Listos para Entrega:*\n"
+        for job in completed_jobs:
+            message += f"- {job.client_name}: {job.description}\n"
+
+    message += f"\nReporte generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+
+    return get_whatsapp_link(phone_number, message)
 
 def get_pending_jobs_text():
     """Genera el texto del reporte de trabajos pendientes"""
@@ -20,27 +46,7 @@ def get_pending_jobs_text():
     text += f"_Reporte generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}_"
     return text
 
-def get_whatsapp_url(phone_number, message):
-    """Genera una URL de WhatsApp con mensaje personalizado"""
-    clean_number = ''.join(filter(str.isdigit, phone_number))
-    if not clean_number.startswith('1'):
-        clean_number = '1' + clean_number
-    return f"https://wa.me/{clean_number}?text={quote(message)}"
 
 def send_invoice_whatsapp(job, invoice_url):
     """Genera URL de WhatsApp para enviar factura"""
     return job.get_whatsapp_link(with_invoice=True, invoice_url=invoice_url)
-import urllib.parse
-
-def generate_whatsapp_link(phone_number, message):
-    """
-    Generate WhatsApp link with pre-filled message
-    """
-    # Remove any non-numeric characters from phone number
-    clean_number = ''.join(filter(str.isdigit, phone_number))
-    
-    # Encode message for URL
-    encoded_message = urllib.parse.quote(message)
-    
-    # Generate WhatsApp link
-    return f"https://wa.me/{clean_number}?text={encoded_message}"
