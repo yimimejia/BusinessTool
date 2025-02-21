@@ -66,7 +66,13 @@ def logout():
 @login_required
 def dashboard():
     """Vista del dashboard"""
-    return render_template('dashboard.html')
+    stats = {
+        'total_jobs': Job.query.count(),
+        'completed_jobs': CompletedJob.query.count(),
+        'pending_jobs': PendingJob.query.count(),
+        'designers': User.query.filter_by(is_staff=True).count()
+    }
+    return render_template('dashboard.html', stats=stats)
 
 @bp.route('/pending-verification')
 @login_required
