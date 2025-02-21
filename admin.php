@@ -1,3 +1,4 @@
+
 <?php
 require_once 'conexion.php';
 require_once 'includes/auth.php';
@@ -32,9 +33,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// Obtener lista de diseñadores
+// Obtener lista de diseñadores y estadísticas
 $stmt = $pdo->query("SELECT * FROM diseñadores WHERE es_admin = 0");
 $diseñadores = $stmt->fetchAll();
+
+// Obtener estadísticas
+$total_trabajos = $pdo->query("SELECT COUNT(*) FROM trabajos")->fetchColumn();
+$trabajos_completados = $pdo->query("SELECT COUNT(*) FROM trabajos WHERE estado = 'completado'")->fetchColumn();
+$trabajos_pendientes = $pdo->query("SELECT COUNT(*) FROM trabajos WHERE estado = 'pendiente'")->fetchColumn();
+$total_disenadores = $pdo->query("SELECT COUNT(*) FROM diseñadores WHERE es_admin = 0")->fetchColumn();
 
 include 'includes/header.php';
 ?>
@@ -42,6 +49,28 @@ include 'includes/header.php';
 <?php if (isset($mensaje)): ?>
     <div class="alert alert-success"><?php echo $mensaje; ?></div>
 <?php endif; ?>
+
+<div class="stats-panel">
+    <h2 class="panel-title">Panel de Administración</h2>
+    <div class="stat-row">
+        <div class="stat-item">
+            Total Trabajos
+            <div class="value"><?php echo $total_trabajos; ?></div>
+        </div>
+        <div class="stat-item">
+            Completados
+            <div class="value"><?php echo $trabajos_completados; ?></div>
+        </div>
+        <div class="stat-item">
+            Pendientes
+            <div class="value"><?php echo $trabajos_pendientes; ?></div>
+        </div>
+        <div class="stat-item">
+            Diseñadores
+            <div class="value"><?php echo $total_disenadores; ?></div>
+        </div>
+    </div>
+</div>
 
 <div class="row">
     <div class="col-md-6">
