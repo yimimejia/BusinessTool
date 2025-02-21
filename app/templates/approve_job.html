@@ -46,6 +46,26 @@
 
                 {% if current_user.is_staff or current_user.is_admin %}
                 <div class="mb-3">
+                    <label for="invoice_number" class="form-label">No. Factura</label>
+                    <input type="text" class="form-control" id="invoice_number" name="invoice_number" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="total_amount" class="form-label">Total</label>
+                    <input type="number" step="0.01" class="form-control" id="total_amount" name="total_amount" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="deposit_amount" class="form-label">Abono</label>
+                    <input type="number" step="0.01" class="form-control" id="deposit_amount" name="deposit_amount" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="tags" class="form-label">Etiquetas</label>
+                    <input type="text" class="form-control" id="tags" name="tags" placeholder="Separadas por comas">
+                </div>
+
+                <div class="mb-3">
                     <label for="designer_id" class="form-label">Asignar a Diseñador</label>
                     <select class="form-select" id="designer_id" name="designer_id" required>
                         {% for designer in designers %}
