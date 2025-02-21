@@ -18,6 +18,7 @@ from werkzeug.utils import secure_filename
 import io
 import time
 import re
+from PIL import Image
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -115,6 +116,15 @@ def send_job_photos(job_id):
             logo = Image.open(logo_path).convert('RGBA')
             # Redimensionar el logo a un tamaño razonable (ej: 150x150)
             logo = logo.resize((150, 150), Image.Resampling.LANCZOS)
+            # Configurar el texto del logo
+            logo_text = "@fotovideomojicaoficial"
+            draw = ImageDraw.Draw(logo)
+            font = ImageFont.truetype("arial.ttf", 20) # Reemplaza "arial.ttf" con la ruta a tu fuente
+            text_width, text_height = draw.textsize(logo_text, font=font)
+            text_x = (logo.width - text_width) / 2
+            text_y = (logo.height - text_height) / 2
+            draw.text((text_x, text_y), logo_text, font=font, fill=(255, 255, 255, 255))
+
         except Exception as e:
             logger.error(f"Error cargando logo: {str(e)}")
             logo = None
@@ -127,21 +137,21 @@ def send_job_photos(job_id):
                 filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}"
                 photo_path = os.path.join('uploads', str(job_id), filename)
                 full_path = os.path.join(current_app.static_folder, photo_path)
-                
+
                 # Procesar la imagen
                 try:
                     with Image.open(photo) as img:
                         # Convertir a RGBA si es necesario
                         if img.mode != 'RGBA':
                             img = img.convert('RGBA')
-                        
+
                         # Si tenemos logo, agregarlo en la esquina inferior derecha
                         if logo:
                             # Calcular posición para el logo
                             position = (img.width - logo.width - 20, img.height - logo.height - 20)
                             # Pegar el logo
                             img.paste(logo, position, logo)
-                        
+
                         # Guardar la imagen procesada
                         img.save(full_path, 'PNG')
                         photo_paths.append(photo_path)
@@ -334,23 +344,23 @@ def logout():
 @login_required
 def send_whatsapp(job_id):
     job = Job.query.get_or_404(job_id)
-    
+
     if not job.phone_number:
         flash('No hay número de teléfono registrado para este cliente', 'error')
         return redirect(url_for('main.dashboard'))
 
     # Generar enlace de factura
     invoice_url = url_for('main.generate_invoice', job_id=job.id, _external=True)
-    
+
     # Obtener enlace de WhatsApp con la factura
     whatsapp_link = job.get_whatsapp_link(with_invoice=True, invoice_url=invoice_url)
-    
+
     # Registrar actividad
     log_activity(
         'enviar_whatsapp',
         f"Mensaje WhatsApp enviado a {job.client_name} (Factura: {job.invoice_number})"
     )
-    
+
     return redirect(whatsapp_link)
 
 @bp.route('/generate_invoice/<int:job_id>')
@@ -1254,12 +1264,12 @@ def webauthn_authenticate_complete():
 def generate_job_pdf(job_id):
     """Genera un PDF de la factura con código QR - accesible públicamente"""
     job = Job.query.get_or_404(job_id)
-    
+
     # Generar QR si no existe
     if not job.qr_code:
         job.generate_qr_code()
         db.session.commit()
-        
+
     # Crear QR
     qr = qrcode.QRCode(
         version=1,
@@ -1267,22 +1277,22 @@ def generate_job_pdf(job_id):
         box_size=10,
         border=4
     )
-    
+
     # Agregar URL pública
     qr_url = f"{request.url_root.rstrip('/')}/jobs/public/{job.qr_code}"
     qr.add_data(qr_url)
     qr.make(fit=True)
-    
+
     # Crear imagen QR
     img_buffer = io.BytesIO()
     qr.make_image(fill_color="black", back_color="white").save(img_buffer, format='PNG')
     qr_image = base64.b64encode(img_buffer.getvalue()).decode()
-    
+
     # Generar el QR si no existe
     if not job.qr_code:
         job.generate_qr_code()
         db.session.commit()
-    
+
     # Generar QR
     qr = qrcode.QRCode(
         version=1,
@@ -1292,22 +1302,22 @@ def generate_job_pdf(job_id):
     )
     qr.add_data(json.dumps(job.to_qr_data()))
     qr.make(fit=True)
-    
+
     # Crear imagen con mejor contraste
     img = qr.make_image(fill_color="black", back_color="white")
-    
+
     # Convertir a base64
     buffered = io.BytesIO()
     img.save(buffered, format="PNG", quality=100)
     qr_image = base64.b64encode(buffered.getvalue()).decode()
-    
+
     # Renderizar el HTML
     html = render_template('invoice_pdf.html', job=job, qr_image=qr_image)
-    
+
     # Convertir a PDF usando WeasyPrint
     from weasyprint import HTML
     pdf = HTML(string=html).write_pdf()
-    
+
     return Response(
         pdf,
         mimetype='application/pdf',
