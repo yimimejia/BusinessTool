@@ -87,8 +87,47 @@
           </table>
         </div>
       <div class="table-responsive">
-        <table class="table" id="jobsTable">
+        <table class="table table-striped" id="jobsTable">
           <thead>
+            <tr>
+              <th>ID</th>
+              <th>Factura</th>
+              <th>Cliente</th>
+              <th>Diseñador</th>
+              <th>Teléfono</th>
+              <th>Descripción</th>
+              <th>Fecha</th>
+              <th>Registrado por</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for job in pending_jobs %}
+            <tr>
+              <td>{{ job.id }}</td>
+              <td>{{ job.invoice_number }}</td>
+              <td>{{ job.client_name }}</td>
+              <td>{{ job.designer.name }}</td>
+              <td>{{ job.phone_number }}</td>
+              <td>{{ job.description }}</td>
+              <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
+              <td>{{ job.registered_by.name }}</td>
+              <td>
+                <span class="badge bg-warning">Pendiente</span>
+              </td>
+              <td>
+                <div class="btn-group">
+                  <a href="{{ url_for('main.approve_job', job_id=job.id) }}" class="btn btn-sm btn-success">
+                    <i class="bi bi-check-circle"></i> Aprobar
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
             <tr>
               <th>ID</th>
               <th>Factura</th>
