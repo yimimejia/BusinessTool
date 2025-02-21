@@ -37,12 +37,15 @@
     </div>
     <div class="card-body">
       <div class="table-responsive">
-        <table class="table">
+        <table class="table" id="jobsTable">
           <thead>
             <tr>
+              <th>ID</th>
               <th>Factura</th>
               <th>Cliente</th>
               <th>Teléfono</th>
+              <th>Descripción</th>
+              <th>Monto Total</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -50,22 +53,23 @@
           <tbody>
             {% for job in jobs %}
             <tr>
+              <td>{{ job.id }}</td>
               <td>{{ job.invoice_number }}</td>
               <td>{{ job.client_name }}</td>
-              <td>{{ job.client_phone }}</td>
+              <td>{{ job.phone_number }}</td>
+              <td>{{ job.description }}</td>
+              <td>${{ "%.2f"|format(job.total_amount) }}</td>
               <td>
-                {% if job.status == 'pending' %}
-                <span class="badge bg-warning">Pendiente</span>
-                {% else %}
-                <span class="badge bg-success">Completado</span>
-                {% endif %}
+                <span class="badge bg-{{ job.status_color }}">{{ job.status_text }}</span>
               </td>
               <td>
                 <div class="btn-group">
-                  {% if not job.is_completed %}
-                  <button class="btn btn-sm btn-success" onclick="completeJob({{ job.id }})">Completar</button>
+                  {% if job.status == 'pending' %}
+                  <button type="button" class="btn btn-success btn-sm" 
+                          onclick="completeJobWithAuth({{ job.id }})">
+                    Completar
+                  </button>
                   {% endif %}
-                  <a href="{{ url_for('main.send_job_photos', job_id=job.id) }}" class="btn btn-sm btn-primary">Enviar Fotos</a>
                 </div>
               </td>
             </tr>
@@ -76,4 +80,85 @@
     </div>
   </div>
 </div>
+
+<!-- Modal para autorización -->
+<div class="modal fade" id="authModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Autorización Requerida</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="authForm">
+          <div class="mb-3">
+            <label for="authUsername" class="form-label">Usuario Administrador</label>
+            <input type="text" class="form-control" id="authUsername" required>
+          </div>
+          <div class="mb-3">
+            <label for="authPassword" class="form-label">Contraseña</label>
+            <input type="password" class="form-control" id="authPassword" required>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="submitAuth">Autorizar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  let currentJobId = null;
+
+  function completeJobWithAuth(jobId) {
+    currentJobId = jobId;
+    const modal = new bootstrap.Modal(document.getElementById('authModal'));
+    modal.show();
+  }
+
+  document.getElementById('submitAuth').addEventListener('click', function() {
+    const username = document.getElementById('authUsername').value;
+    const password = document.getElementById('authPassword').value;
+
+    fetch('/api/complete_job', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        job_id: currentJobId,
+        auth_username: username,
+        auth_password: password
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        location.reload();
+      } else {
+        alert('Error: ' + data.message);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Error al procesar la solicitud');
+    });
+  });
+
+  // Inicializar DataTable
+  $(document).ready(function() {
+    $('#jobsTable').DataTable({
+      language: {
+        url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+      },
+      order: [[0, 'desc']]
+    });
+  });
+</script>
 {% endblock %}
