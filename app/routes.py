@@ -349,22 +349,19 @@ def generate_invoice(job_id):
 @login_required
 def dashboard():
     """Vista del dashboard con estadísticas unificadas"""
+    # Estadísticas unificadas para todos los roles
+    stats = {
+        'total_jobs': Job.query.count(),
+        'completed_jobs': CompletedJob.query.count(),
+        'pending_jobs': PendingJob.query.count(),
+        'delivered_jobs': DeliveredJob.query.count()
+    }
+
+    # Obtener trabajos según el rol
     if current_user.is_staff:
-        # Vista para admin/supervisor
         jobs = Job.query.order_by(Job.created_at.desc()).all()
-        stats = {
-            'total_jobs': len(jobs),
-            'completed_jobs': CompletedJob.query.count(),
-            'pending_jobs': Job.query.filter_by(status='pending').count(),
-        }
     else:
-        # Vista para diseñador
         jobs = Job.query.filter_by(designer_id=current_user.id).order_by(Job.created_at.desc()).all()
-        stats = {
-            'total_jobs': len(jobs),
-            'completed_jobs': CompletedJob.query.filter_by(designer_id=current_user.id).count(),
-            'pending_jobs': Job.query.filter_by(designer_id=current_user.id, status='pending').count(),
-        }
 
     if current_user.is_admin:
         # Vista de administrador
