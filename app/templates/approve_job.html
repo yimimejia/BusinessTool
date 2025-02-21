@@ -5,11 +5,13 @@
     <div class="card">
         <div class="card-body">
             <form method="POST" action="{{ url_for('main.approve_job', job_id=job.id) }}">
+                {% if current_user.is_staff %}
                 <div class="mb-3">
                     <label for="invoice_number" class="form-label">Número de Factura</label>
                     <input type="text" class="form-control" id="invoice_number" name="invoice_number" 
                            value="{{ job.invoice_number }}" required>
                 </div>
+                {% endif %}
 
                 <div class="mb-3">
                     <label for="client_name" class="form-label">Nombre del Cliente</label>
@@ -64,6 +66,12 @@
                 </div>
 
                 <button type="submit" class="btn btn-primary">Aprobar Trabajo</button>
+                {% if job.phone_number %}
+                <a href="https://wa.me/{{ job.phone_number.replace('+', '').replace('-', '') }}?text=Hola, adjunto la factura de su trabajo" 
+                   class="btn btn-success" target="_blank">
+                    <i class="bi bi-whatsapp"></i> Enviar Factura por WhatsApp
+                </a>
+                {% endif %}
                 <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Cancelar</a>
             </form>
         </div>
