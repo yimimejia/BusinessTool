@@ -45,7 +45,7 @@
           <tbody>
             {% for job in jobs %}
             <tr>
-              <td>{{ job.invoice_number }}</td>
+              <td><a href="{{ url_for('main.generate_job_pdf', job_id=job.id) }}" target="_blank" class="text-primary text-decoration-none">{{ job.invoice_number }}</a></td>
               <td>{{ job.client_name }}</td>
               <td>{{ job.designer.name }}</td>
               <td>
@@ -87,7 +87,7 @@
           <tbody>
             {% for job in jobs %}
             <tr>
-              <td>{{ job.invoice_number }}</td>
+              <td><a href="{{ url_for('main.generate_job_pdf', job_id=job.id) }}" target="_blank" class="text-primary text-decoration-none">{{ job.invoice_number }}</a></td>
               <td>{{ job.client_name }}</td>
               <td>{{ job.designer.name }}</td>
               <td>
