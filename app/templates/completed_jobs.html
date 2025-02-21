@@ -3,106 +3,66 @@
 {% block title %}Trabajos Completados{% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header">
-        <h4 class="mb-0">Trabajos Completados</h4>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover" id="completedJobsTable">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Factura</th>
-                        <th>Cliente</th>
-                        <th>Teléfono</th>
-                        <th>Descripción</th>
-                        <th>Fecha</th>
-                        <th>Registrado por</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for job in jobs %}
-                    <tr>
-                        <td>{{ job.id }}</td>
-                        <td>{{ job.invoice_number }}</td>
-                        <td>{{ job.client_name }}</td>
-                        <td>{{ job.phone_number }}</td>
-                        <td>{{ job.description }}</td>
-                        <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
-                        <td>{{ job.registered_by.name }}</td>
-                        <td>
-                            {% if job.is_called %}
-                            <span class="badge bg-info">Llamado</span>
-                            {% else %}
-                            <span class="badge bg-warning">Pendiente llamar</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if not job.is_called %}
-                            <form method="POST" action="{{ url_for('main.mark_called', job_id=job.id) }}" class="d-inline">
-                                <button type="submit" class="btn btn-info btn-sm">Llamado</button>
-                            </form>
-                            {% endif %}
-                            <form method="POST" action="{{ url_for('main.mark_delivered', job_id=job.id) }}" class="d-inline ms-2">
-                                <button type="submit" class="btn btn-success btn-sm">Entregado</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %} %}
-                    <tr {% if not job.is_called %}class="table-warning"{% endif %}>
-                        <td>
-                            <a href="{{ url_for('main.generate_invoice', job_id=job.id) }}" class="text-primary">
-                                {{ job.id }}
-                            </a>
-                        </td>
-                        <td>{{ job.invoice_number }}</td>
-                        <td>{{ job.client_name }}</td>
-                        <td>
-                            {% if job.phone_number %}
-                            <a href="https://wa.me/{{ job.phone_number|replace('+', '')|replace('-', '') }}?text=Hola {{ job.client_name }}, le informamos que su trabajo en FOTO VIDEO MOJICA está listo para recoger. ¡Gracias por su preferencia!" 
-                               target="_blank" class="text-decoration-none">
-                                <i class="bi bi-whatsapp text-success"></i> {{ job.phone_number }}
-                            </a>
-                            {% endif %}
-                        </td>
-                        <td>{{ job.description }}</td>
-                        <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
-                        <td>{{ job.registered_by.name }}</td>
-                        <td>
-                            {% if job.is_delivered %}
-                                <span class="badge bg-success">Entregado</span>
-                            {% elif job.is_called %}
-                                <span class="badge bg-info">Cliente Localizado</span>
-                            {% else %}
-                                <span class="badge bg-warning">Pendiente de Llamar</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="btn-group">
-                                {% if current_user.is_admin %}
-                                    {% if not job.is_called %}
-                                    <form method="POST" action="{{ url_for('main.mark_called', job_id=job.id) }}" class="d-inline">
-                                        <button type="submit" class="btn btn-primary btn-sm">
-                                            <i class="bi bi-telephone"></i> Llamar
-                                        </button>
-                                    </form>
-                                    {% elif not job.is_delivered %}
-                                    <form method="POST" action="{{ url_for('main.mark_delivered', job_id=job.id) }}" class="d-inline">
-                                        <button type="submit" class="btn btn-success btn-sm">
-                                            <i class="bi bi-check-circle"></i> Marcar Entregado
-                                        </button>
-                                    </form>
-                                    {% endif %}
+<div class="container py-4">
+    <div class="card">
+        <div class="card-header">
+            <h4 class="mb-0">Trabajos Completados</h4>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Factura</th>
+                            <th>Cliente</th>
+                            <th>Teléfono</th>
+                            <th>Descripción</th>
+                            <th>Fecha</th>
+                            <th>Registrado por</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in jobs %}
+                        <tr>
+                            <td>{{ job.id }}</td>
+                            <td>{{ job.invoice_number }}</td>
+                            <td>{{ job.client_name }}</td>
+                            <td>
+                                {% if job.phone_number %}
+                                <a href="https://wa.me/{{ job.phone_number|replace('+', '')|replace('-', '') }}?text=Hola {{ job.client_name }}, le informamos que su trabajo en FOTO VIDEO MOJICA está listo para recoger. ¡Gracias por su preferencia!" 
+                                   target="_blank" class="text-decoration-none">
+                                    <i class="bi bi-whatsapp text-success"></i> {{ job.phone_number }}
+                                </a>
                                 {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                            </td>
+                            <td>{{ job.description }}</td>
+                            <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
+                            <td>{{ job.registered_by.name }}</td>
+                            <td>
+                                {% if job.is_called %}
+                                <span class="badge bg-info">Llamado</span>
+                                {% else %}
+                                <span class="badge bg-warning">Pendiente llamar</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if not job.is_called %}
+                                <form method="POST" action="{{ url_for('main.mark_called', job_id=job.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-info btn-sm">Llamado</button>
+                                </form>
+                                {% endif %}
+                                <form method="POST" action="{{ url_for('main.mark_delivered', job_id=job.id) }}" class="d-inline ms-2">
+                                    <button type="submit" class="btn btn-success btn-sm">Entregado</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
