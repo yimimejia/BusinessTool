@@ -31,9 +31,13 @@ document.addEventListener('DOMContentLoaded', function() {
             </thead>
             <tbody>
                 {% for job in jobs %}
-                <tr>
+                <tr {% if job.is_called %}class="text-danger text-decoration-line-through"{% endif %}>
                     <td>{{ job.id }}</td>
-                    <td><a href="{{ url_for('main.generate_job_pdf', job_id=job.id) }}" target="_blank" class="text-decoration-none">{{ job.client_name }}</a></td>
+                    <td>
+                        <a href="{{ url_for('main.generate_job_pdf', job_id=job.id) }}" target="_blank" class="text-decoration-none {% if job.is_called %}text-danger{% endif %}">
+                            {{ job.client_name }}
+                        </a>
+                    </td>
                     <td>{{ job.invoice_number }}</td>
                     <td>{{ job.designer.name }}</td>
                     <td>
@@ -45,10 +49,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     </td>
                     <td>
                         <div class="btn-group">
-                            {% if job.can_send_photos %}
-                            <button type="button" class="btn btn-sm btn-info" onclick="showPhotoUpload({{ job.id }})">
-                                <i class="bi bi-camera"></i> Enviar Fotos
-                            </button>
+                            {% if current_user.is_designer %}
+                                {% if job.can_send_photos %}
+                                <button type="button" class="btn btn-sm btn-info" onclick="showPhotoUpload({{ job.id }})">
+                                    <i class="bi bi-camera"></i> Enviar Fotos
+                                </button>
+                                {% endif %}
+                            {% else %}
+                                {% if not job.is_called %}
+                                <form action="{{ url_for('main.mark_called', job_id=job.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-warning">
+                                        <i class="bi bi-telephone"></i> Llamar
+                                    </button>
+                                </form>
+                                {% else %}
+                                <form action="{{ url_for('main.mark_delivered', job_id=job.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-success">
+                                        <i class="bi bi-check-circle"></i> Entregado
+                                    </button>
+                                </form>
+                                {% endif %}
+                                <button type="button" class="btn btn-sm btn-info" onclick="showPhotoUpload({{ job.id }})">
+                                    <i class="bi bi-camera"></i> Enviar Fotos
+                                </button>
                             {% endif %}
                         </div>
                     </td>
@@ -91,13 +114,12 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
 $(document).ready(function() {
-    // Inicializar DataTables
+    // Inicializar DataTables con configuración en español
     $('#completedJobsTable').DataTable({
         language: {
             url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
