@@ -25,6 +25,33 @@
                 </thead>
                 <tbody>
                     {% for job in jobs %}
+                    <tr>
+                        <td>{{ job.id }}</td>
+                        <td>{{ job.invoice_number }}</td>
+                        <td>{{ job.client_name }}</td>
+                        <td>{{ job.phone_number }}</td>
+                        <td>{{ job.description }}</td>
+                        <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ job.registered_by.name }}</td>
+                        <td>
+                            {% if job.is_called %}
+                            <span class="badge bg-info">Llamado</span>
+                            {% else %}
+                            <span class="badge bg-warning">Pendiente llamar</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if not job.is_called %}
+                            <form method="POST" action="{{ url_for('main.mark_called', job_id=job.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-info btn-sm">Llamado</button>
+                            </form>
+                            {% endif %}
+                            <form method="POST" action="{{ url_for('main.mark_delivered', job_id=job.id) }}" class="d-inline ms-2">
+                                <button type="submit" class="btn btn-success btn-sm">Entregado</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %} %}
                     <tr {% if not job.is_called %}class="table-warning"{% endif %}>
                         <td>
                             <a href="{{ url_for('main.generate_invoice', job_id=job.id) }}" class="text-primary">
