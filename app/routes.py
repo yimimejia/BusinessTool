@@ -43,17 +43,19 @@ def get_pending_photos_count():
         return PendingJob.query.filter_by(pending_type='photo_verification').count()
     return 0
 
-def log_activity(action_type, message):
-    """Registra la actividad del usuario en el log"""
-    try:
-        if current_user.is_authenticated:
-            logger.info(f"Usuario {current_user.username}: {message}")
-        else:
-            logger.info(message)
-    except Exception as e:
-        logger.error(f"Error registrando actividad: {str(e)}")
+@bp.route('/')
+def index():
+    """Ruta principal que redirige al dashboard o login"""
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+    return redirect(url_for('main.login'))
 
-# Rutas para trabajos pendientes
+@bp.route('/dashboard')
+@login_required
+def dashboard():
+    """Vista del dashboard"""
+    return render_template('dashboard.html')
+
 @bp.route('/pending-jobs')
 @login_required
 @staff_required
@@ -71,6 +73,7 @@ def approve_pending_work(job_id):
 
     if request.method == 'POST':
         invoice_number = request.form.get('invoice_number')
+        total_amount = request.form.get('total_amount')
         deposit_amount = request.form.get('deposit_amount')
         tags = request.form.get('tags', '').strip()
 
@@ -95,11 +98,6 @@ def approve_pending_work(job_id):
             db.session.delete(job)
             db.session.commit()
 
-            log_activity(
-                'trabajo_aprobado',
-                f"Trabajo aprobado para {job.client_name} (Factura: {invoice_number})"
-            )
-
             flash('Trabajo aprobado exitosamente', 'success')
             return redirect(url_for('main.view_pending_jobs'))
 
@@ -116,12 +114,6 @@ def reject_pending_work(job_id):
     job = PendingJob.query.get_or_404(job_id)
 
     try:
-        # Registrar el rechazo en el log
-        log_activity(
-            'trabajo_rechazado',
-            f"Trabajo rechazado - Cliente: {job.client_name}"
-        )
-
         # Eliminar el trabajo pendiente
         db.session.delete(job)
         db.session.commit()
@@ -139,3 +131,10 @@ def utility_processor():
         pending_jobs_count=get_pending_jobs_count(),
         pending_photos_count=get_pending_photos_count()
     )
+
+@bp.route('/login', methods=['GET', 'POST'])
+def login():
+    """Vista de login"""
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+    return render_template('login.html')
