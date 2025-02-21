@@ -10,13 +10,11 @@ body {
     min-height: 100vh;
 }
 
-.stats-panel {
-    display: flex;
-    flex-direction: column;
+.dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
     gap: 15px;
-    max-width: 500px;
-    margin: 20px auto;
-    padding: 15px;
+    margin: 20px;
 }
 
 .stat-card {
