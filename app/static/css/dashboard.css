@@ -1,3 +1,14 @@
+body {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    background-color: #1a1e24;
+    color: var(--bs-body-color);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+}
 
 .stats-panel {
     display: flex;
