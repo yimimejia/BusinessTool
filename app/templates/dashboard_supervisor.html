@@ -36,56 +36,6 @@
       <a href="{{ url_for('main.new_pending_job') }}" class="btn btn-primary">Nuevo Trabajo</a>
     </div>
     <div class="card-body">
-        <div class="table-responsive">
-          <table class="table" id="jobsTable">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Factura</th>
-                <th>Cliente</th>
-                <th>Diseñador</th>
-                <th>Teléfono</th>
-                <th>Descripción</th>
-                <th>Fecha</th>
-                <th>Registrado por</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for job in pending_jobs %}
-              <tr>
-                <td>
-                  <a href="{{ url_for('main.show_job_qr', job_id=job.id) }}" class="text-primary">
-                    {{ job.id }}
-                  </a>
-                </td>
-                <td>{{ job.invoice_number }}</td>
-                <td>{{ job.client_name }}</td>
-                <td>{{ job.designer.name }}</td>
-                <td>{{ job.phone_number }}</td>
-                <td>{{ job.description }}</td>
-                <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
-                <td>{{ job.registered_by.name }}</td>
-                <td>
-                  {% if job.pending_type == 'new_job' %}
-                  <span class="badge bg-warning">Por Verificar</span>
-                  {% elif job.pending_type == 'photo_verification' %}
-                  <span class="badge bg-info">Fotos Pendientes</span>
-                  {% endif %}
-                </td>
-                <td>
-                  <div class="btn-group">
-                    <a href="{{ url_for('main.approve_job', job_id=job.id) }}" class="btn btn-sm btn-success">
-                      <i class="bi bi-check-circle"></i> Aprobar
-                    </a>
-                  </div>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
       <div class="table-responsive">
         <table class="table table-striped" id="jobsTable">
           <thead>
@@ -105,46 +55,6 @@
           <tbody>
             {% for job in pending_jobs %}
             <tr>
-              <td>{{ job.id }}</td>
-              <td>{{ job.invoice_number }}</td>
-              <td>{{ job.client_name }}</td>
-              <td>{{ job.designer.name }}</td>
-              <td>{{ job.phone_number }}</td>
-              <td>{{ job.description }}</td>
-              <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
-              <td>{{ job.registered_by.name }}</td>
-              <td>
-                <span class="badge bg-warning">Pendiente</span>
-              </td>
-              <td>
-                <div class="btn-group">
-                  <a href="{{ url_for('main.approve_job', job_id=job.id) }}" class="btn btn-sm btn-success">
-                    <i class="bi bi-check-circle"></i> Aprobar
-                  </a>
-                </div>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-            <tr>
-              <th>ID</th>
-              <th>Factura</th>
-              <th>Cliente</th>
-              <th>Diseñador</th>
-              <th>Teléfono</th>
-              <th>Descripción</th>
-              <th>Fecha</th>
-              <th>Registrado por</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for job in pending_jobs %}
-            {% if job.status != 'pending_verification' %}
-            <tr>
               <td>
                 <a href="{{ url_for('main.show_job_qr', job_id=job.id) }}" class="text-primary">
                   {{ job.id }}
@@ -158,24 +68,18 @@
               <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
               <td>{{ job.registered_by.name }}</td>
               <td>
-                {% if job.status == 'pending_verification' %}
-                <span class="badge bg-warning">Por Verificar</span>
-                {% elif job.status == 'pending_photos' %}
-                <span class="badge bg-info">Fotos Pendientes</span>
-                {% else %}
-                <span class="badge bg-secondary">Pendiente</span>
+                {% if job.status == 'pending' %}
+                <span class="badge bg-warning">Pendiente</span>
                 {% endif %}
               </td>
               <td>
                 <div class="btn-group">
-                  <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-sm btn-primary">Editar</a>
-                  <button class="btn btn-sm btn-success complete-job" data-job-id="{{ job.id }}">
-                    <i class="bi bi-check-circle"></i> Completar
-                  </button>
+                  <a href="{{ url_for('main.approve_job', job_id=job.id) }}" class="btn btn-sm btn-success">
+                    <i class="bi bi-check-circle"></i> Aprobar
+                  </a>
                 </div>
               </td>
             </tr>
-            {% endif %}
             {% endfor %}
           </tbody>
         </table>
@@ -183,6 +87,7 @@
     </div>
   </div>
 </div>
+{% endblock %}
 
 <!-- Modal de Autenticación -->
 <div class="modal fade" id="completeModal" tabindex="-1">
