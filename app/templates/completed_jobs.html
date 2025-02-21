@@ -64,22 +64,58 @@ document.addEventListener('DOMContentLoaded', function() {
                             <td style="min-width: 200px;">
                                 <div class="d-flex gap-2">
                                     {% if current_user.is_designer %}
-                                    <div class="dropdown d-inline">
-                                        <button type="button" class="btn btn-success btn-sm dropdown-toggle" type="button" id="whatsappMenu{{ job.id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <div class="d-inline">
+                                        <button type="button" class="btn btn-success btn-sm" onclick="document.getElementById('photo-input-{{ job.id }}').click()">
                                             Enviar fotos
                                         </button>
-                                        <div class="dropdown-menu p-3" aria-labelledby="whatsappMenu{{ job.id }}">
-                                            <form method="POST" action="{{ url_for('main.send_job_photos', job_id=job.id) }}" enctype="multipart/form-data">
-                                                <input type="file" name="photos" multiple accept="image/*" class="d-none" id="photo-input-{{ job.id }}">
-                                                <button type="button" class="btn btn-primary w-100 mb-2" onclick="document.getElementById('photo-input-{{ job.id }}').click()">
-                                                    Seleccionar Fotos
-                                                </button>
-                                                <small class="d-block mb-2" id="selected-files-{{ job.id }}"></small>
-                                                <button type="submit" class="btn btn-success w-100">
-                                                    Enviar
-                                                </button>
-                                            </form>
+                                        
+                                        <!-- Modal para previsualización -->
+                                        <div class="modal fade" id="photoPreviewModal{{ job.id }}" tabindex="-1">
+                                            <div class="modal-dialog modal-lg">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Previsualización de Fotos</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <div id="photoPreview{{ job.id }}" class="row g-2"></div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <form method="POST" action="{{ url_for('main.send_job_photos', job_id=job.id) }}" enctype="multipart/form-data">
+                                                            <input type="file" name="photos" multiple accept="image/*" class="d-none" id="photo-input-{{ job.id }}" onchange="previewPhotos(event, {{ job.id }})">
+                                                            <button type="submit" class="btn btn-success">
+                                                                Enviar
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
+
+                                        <script>
+                                            function previewPhotos(event, jobId) {
+                                                const preview = document.getElementById('photoPreview' + jobId);
+                                                preview.innerHTML = '';
+                                                const files = event.target.files;
+
+                                                for (const file of files) {
+                                                    const reader = new FileReader();
+                                                    reader.onload = function(e) {
+                                                        const div = document.createElement('div');
+                                                        div.className = 'col-md-4';
+                                                        div.innerHTML = `
+                                                            <img src="${e.target.result}" class="img-fluid rounded" alt="Preview">
+                                                        `;
+                                                        preview.appendChild(div);
+                                                    }
+                                                    reader.readAsDataURL(file);
+                                                }
+
+                                                // Mostrar el modal
+                                                const modal = new bootstrap.Modal(document.getElementById('photoPreviewModal' + jobId));
+                                                modal.show();
+                                            }
+                                        </script>
                                     </div>
                                     {% endif %}
 
