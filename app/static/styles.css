@@ -194,3 +194,33 @@ body {
     opacity: 0.9;
     transition: opacity 0.2s ease-in-out;
 }
+
+/* Ajustar estilos de modales */
+.modal-dialog {
+    margin: 1.75rem auto;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 95%;
+    max-width: 500px;
+}
+
+.modal {
+    padding-right: 0 !important;
+}
+
+@media (max-width: 768px) {
+    .table-responsive {
+        margin-bottom: 0;
+    }
+
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+
+    .modal-content {
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+}
