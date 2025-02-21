@@ -78,7 +78,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="submitAuth">Autorizar</button>
+        <button type="button" class="btn btn-primary" id="submitAuth">Confirmar</button>
       </div>
     </div>
   </div>
@@ -88,62 +88,60 @@
 {% block scripts %}
 {{ super() }}
 <script>
+$(document).ready(function() {
+  // Inicializar DataTable
+  $('#jobsTable').DataTable({
+    language: {
+      url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+    },
+    order: [[0, 'desc']]
+  });
+
   let currentJobId = null;
   const authModal = new bootstrap.Modal(document.getElementById('authModal'));
   const errorDiv = document.getElementById('authError');
-  const submitAuthBtn = document.getElementById('submitAuth');
-  const authForm = document.getElementById('authForm');
 
   // Configurar botones de completar
   $('.complete-job').click(function() {
     currentJobId = $(this).data('job-id');
-    if (errorDiv) errorDiv.classList.add('d-none');
-    if (authForm) authForm.reset();
+    if (errorDiv) {
+      errorDiv.classList.add('d-none');
+    }
     authModal.show();
   });
 
-  if (submitAuthBtn) {
-    submitAuthBtn.addEventListener('click', function() {
-      const password = document.getElementById('authPassword').value;
+  // Manejar el envío del formulario de autenticación
+  $('#submitAuth').click(function() {
+    const password = $('#authPassword').val();
 
-      fetch(`/jobs/${currentJobId}/complete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          admin_password: password
-        })
+    fetch(`/jobs/${currentJobId}/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        admin_password: password
       })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          location.reload();
-        } else {
-          if (errorDiv) {
-            errorDiv.textContent = data.message || 'Error al procesar la solicitud';
-            errorDiv.classList.remove('d-none');
-          }
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        location.reload();
+      } else {
         if (errorDiv) {
-          errorDiv.textContent = 'Error al procesar la solicitud';
+          errorDiv.textContent = data.message || 'Error al completar el trabajo';
           errorDiv.classList.remove('d-none');
         }
-      });
-    });
-  }
-
-  // Inicializar DataTable
-  $(document).ready(function() {
-    $('#jobsTable').DataTable({
-      language: {
-        url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
-      },
-      order: [[0, 'desc']]
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      if (errorDiv) {
+        errorDiv.textContent = 'Error al procesar la solicitud';
+        errorDiv.classList.remove('d-none');
+      }
     });
   });
+});
 </script>
 {% endblock %}
