@@ -371,18 +371,39 @@ def generate_invoice(job_id):
 def dashboard():
     jobs_query = Job.query
 
-    if current_user.is_admin:
-        # Administrador ve todos los trabajos
-        jobs = jobs_query.all()
-    elif current_user.is_supervisor:
-        # Supervisor ve todos los trabajos pendientes y los últimos completados
-        jobs = jobs_query.order_by(Job.created_at.desc()).all()
-    else:
-        # Diseñador solo ve sus trabajos asignados
-        jobs = jobs_query.filter_by(designer_id=current_user.id).all()
-
-    # Estadísticas basadas en los trabajos filtrados
+    # Estadísticas base
     stats = {
+        'total_jobs': Job.query.count(),
+        'completed_jobs': CompletedJob.query.count(),
+        'pending_jobs': Job.query.filter_by(status='pending').count(),
+        'designers': User.query.filter_by(is_designer=True).count()
+    }
+
+    if current_user.is_admin:
+        # Vista de administrador
+        jobs = jobs_query.order_by(Job.created_at.desc()).all()
+        return render_template('dashboard_admin.html', jobs=jobs, stats=stats)
+    
+    elif current_user.is_supervisor:
+        # Vista de supervisor
+        pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
+        pending_verification_count = PendingJob.query.filter_by(pending_type='new_job').count()
+        pending_photos_count = PendingJob.query.filter_by(pending_type='photo_verification').count()
+        
+        return render_template('dashboard_supervisor.html',
+                             pending_jobs=pending_jobs,
+                             pending_verification_count=pending_verification_count,
+                             pending_photos_count=pending_photos_count,
+                             stats=stats)
+    
+    else:
+        # Vista de diseñador
+        jobs = jobs_query.filter_by(designer_id=current_user.id).order_by(Job.created_at.desc()).all()
+        designer_stats = {
+            'pending_jobs': Job.query.filter_by(designer_id=current_user.id, status='pending').count(),
+            'completed_jobs': CompletedJob.query.filter_by(designer_id=current_user.id).count()
+        }
+        return render_template('dashboard_designer.html', jobs=jobs, stats=designer_stats)
         'total_jobs': len(jobs),
         'completed_jobs': len([j for j in jobs if j.is_completed]),
         'pending_jobs': len([j for j in jobs if not j.is_completed]),

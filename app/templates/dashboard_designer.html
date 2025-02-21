@@ -1,0 +1,70 @@
+
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Panel de Diseñador</h2>
+  
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card bg-primary text-white mb-4">
+        <div class="card-body">
+          <h5>Mis Trabajos Pendientes</h5>
+          <h2>{{ stats.pending_jobs }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card bg-success text-white mb-4">
+        <div class="card-body">
+          <h5>Trabajos Completados</h5>
+          <h2>{{ stats.completed_jobs }}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">Mis Trabajos</h5>
+      <a href="{{ url_for('main.new_job') }}" class="btn btn-primary btn-sm">Nuevo Trabajo</a>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Factura</th>
+              <th>Cliente</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for job in jobs %}
+            <tr>
+              <td>{{ job.invoice_number }}</td>
+              <td>{{ job.client_name }}</td>
+              <td>
+                {% if job.status == 'pending' %}
+                <span class="badge bg-warning">Pendiente</span>
+                {% else %}
+                <span class="badge bg-success">Completado</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="btn-group">
+                  {% if not job.is_completed %}
+                  <button class="btn btn-sm btn-success" onclick="completeJob({{ job.id }})">Completar</button>
+                  {% endif %}
+                  <a href="{{ url_for('main.send_job_photos', job_id=job.id) }}" class="btn btn-sm btn-primary">Enviar Fotos</a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
