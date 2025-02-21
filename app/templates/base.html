@@ -111,30 +111,18 @@
     <!-- Splash Screen Animation -->
     <div class="splash-screen">
         <div class="logo-animation">
+            <div class="shine-effect"></div>
             <div class="logo-container">
                 <img src="{{ url_for('static', filename='icons/logo-192x192.png') }}" alt="Logo">
             </div>
             <div class="company-name-animated">
-                <span>F</span>
-                <span>O</span>
-                <span>T</span>
-                <span>O</span>
-                <span>&nbsp;</span>
-                <span>V</span>
-                <span>I</span>
-                <span>D</span>
-                <span>E</span>
-                <span>O</span>
-                <span>&nbsp;</span>
-                <span>M</span>
-                <span>O</span>
-                <span>J</span>
-                <span>I</span>
-                <span>C</span>
-                <span>A</span>
-            </div>
-            <div class="company-name">
-                FOTO VIDEO MOJICA
+                {% for letter in "FOTO VIDEO MOJICA" %}
+                    {% if letter == " " %}
+                        <span>&nbsp;</span>
+                    {% else %}
+                        <span style="animation: fadeInUp 0.5s ease-out {{ loop.index * 0.1 }}s forwards;">{{ letter }}</span>
+                    {% endif %}
+                {% endfor %}
             </div>
             <div class="underline"></div>
         </div>
