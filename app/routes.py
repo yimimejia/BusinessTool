@@ -19,6 +19,7 @@ import io
 import time
 import re
 from PIL import Image
+from sqlalchemy import or_
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -1401,45 +1402,34 @@ def public_job(qr_code):
 @bp.route('/jobs/pending/new', methods=['GET', 'POST'])
 @login_required
 def new_pending_job():
-    try:
-        if request.method == 'POST':
-            try:
-                phone_number = request.form.get('phone_number')
-                if not phone_number.startswith('+1'):
-                    phone_number = f'+1{phone_number}' if phone_number.startswith('1') else f'+1{phone_number}'
+    if request.method == 'POST':
+        try:
+            phone_number = request.form.get('phone_number')
+            if not phone_number.startswith('+1'):
+                phone_number = f'+1{phone_number}' if phone_number.startswith('1') else f'+1{phone_number}'
 
-                pending_job = PendingJob(
-                    description=request.form.get('description'),
-                    designer_id=request.form.get('designer_id'),
-                    registered_by_id=current_user.id,
-                    invoice_number=request.form.get('invoice_number'),
-                    client_name=request.form.get('client_name'),
-                    phone_number=phone_number
-                )
+            pending_job = PendingJob(
+                description=request.form.get('description'),
+                designer_id=request.form.get('designer_id'),
+                registered_by_id=current_user.id,
+                invoice_number=request.form.get('invoice_number'),
+                client_name=request.form.get('client_name'),
+                phone_number=phone_number
+            )
 
-                db.session.add(pending_job)
-                db.session.commit()
+            db.session.add(pending_job)
+            db.session.commit()
 
-                log_activity(
-                    'nuevo_trabajo_pendiente',
-                    f"Trabajo pendiente creado para {pending_job.client_name} (Factura: {pending_job.invoice_number})"
-                )
+            flash('Trabajo pendiente creado exitosamente', 'success')
+            # Redireccionar a la factura después de crear el trabajo
+            return redirect(url_for('main.generate_job_pdf', job_id=pending_job.id))
 
-                flash('Trabajo enviado para verificación', 'success')
-                return redirect(url_for('main.dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error al crear el trabajo pendiente', 'error')
+            return redirect(url_for('main.dashboard'))
 
-            except ValueError as e:
-                flash(str(e), 'error')
-                db.session.rollback()
-            except Exception as e:
-                flash('Error al crear el trabajo. Verifica el formato del número telefónico (+1-XXX-XXXXXXX)', 'error')
-                db.session.rollback()
-
-        designers = User.query.filter_by(is_admin=False, is_supervisor=False).all()
-        return render_template('new_pending_job.html', designers=designers)
-    except Exception as e:
-        flash(f'Error al cargar la página: {str(e)}', 'error')
-        return redirect(url_for('main.dashboard'))
+    return render_template('new_pending_job.html')
 
 @bp.route('/jobs/pending/verification', methods=['GET', 'POST'])
 @login_required
@@ -1795,3 +1785,33 @@ def api_complete_job():
         db.session.rollback()
         logger.error(f"Error al completar trabajo: {str(e)}")
         return jsonify({'success': False, 'message': 'Error al procesar la solicitud'})
+
+@bp.route('/search-invoices')
+@login_required
+def search_invoices():
+    """Búsqueda de facturas por nombre de cliente"""
+    query = request.args.get('query', '').strip()
+    invoices = []
+
+    if query:
+        # Buscar en trabajos pendientes y completados
+        invoices = (
+            Job.query.filter(
+                or_(
+                    Job.client_name.ilike(f'%{query}%'),
+                    Job.invoice_number.ilike(f'%{query}%')
+                )
+            )
+            .union(
+                CompletedJob.query.filter(
+                    or_(
+                        CompletedJob.client_name.ilike(f'%{query}%'),
+                        CompletedJob.invoice_number.ilike(f'%{query}%')
+                    )
+                )
+            )
+            .order_by(Job.created_at.desc())
+            .all()
+        )
+
+    return render_template('search_invoices.html', invoices=invoices)

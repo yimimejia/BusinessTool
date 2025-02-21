@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Búsqueda de Facturas{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4 class="mb-0">Búsqueda de Facturas</h4>
+        </div>
+        <div class="card-body">
+            <form method="GET" class="mb-4">
+                <div class="input-group">
+                    <input type="text" name="query" class="form-control" placeholder="Buscar por nombre de cliente..." value="{{ request.args.get('query', '') }}">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i> Buscar
+                    </button>
+                </div>
+            </form>
+
+            {% if invoices %}
+            <div class="table-responsive">
+                <table class="table table-striped" id="invoicesTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Cliente</th>
+                            <th>Factura</th>
+                            <th>Fecha</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for invoice in invoices %}
+                        <tr>
+                            <td>{{ invoice.id }}</td>
+                            <td>{{ invoice.client_name }}</td>
+                            <td>{{ invoice.invoice_number }}</td>
+                            <td>{{ invoice.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                {% if invoice.is_completed %}
+                                <span class="badge bg-success">Completado</span>
+                                {% else %}
+                                <span class="badge bg-warning">Pendiente</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('main.generate_job_pdf', job_id=invoice.id) }}" 
+                                   target="_blank" 
+                                   class="btn btn-sm btn-primary">
+                                    <i class="bi bi-file-pdf"></i> Ver Factura
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% elif request.args.get('query') %}
+            <div class="alert alert-info">
+                No se encontraron facturas que coincidan con la búsqueda.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    $('#invoicesTable').DataTable({
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+        },
+        order: [[3, 'desc']],
+        responsive: true
+    });
+});
+</script>
+{% endblock %}

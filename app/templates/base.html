@@ -177,6 +177,11 @@
                                     <i class="bi bi-check-circle-fill"></i> Trabajos Completados
                                 </a>
                             </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('main.search_invoices') }}">
+                                    <i class="bi bi-search"></i> Buscar Facturas
+                                </a>
+                            </li>
                             {% if current_user.is_authenticated %}
                             <li>
                                 <a class="dropdown-item" href="{{ url_for('main.new_pending_job') }}">
@@ -214,6 +219,11 @@
                     <li class="nav-item d-lg-none">
                         <a class="nav-link text-white" href="{{ url_for('main.completed_jobs') }}">
                             <i class="bi bi-check-circle-fill"></i> Trabajos Completados
+                        </a>
+                    </li>
+                    <li class="nav-item d-lg-none">
+                        <a class="nav-link text-white" href="{{ url_for('main.search_invoices') }}">
+                            <i class="bi bi-search"></i> Buscar Facturas
                         </a>
                     </li>
                     {% if current_user.is_authenticated %}
