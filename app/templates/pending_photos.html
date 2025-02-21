@@ -28,6 +28,30 @@
                         <div class="card-body">
                             <p>{{ job.description }}</p>
                             {% if job.photos %}
+                            <button class="btn btn-primary mb-3" onclick="showPhotos('{{ job.id }}')">
+                                <i class="bi bi-images"></i> Ver Fotos
+                            </button>
+                            
+                            <!-- Modal para mostrar fotos -->
+                            <div class="modal fade" id="photosModal{{ job.id }}" tabindex="-1">
+                                <div class="modal-dialog modal-lg">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Fotos del Trabajo</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="row g-3">
+                                                {% for photo in job.photos|fromjson %}
+                                                <div class="col-md-6">
+                                                    <img src="/static/{{ photo }}" class="img-fluid rounded" alt="Foto del trabajo">
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             <div class="row">
                                 {% for photo in job.photos|tojson|safe|fromjson %}
                                 <div class="col-6 col-md-4 mb-3">
@@ -93,19 +117,9 @@
 
 {% block scripts %}
 <script>
-    // Agregar estilos para las miniaturas
-    document.addEventListener('DOMContentLoaded', function() {
-        const style = document.createElement('style');
-        style.textContent = `
-            .thumbnail {
-                cursor: pointer;
-                transition: transform 0.2s;
-            }
-            .thumbnail:hover {
-                transform: scale(1.05);
-            }
-        `;
-        document.head.appendChild(style);
-    });
+    function showPhotos(jobId) {
+        const modal = new bootstrap.Modal(document.getElementById('photosModal' + jobId));
+        modal.show();
+    }
 </script>
 {% endblock %}
