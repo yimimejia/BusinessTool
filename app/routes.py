@@ -393,12 +393,16 @@ def dashboard():
             'designers_count': User.query.filter_by(is_designer=True).count()
         }
     else:
-        # Vista de diseñador
+        # Vista de diseñador - excluir trabajos pendientes por verificar
         jobs = Job.query.filter_by(designer_id=current_user.id).order_by(Job.created_at.desc()).all()
+        pending_jobs = PendingJob.query.filter_by(
+            designer_id=current_user.id,
+            pending_type='photo_verification'
+        ).all()
         stats = {
             'total_jobs': len(jobs),
             'completed_jobs': CompletedJob.query.filter_by(designer_id=current_user.id).count(),
-            'pending_jobs': Job.query.filter_by(designer_id=current_user.id, status='pending').count(),
+            'pending_jobs': len(pending_jobs),
             'delivered_jobs': DeliveredJob.query.filter_by(designer_id=current_user.id).count()
         }
 
