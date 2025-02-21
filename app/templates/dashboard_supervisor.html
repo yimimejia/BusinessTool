@@ -54,6 +54,7 @@
           </thead>
           <tbody>
             {% for job in pending_jobs %}
+            {% if job.status != 'pending_verification' %}
             <tr>
               <td>
                 <a href="{{ url_for('main.generate_invoice', job_id=job.id) }}" class="text-primary">
@@ -88,6 +89,7 @@
                 </div>
               </td>
             </tr>
+            {% endif %}
             {% endfor %}
           </tbody>
         </table>
