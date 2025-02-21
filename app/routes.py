@@ -1148,8 +1148,31 @@ def webauthn_authenticate_complete():
 
 @bp.route('/jobs/<int:job_id>/pdf')
 def generate_job_pdf(job_id):
-    """Genera un PDF de la factura - accesible públicamente"""
+    """Genera un PDF de la factura con código QR - accesible públicamente"""
     job = Job.query.get_or_404(job_id)
+    
+    # Generar QR si no existe
+    if not job.qr_code:
+        job.generate_qr_code()
+        db.session.commit()
+        
+    # Crear QR
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
+        box_size=10,
+        border=4
+    )
+    
+    # Agregar URL pública
+    qr_url = f"{request.url_root.rstrip('/')}/jobs/public/{job.qr_code}"
+    qr.add_data(qr_url)
+    qr.make(fit=True)
+    
+    # Crear imagen QR
+    img_buffer = io.BytesIO()
+    qr.make_image(fill_color="black", back_color="white").save(img_buffer, format='PNG')
+    qr_image = base64.b64encode(img_buffer.getvalue()).decode()
 
     # Generar el QR si no existe
     if not job.qr_code:

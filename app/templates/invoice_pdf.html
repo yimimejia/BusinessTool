@@ -151,3 +151,92 @@
     </div>
 </body>
 </html>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Factura - FOTO VIDEO MOJICA</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .invoice-details {
+            margin: 20px 0;
+        }
+        .qr-code {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .qr-code img {
+            width: 200px;
+            height: 200px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>FOTO VIDEO MOJICA</h1>
+        <h2>Factura Digital</h2>
+    </div>
+
+    <div class="invoice-details">
+        <table>
+            <tr>
+                <th>Factura #:</th>
+                <td>{{ job.invoice_number }}</td>
+                <th>Fecha:</th>
+                <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
+            </tr>
+            <tr>
+                <th>Cliente:</th>
+                <td>{{ job.client_name }}</td>
+                <th>Teléfono:</th>
+                <td>{{ job.phone_number }}</td>
+            </tr>
+            <tr>
+                <th>Descripción:</th>
+                <td colspan="3">{{ job.description }}</td>
+            </tr>
+            <tr>
+                <th>Total:</th>
+                <td>${{ "%.2f"|format(job.total_amount) if job.total_amount else '0.00' }}</td>
+                <th>Abono:</th>
+                <td>${{ "%.2f"|format(job.deposit_amount) if job.deposit_amount else '0.00' }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="qr-code">
+        <img src="data:image/png;base64,{{ qr_image }}" alt="Código QR">
+        <p>Escanee este código QR para verificar su factura</p>
+    </div>
+
+    <div class="footer">
+        <p>Gracias por su preferencia</p>
+        <p>FOTO VIDEO MOJICA - Sirviendo con calidad desde 1990</p>
+    </div>
+</body>
+</html>

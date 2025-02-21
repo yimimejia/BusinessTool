@@ -106,12 +106,29 @@ class Job(db.Model):
             self.qr_code = base64.urlsafe_b64encode(unique_id.encode()).decode()
         return self.qr_code
 
-    def get_whatsapp_link(self):
+    def get_whatsapp_link(self, with_invoice=False, invoice_url=None):
         if not self.phone_number:
             return None
+            
         phone = re.sub(r'[^\d]', '', self.phone_number)
-        message = f"Hola {self.client_name}, sus fotos están listas para ser revisadas."
-        return f"https://wa.me/{phone}?text={message}"
+        
+        if with_invoice and invoice_url:
+            message = f"""*FOTO VIDEO MOJICA*
+¡Gracias por su preferencia!
+
+*Detalles de su trabajo:*
+Cliente: {self.client_name}
+Factura: {self.invoice_number}
+Descripción: {self.description}
+Total: ${self.total_amount if self.total_amount else '0'}
+Abono: ${self.deposit_amount if self.deposit_amount else '0'}
+
+Para ver su factura digital y código QR, haga clic aquí:
+{invoice_url}"""
+        else:
+            message = f"Hola {self.client_name}, sus fotos están listas para ser revisadas."
+            
+        return f"https://wa.me/{phone}?text={urllib.parse.quote(message)}"
 
     @property
     def can_send_photos(self):
