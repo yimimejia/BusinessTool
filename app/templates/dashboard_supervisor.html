@@ -1,39 +1,38 @@
-
 {% extends "base.html" %}
 {% block content %}
 <div class="container mt-4">
   <h2>Panel de Supervisor</h2>
-  
-  <div class="row">
-    <div class="col-md-4">
-      <div class="card bg-primary text-white mb-4">
-        <div class="card-body">
-          <h5>Trabajos Pendientes</h5>
-          <h2>{{ stats.pending_jobs }}</h2>
+
+  <div class="row mb-4 justify-content-center">
+    <div class="col-md-4 mb-3">
+        <div class="card border-secondary">
+            <div class="card-body text-center py-3">
+                <h6 class="card-title mb-2">Total Trabajos</h6>
+                <h3 class="mb-0">{{ stats.total_jobs }}</h3>
+            </div>
         </div>
-      </div>
     </div>
-    <div class="col-md-4">
-      <div class="card bg-success text-white mb-4">
-        <div class="card-body">
-          <h5>Por Verificar</h5>
-          <h2>{{ pending_verification_count }}</h2>
+    <div class="col-md-4 mb-3">
+        <div class="card border-secondary">
+            <div class="card-body text-center py-3">
+                <h6 class="card-title mb-2">Completados</h6>
+                <h3 class="mb-0">{{ stats.completed_jobs }}</h3>
+            </div>
         </div>
-      </div>
     </div>
-    <div class="col-md-4">
-      <div class="card bg-warning text-white mb-4">
-        <div class="card-body">
-          <h5>Fotos Pendientes</h5>
-          <h2>{{ pending_photos_count }}</h2>
+    <div class="col-md-4 mb-3">
+        <div class="card border-secondary">
+            <div class="card-body text-center py-3">
+                <h6 class="card-title mb-2">Pendientes</h6>
+                <h3 class="mb-0">{{ stats.pending_jobs }}</h3>
+            </div>
         </div>
-      </div>
     </div>
   </div>
 
   <div class="card mt-4">
     <div class="card-header">
-      <h5>Trabajos por Verificar</h5>
+      <h5 class="mb-0">Trabajos por Verificar</h5>
     </div>
     <div class="card-body">
       <div class="table-responsive">
@@ -62,7 +61,7 @@
               </td>
               <td>
                 <div class="btn-group">
-                  <button class="btn btn-sm btn-success" onclick="approveJob({{ job.id }})">Aprobar</button>
+                  <a href="{{ url_for('main.approve_job', job_id=job.id) }}" class="btn btn-sm btn-success">Aprobar</a>
                   <button class="btn btn-sm btn-danger" onclick="rejectJob({{ job.id }})">Rechazar</button>
                 </div>
               </td>
