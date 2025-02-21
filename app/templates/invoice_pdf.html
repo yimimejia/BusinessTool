@@ -6,6 +6,7 @@
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
+            line-height: 1.6;
         }
         .header {
             text-align: center;
@@ -31,6 +32,12 @@
             text-align: center;
             font-size: 0.8em;
         }
+        .info-row {
+            margin-bottom: 10px;
+        }
+        .label {
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -40,16 +47,28 @@
     </div>
 
     <div class="invoice-details">
-        <p><strong>Cliente:</strong> {{ job.client_name }}</p>
-        <p><strong>Teléfono:</strong> {{ job.phone_number }}</p>
-        <p><strong>Fecha:</strong> {{ job.created_at.strftime('%Y-%m-%d') }}</p>
-        <p><strong>Descripción:</strong> {{ job.description }}</p>
+        <div class="info-row">
+            <span class="label">Cliente:</span> {{ job.client_name }}
+        </div>
+        {% if job.phone_number %}
+        <div class="info-row">
+            <span class="label">Teléfono:</span> {{ job.phone_number }}
+        </div>
+        {% endif %}
+        <div class="info-row">
+            <span class="label">Fecha:</span> {{ job.created_at.strftime('%d/%m/%Y') }}
+        </div>
+        <div class="info-row">
+            <span class="label">Descripción:</span> {{ job.description }}
+        </div>
     </div>
 
     <div class="total-section">
-        <p><strong>Total:</strong> ${{ "%.2f"|format(job.total_amount or 0) }}</p>
-        <p><strong>Abono:</strong> ${{ "%.2f"|format(job.deposit_amount or 0) }}</p>
-        <p><strong>Restante:</strong> ${{ "%.2f"|format((job.total_amount or 0) - (job.deposit_amount or 0)) }}</p>
+        <p><span class="label">Total:</span> ${{ "%.2f"|format(job.total_amount or 0) }}</p>
+        {% if job.deposit_amount %}
+        <p><span class="label">Abono:</span> ${{ "%.2f"|format(job.deposit_amount) }}</p>
+        <p><span class="label">Restante:</span> ${{ "%.2f"|format((job.total_amount or 0) - (job.deposit_amount or 0)) }}</p>
+        {% endif %}
     </div>
 
     <div class="qr-code">
@@ -59,7 +78,8 @@
 
     <div class="footer">
         <p>Gracias por su preferencia</p>
-        <p>FOTO VIDEO MOJICA - Sirviendo con calidad</p>
+        <p>FOTO VIDEO MOJICA - Sirviendo con calidad desde 1990</p>
+        <p><small>Este documento es una representación digital de su factura</small></p>
     </div>
 </body>
 </html>

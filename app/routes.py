@@ -309,7 +309,7 @@ def send_whatsapp(job_id):
         return redirect(url_for('main.dashboard'))
 
     # Generar enlace de factura
-    invoice_url = url_for('main.generate_job_pdf', job_id=job.id, _external=True)
+    invoice_url = url_for('main.generate_invoice', job_id=job.id, _external=True)
     
     # Obtener enlace de WhatsApp con la factura
     whatsapp_link = job.get_whatsapp_link(with_invoice=True, invoice_url=invoice_url)
@@ -325,25 +325,45 @@ def send_whatsapp(job_id):
 @bp.route('/generate_invoice/<int:job_id>')
 @login_required
 def generate_invoice(job_id):
-    job = Job.query.get_or_404(job_id)
-    
-    # Generate QR code with job info
-    qr = qrcode.QRCode(version=1, box_size=10, border=5)
-    qr.add_data(f"https://{request.host}/job/{job.id}")
-    qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="black", back_color="white")
-    
-    # Convert QR to base64 for embedding in HTML
-    buffered = io.BytesIO()
-    qr_img.save(buffered, format="PNG")
-    qr_code = base64.b64encode(buffered.getvalue()).decode()
-    
-    # Render invoice template
-    html = render_template('invoice_pdf.html', 
-                         job=job,
-                         qr_code=f"data:image/png;base64,{qr_code}")
-                         
-    return html
+    """Generar factura para un trabajo"""
+    try:
+        # Buscar primero en trabajos completados
+        job = CompletedJob.query.get(job_id)
+        if not job:
+            # Si no está en completados, buscar en trabajos pendientes
+            job = Job.query.get_or_404(job_id)
+
+        # Generar URL pública para el QR
+        if hasattr(job, 'qr_code') and job.qr_code:
+            qr_url = f"https://{request.host}/jobs/public/{job.qr_code}"
+        else:
+            qr_url = f"https://{request.host}/jobs/{job.id}"
+
+        # Generate QR code with job info
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=5
+        )
+        qr.add_data(qr_url)
+        qr.make(fit=True)
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+
+        # Convert QR to base64 for embedding in HTML
+        buffered = io.BytesIO()
+        qr_img.save(buffered, format="PNG")
+        qr_code = base64.b64encode(buffered.getvalue()).decode()
+
+        # Render invoice template
+        return render_template('invoice_pdf.html',
+                            job=job,
+                            qr_code=qr_code)
+
+    except Exception as e:
+        logger.error(f"Error generando factura: {str(e)}")
+        flash('Error al generar la factura. Por favor, inténtelo de nuevo.', 'error')
+        return redirect(url_for('main.completed_jobs'))
 
 @bp.route('/dashboard')
 @login_required
@@ -1589,7 +1609,7 @@ def pending_jobs():
         jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
         return render_template('pending_jobs.html', jobs=jobs)
     except Exception as e:
-        flash(f'Error al cargar trabajos pendientes: {str(e)}', 'error')
+        flash(f'Error al cargar trabajos pendientes: {str(e)}', '`error')
         return redirect(url_for('main.dashboard'))
 
 @bp.route('/jobs/<int:job_id>/approve', methods=['GET', 'POST'])
