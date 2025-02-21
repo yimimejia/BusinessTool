@@ -1286,6 +1286,18 @@ def generate_job_pdf(job_id):
         pdf,
         mimetype='application/pdf',
         headers={
+
+@bp.route('/gallery/<token>')
+def view_gallery(token):
+    """Vista pública para ver galería de fotos"""
+    from app.utils.links import verify_temporary_link
+    
+    photos = verify_temporary_link(token)
+    if not photos:
+        return render_template('photos_gallery.html', expired=True)
+    
+    return render_template('photos_gallery.html', photos=photos, expired=False)
+
             'Content-Disposition': f'attachment; filename=factura_{job.invoice_number}.pdf',
             'Content-Type': 'application/pdf'
         }
@@ -1411,15 +1423,17 @@ def approve_pending_job(job_id):
             # Si es verificación de fotos, aprobar y enviar por WhatsApp
             photos = json.loads(pending_job.photos) if pending_job.photos else []
 
-            # Preparar mensaje de WhatsApp con las fotos
-            clean_phone = pending_job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
-            photo_urls = [
-                f"{request.url_root.rstrip('/')}/static/{photo}"
-                for photo in photos
-            ]
+            # Generar enlace temporal para las fotos
+            from app.utils.links import generate_temporary_link
+            token = generate_temporary_link(photos)
+            gallery_url = f"{request.url_root.rstrip('/')}/gallery/{token}"
 
-            whatsapp_message = f"Hola {pending_job.client_name}, aquí están las fotos de su trabajo:\n\n"
-            whatsapp_message += "\n".join(photo_urls)
+            # Preparar mensaje de WhatsApp
+            clean_phone = pending_job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+            whatsapp_message = f"""Hola {pending_job.client_name}, aquí están las fotos de su trabajo:
+
+Para ver todas sus fotos, haga clic en el siguiente enlace (disponible por 3 días):
+{gallery_url}"""
 
             # Eliminar el trabajo pendiente
             db.session.delete(pending_job)
