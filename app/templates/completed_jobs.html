@@ -27,7 +27,7 @@
                     {% for job in jobs %}
                     <tr {% if not job.is_called %}class="table-warning"{% endif %}>
                         <td>
-                            <a href="{{ url_for('main.view_invoice', job_id=job.id) }}" class="text-primary">
+                            <a href="{{ url_for('main.generate_invoice', job_id=job.id) }}" class="text-primary">
                                 {{ job.id }}
                             </a>
                         </td>
@@ -43,7 +43,7 @@
                         </td>
                         <td>{{ job.description }}</td>
                         <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
-                        <td>{{ job.created_by.name }}</td>
+                        <td>{{ job.registered_by.name }}</td>
                         <td>
                             {% if job.is_delivered %}
                                 <span class="badge bg-success">Entregado</span>
