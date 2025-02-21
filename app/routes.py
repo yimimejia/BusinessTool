@@ -1379,33 +1379,49 @@ def approve_pending_job(job_id):
             return redirect(whatsapp_url)
 
         else:
-            # Crear el trabajo regular
-            job = Job(
-                description=pending_job.description,
-                designer_id=pending_job.designer_id,
-                registered_by_id=current_user.id,
-                invoice_number=request.form.get('invoice_number'),
-                client_name=pending_job.client_name,
-                phone_number=pending_job.phone_number,
-                total_amount=request.form.get('total_amount', type=float),
-                deposit_amount=request.form.get('deposit_amount', type=float),
-                tags=request.form.get('tags', '').strip()
-            )
+            try:
+                # Crear el trabajo regular
+                job = Job(
+                    description=pending_job.description,
+                    designer_id=pending_job.designer_id,
+                    registered_by_id=current_user.id,
+                    invoice_number=request.form.get('invoice_number'),
+                    client_name=pending_job.client_name,
+                    phone_number=pending_job.phone_number,
+                    total_amount=request.form.get('total_amount', type=float, default=0),
+                    deposit_amount=request.form.get('deposit_amount', type=float, default=0),
+                    tags=request.form.get('tags', '').strip()
+                )
 
-            # Generar código QR
-            job.generate_qr_code()
+                job.generate_qr_code()
+                db.session.add(job)
+                db.session.delete(pending_job)
+                db.session.commit()
 
-            db.session.add(job)
-            db.session.delete(pending_job)
-            db.session.commit()
+                log_activity(
+                    'trabajo_aprobado',
+                    f"Trabajo aprobado: {job.client_name} (Factura: {job.invoice_number})"
+                )
 
-            log_activity(
-                'trabajo_aprobado',
-                f"Trabajo aprobado: {job.client_name} (Factura: {job.invoice_number})"
-            )
-
-            flash('Trabajo aprobado exitosamente', 'success')
-            return redirect(url_for('main.pending_jobs'))
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({
+                        'success': True,
+                        'message': 'Trabajo aprobado exitosamente',
+                        'redirect': url_for('main.pending_jobs')
+                    })
+                
+                flash('Trabajo aprobado exitosamente', 'success')
+                return redirect(url_for('main.pending_jobs'))
+                
+            except Exception as e:
+                db.session.rollback()
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({
+                        'success': False,
+                        'message': str(e)
+                    }), 400
+                flash(f'Error al aprobar trabajo: {str(e)}', 'error')
+                return redirect(url_for('main.pending_jobs'))
 
     except Exception as e:
         db.session.rollback()

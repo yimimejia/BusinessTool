@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}Trabajos Pendientes por Verificar{% endblock %}
@@ -55,7 +54,7 @@
                                         <h5 class="modal-title">Aprobar Trabajo</h5>
                                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                     </div>
-                                    <form action="{{ url_for('main.pending_verification') }}" method="POST">
+                                    <form id="approveForm-{{ job.id }}" action="{{ url_for('main.approve_pending_job', job_id=job.id) }}" method="POST" onsubmit="return handleApproval(event, {{ job.id }})">
                                         <div class="modal-body">
                                             <div class="mb-3">
                                                 <label for="invoice_number" class="form-label">No. Factura</label>
@@ -63,7 +62,7 @@
                                             </div>
                                             <div class="mb-3">
                                                 <label for="total_amount" class="form-label">Monto Total</label>
-                                                <input type="number" step="0.01" class="form-control" id="total_amount" name="total_amount" required>
+                                                <input type="number" step="0.01" class="form-control" id="total_amount" name="total_amount" value="0">
                                             </div>
                                             <div class="mb-3">
                                                 <label for="deposit_amount" class="form-label">Abono</label>
@@ -122,4 +121,12 @@
         </div>
     </div>
 </div>
+
+<script>
+    function handleApproval(event, jobId) {
+        // Add any necessary client-side validation or processing here.
+        // For example, you could check if all fields are filled before submitting.
+        return true; // Allow form submission if validation passes
+    }
+</script>
 {% endblock %}
