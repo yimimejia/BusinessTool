@@ -1242,8 +1242,13 @@ def new_pending_job():
 @staff_required
 def pending_verification():
     """Ver trabajos pendientes de verificación"""
-    jobs = PendingJob.query.filter_by(pending_type='new_job').order_by(PendingJob.created_at.desc()).all()
-    return render_template('pending_jobs.html', jobs=jobs)
+    try:
+        jobs = PendingJob.query.filter_by(pending_type='new_job').order_by(PendingJob.created_at.desc()).all()
+        return render_template('pending_jobs.html', jobs=jobs)
+    except Exception as e:
+        logger.error(f"Error al obtener trabajos pendientes: {str(e)}")
+        flash('Error al cargar los trabajos pendientes', 'error')
+        return redirect(url_for('main.dashboard'))
 
 @bp.route('/jobs/<int:job_id>/approve', methods=['POST'])
 @login_required

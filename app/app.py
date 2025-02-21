@@ -14,10 +14,25 @@ login_manager = LoginManager()
 
 def create_app():
     app = Flask(__name__)
+    max_retries = 3
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        try:
+            app = Flask(__name__)
+            break
+        except Exception as e:
+            retry_count += 1
+            if retry_count == max_retries:
+                raise Exception(f"No se pudo inicializar la aplicación después de {max_retries} intentos")
+            time.sleep(1)
     app.secret_key = os.environ.get("SESSION_SECRET")
 
     # Database configuration
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+    database_url = os.environ.get("DATABASE_URL")
+if database_url and database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_recycle": 280,
         "pool_timeout": 30,
