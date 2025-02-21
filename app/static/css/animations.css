@@ -41,13 +41,14 @@
 }
 
 .company-name-animated span {
-    font-family: 'Arial', sans-serif;
+    font-family: 'Montserrat', sans-serif;
     font-size: 2.5em;
     font-weight: 700;
-    color: #ffffff;
+    color: #FFFFFF;
     opacity: 0;
     transform: translateY(20px);
     margin: 0 2px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
 }
 
 @keyframes fadeIn {
