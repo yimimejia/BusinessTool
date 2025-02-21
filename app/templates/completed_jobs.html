@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover" id="completedJobsTable">
                     <thead>
                         <tr>
                             <th>ID</th>
@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 Pendiente de pago completo
                                             </span>
                                         {% endif %}
-                                        
+
                                         <!-- Modal para previsualización -->
                                         <div class="modal fade" id="photoPreviewModal{{ job.id }}" tabindex="-1">
                                             <div class="modal-dialog modal-lg">
