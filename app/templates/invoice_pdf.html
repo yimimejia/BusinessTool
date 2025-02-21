@@ -37,6 +37,7 @@
         .details-row {
             display: flex;
             margin-bottom: 15px;
+            align-items: center;
         }
         .details-label {
             font-weight: bold;
@@ -121,11 +122,6 @@
     <div class="container">
         <div class="header">
             <h1>Factura Digital</h1>
-            {% if job.can_print %}
-            <button onclick="window.print()" class="print-button">
-                <i class="bi bi-printer"></i> Imprimir
-            </button>
-            {% endif %}
         </div>
 
         <div class="details-section">
@@ -143,25 +139,20 @@
             </div>
             <div class="details-row">
                 <span class="details-label">Fecha:</span>
-                <span class="details-value">{{ job.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                <span class="details-value">{{ job.created_at.strftime('%H:%M') }}</span>
             </div>
         </div>
 
         <div class="amounts-section">
             <div class="amount-row">
-                <span class="amount-label">Total:</span>
-                <span class="amount-value">${{ "%.2f"|format(job.total_amount or 0) }}</span>
-            </div>
-            {% if job.deposit_amount %}
-            <div class="amount-row">
                 <span class="amount-label">Abono:</span>
-                <span class="amount-value">${{ "%.2f"|format(job.deposit_amount) }}</span>
+                <span class="amount-value">${{ job.deposit_amount|int if job.deposit_amount else 0 }}</span>
             </div>
             <div class="amount-row">
-                <span class="amount-label">Pendiente:</span>
-                <span class="amount-value">${{ "%.2f"|format((job.total_amount or 0) - (job.deposit_amount or 0)) }}</span>
+                <span class="amount-label">Total:</span>
+                <span class="amount-value">${{ job.total_amount|int if job.total_amount else 0 }}</span>
             </div>
-            {% endif %}
+            
         </div>
 
         <div class="qr-section">
