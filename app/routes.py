@@ -374,24 +374,32 @@ def generate_invoice(job_id):
 @login_required
 def dashboard():
     """Vista del dashboard con estadísticas por rol"""
-    if current_user.is_admin or current_user.is_supervisor:
-        # Vista de admin/supervisor - mostrar trabajos pendientes
+    if current_user.is_admin:
+        # Vista de administrador - mostrar todos los trabajos y pendientes
+        jobs = Job.query.order_by(Job.created_at.desc()).all()
         pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
         stats = {
-            'total_jobs': Job.query.count(),
+            'total_jobs': len(jobs),
             'completed_jobs': CompletedJob.query.count(),
-            'pending_jobs': PendingJob.query.count(),
+            'pending_jobs': len(pending_jobs),
             'designers_count': User.query.filter_by(is_designer=True).count()
         }
-        pending_verification_count = PendingJob.query.filter_by(pending_type='new_job').count()
-        pending_photos_count = PendingJob.query.filter_by(pending_type='photo_verification').count()
-
-        return render_template('dashboard_supervisor.html',
+        return render_template('dashboard_admin.html', 
+                             jobs=jobs,
                              pending_jobs=pending_jobs,
-                             pending_verification_count=pending_verification_count,
-                             pending_photos_count=pending_photos_count,
                              stats=stats)
     elif current_user.is_supervisor:
+        # Vista de supervisor - mostrar trabajos regulares
+        jobs = Job.query.order_by(Job.created_at.desc()).all()
+        stats = {
+            'total_jobs': len(jobs),
+            'completed_jobs': CompletedJob.query.count(),
+            'pending_jobs': Job.query.filter_by(status='pending').count(),
+            'designers_count': User.query.filter_by(is_designer=True).count()
+        }
+        return render_template('dashboard_supervisor.html',
+                             jobs=jobs,
+                             stats=stats)
         # Vista de supervisor
         jobs = Job.query.order_by(Job.created_at.desc()).all()
         stats = {
