@@ -10,26 +10,28 @@
                 <tr>
                     <th>ID</th>
                     <th>Cliente</th>
-                    <th>Descripción</th>
                     <th>Factura</th>
                     <th>Teléfono</th>
                     <th>Diseñador</th>
-                    <th>Registrado por</th>
-                    <th>Fecha de Creación</th>
-                    <th>Fecha de Entrega</th>
+                    <th>Fecha Entrega</th>
                 </tr>
             </thead>
             <tbody>
                 {% for job in jobs %}
                 <tr>
                     <td>{{ job.id }}</td>
-                    <td>{{ job.client_name }}</td>
-                    <td>{{ job.description }}</td>
+                    <td>
+                        {{ job.client_name }}
+                        <small class="d-block text-muted">{{ job.description }}</small>
+                    </td>
                     <td>{{ job.invoice_number }}</td>
-                    <td>{{ job.phone_number }}</td>
+                    <td>
+                        {% set clean_phone = job.phone_number|replace(' ', '')|replace('-', '')|replace('(', '')|replace(')', '') %}
+                        <a href="https://wa.me/{{ clean_phone }}" target="_blank" class="text-decoration-none">
+                            <i class="bi bi-whatsapp text-success"></i> {{ job.phone_number }}
+                        </a>
+                    </td>
                     <td>{{ job.designer.name }}</td>
-                    <td>{{ job.registered_by.name }}</td>
-                    <td>{{ job.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                     <td>{{ job.delivered_at.strftime('%Y-%m-%d %H:%M') }}</td>
                 </tr>
                 {% endfor %}
@@ -41,10 +43,19 @@
 <script>
 $(document).ready(function() {
     $('#deliveredJobsTable').DataTable({
-        "order": [[ 8, "desc" ]],  // Ordenar por fecha de entrega (descendente)
+        "order": [[ 5, "desc" ]],  // Ordenar por fecha de entrega (descendente)
         "language": {
             "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
-        }
+        },
+        "responsive": true,
+        "columns": [
+            { "width": "5%" },  // ID
+            { "width": "25%" }, // Cliente + Descripción
+            { "width": "10%" }, // Factura
+            { "width": "15%" }, // Teléfono
+            { "width": "15%" }, // Diseñador
+            { "width": "15%" }  // Fecha
+        ]
     });
 });
 </script>

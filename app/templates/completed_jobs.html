@@ -9,15 +9,12 @@
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover" id="completedJobsTable">
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Descripción</th>
                         <th>Cliente</th>
                         <th>Teléfono</th>
-                        <th>Monto Total</th>
-                        <th>Monto Abonados</th>
                         <th>Estado</th>
                         <th>Acciones</th>
                     </tr>
@@ -26,8 +23,10 @@
                     {% for job in jobs %}
                     <tr {% if not job.is_called %}style="color: #dc3545; font-weight: bold;"{% endif %}>
                         <td>{{ job.id }}</td>
-                        <td>{{ job.description }}</td>
-                        <td>{{ job.client_name }}</td>
+                        <td>
+                            {{ job.client_name }}
+                            <small class="d-block text-muted">{{ job.description }}</small>
+                        </td>
                         <td>
                             {% set clean_phone = job.phone_number|replace(' ', '')|replace('-', '')|replace('(', '')|replace(')', '') %}
                             <a href="https://wa.me/{{ clean_phone }}?text=Hola {{ job.client_name }}, le informamos que su trabajo en FOTO VIDEO MOJICA está listo para recoger." 
@@ -35,8 +34,6 @@
                                 <i class="bi bi-whatsapp text-success"></i> {{ job.phone_number }}
                             </a>
                         </td>
-                        <td>{{ job.total_amount }}</td>
-                        <td>{{ job.deposit_amount }}</td>
                         <td>
                             {% if job.is_delivered %}
                                 <span class="badge bg-success">Entregado</span>
@@ -62,58 +59,55 @@
                                 </form>
                                 {% endif %}
 
-                                <!-- Botón para enviar fotos -->
                                 {% if job.total_amount and job.deposit_amount and job.total_amount == job.deposit_amount %}
                                 <button type="button" class="btn btn-primary btn-sm" 
                                         data-bs-toggle="modal" 
                                         data-bs-target="#photoModal{{ job.id }}">
-                                    <i class="bi bi-camera"></i> Enviar Fotos
+                                    <i class="bi bi-camera"></i> Fotos
                                 </button>
                                 {% endif %}
                             </div>
 
-                            <!-- Modal para subir fotos -->
+                            <!-- Modal simplificado para fotos -->
                             <div class="modal fade" id="photoModal{{ job.id }}" tabindex="-1">
-                                <div class="modal-dialog modal-lg">
+                                <div class="modal-dialog">
                                     <div class="modal-content">
                                         <div class="modal-header">
-                                            <h5 class="modal-title">Enviar Fotos a {{ job.client_name }}</h5>
+                                            <h5 class="modal-title">Fotos - {{ job.client_name }}</h5>
                                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                         </div>
                                         {% if current_user.is_admin %}
-                                        <!-- Vista de administrador para aprobar fotos -->
+                                        <!-- Vista de administrador simplificada -->
                                         <div class="modal-body">
                                             {% set messages = get_job_photos(job.id) %}
                                             {% if messages %}
                                                 {% for message in messages %}
                                                     <div class="card mb-3">
-                                                        <div class="card-body">
-                                                            <h6 class="card-subtitle mb-2 text-muted">
-                                                                Enviado por: {{ message.sender.name }}
-                                                                el {{ message.created_at.strftime('%d/%m/%Y %H:%M') }}
-                                                            </h6>
-                                                            <p class="card-text">{{ message.content }}</p>
+                                                        <div class="card-body p-2">
+                                                            <small class="text-muted d-block mb-2">
+                                                                {{ message.sender.name }} - {{ message.created_at.strftime('%d/%m/%Y %H:%M') }}
+                                                            </small>
                                                             <div class="row g-2">
                                                                 {% for photo in message.get_photos() %}
-                                                                    <div class="col-md-4">
+                                                                    <div class="col-6">
                                                                         <img src="{{ url_for('static', filename=photo) }}" 
                                                                              class="img-fluid rounded" 
-                                                                             alt="Foto del trabajo">
+                                                                             alt="Foto">
                                                                     </div>
                                                                 {% endfor %}
                                                             </div>
                                                             {% if not message.is_approved %}
-                                                            <div class="mt-3">
+                                                            <div class="mt-2">
                                                                 <form action="{{ url_for('main.approve_photos', message_id=message.id) }}" 
                                                                       method="POST" class="d-inline">
-                                                                    <button type="submit" class="btn btn-success">
+                                                                    <button type="submit" class="btn btn-success btn-sm w-100">
                                                                         <i class="bi bi-check-circle"></i> Aprobar y Enviar
                                                                     </button>
                                                                 </form>
                                                             </div>
                                                             {% else %}
-                                                            <div class="mt-3">
-                                                                <span class="badge bg-success">
+                                                            <div class="mt-2">
+                                                                <span class="badge bg-success w-100">
                                                                     <i class="bi bi-check-circle"></i> Fotos Aprobadas
                                                                 </span>
                                                             </div>
@@ -122,18 +116,18 @@
                                                     </div>
                                                 {% endfor %}
                                             {% else %}
-                                                <p>No hay fotos pendientes de aprobación para este trabajo.</p>
+                                                <p class="text-center my-3">No hay fotos pendientes.</p>
                                             {% endif %}
                                         </div>
                                         {% else %}
-                                        <!-- Vista de diseñador para subir fotos -->
+                                        <!-- Vista de diseñador simplificada -->
                                         <form action="{{ url_for('main.send_job_photos', job_id=job.id) }}" 
                                               method="POST" 
                                               enctype="multipart/form-data">
                                             <div class="modal-body">
                                                 <div class="mb-3">
                                                     <label for="photos{{ job.id }}" class="form-label">
-                                                        Seleccionar Fotos
+                                                        <i class="bi bi-images"></i> Seleccionar Fotos
                                                     </label>
                                                     <input type="file" 
                                                            class="form-control" 
@@ -142,16 +136,16 @@
                                                            multiple 
                                                            accept="image/*" 
                                                            required>
-                                                    <div id="preview{{ job.id }}" class="mt-2 d-flex flex-wrap gap-2"></div>
+                                                    <div id="preview{{ job.id }}" class="mt-2 row g-2"></div>
                                                 </div>
                                                 <div class="mb-3">
                                                     <label for="message{{ job.id }}" class="form-label">
-                                                        Mensaje Adicional
+                                                        <i class="bi bi-chat-text"></i> Mensaje
                                                     </label>
                                                     <textarea class="form-control" 
                                                               id="message{{ job.id }}" 
                                                               name="message" 
-                                                              rows="3"></textarea>
+                                                              rows="2"></textarea>
                                                 </div>
                                             </div>
                                             <div class="modal-footer">
@@ -159,7 +153,7 @@
                                                     Cancelar
                                                 </button>
                                                 <button type="submit" class="btn btn-primary">
-                                                    <i class="bi bi-send"></i> Enviar para Aprobación
+                                                    <i class="bi bi-send"></i> Enviar
                                                 </button>
                                             </div>
                                         </form>
@@ -178,9 +172,19 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Manejar la vista previa de fotos para cada modal
+    // Inicializar DataTables
+    $('#completedJobsTable').DataTable({
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+        },
+        responsive: true,
+        order: [[0, 'desc']]
+    });
+
+    // Manejar la vista previa de fotos
     {% for job in jobs %}
     const photoInput{{ job.id }} = document.getElementById('photos{{ job.id }}');
     const previewDiv{{ job.id }} = document.getElementById('preview{{ job.id }}');
@@ -191,11 +195,13 @@ document.addEventListener('DOMContentLoaded', function() {
             for (let file of this.files) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
+                    const col = document.createElement('div');
+                    col.className = 'col-4';
                     const img = document.createElement('img');
                     img.src = e.target.result;
-                    img.classList.add('img-thumbnail');
-                    img.style.maxWidth = '100px';
-                    previewDiv{{ job.id }}.appendChild(img);
+                    img.className = 'img-fluid rounded';
+                    col.appendChild(img);
+                    previewDiv{{ job.id }}.appendChild(col);
                 }
                 reader.readAsDataURL(file);
             }
