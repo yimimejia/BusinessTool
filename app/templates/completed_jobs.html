@@ -50,11 +50,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>
                         <div class="btn-group">
                             {% if current_user.is_designer %}
-                                {% if job.can_send_photos %}
                                 <button type="button" class="btn btn-sm btn-info" onclick="showPhotoUpload({{ job.id }})">
                                     <i class="bi bi-camera"></i> Enviar Fotos
                                 </button>
-                                {% endif %}
                             {% else %}
                                 {% if not job.is_called %}
                                 <form action="{{ url_for('main.mark_called', job_id=job.id) }}" method="POST" class="d-inline">
