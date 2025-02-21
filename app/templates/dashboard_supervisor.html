@@ -57,7 +57,7 @@
             {% for job in pending_jobs %}
             <tr>
               <td>
-                <a href="{{ url_for('main.show_job_qr', job_id=job.id) }}" class="text-primary">
+                <a href="{{ url_for('main.generate_job_pdf', job_id=job.id) }}" class="text-primary">
                   {{ job.id }}
                 </a>
               </td>
