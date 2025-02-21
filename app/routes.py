@@ -374,16 +374,24 @@ def generate_invoice(job_id):
 @login_required
 def dashboard():
     """Vista del dashboard con estadísticas por rol"""
-    if current_user.is_admin:
-        # Vista de administrador
-        jobs = Job.query.order_by(Job.created_at.desc()).all()
+    if current_user.is_admin or current_user.is_supervisor:
+        # Vista de admin/supervisor - mostrar trabajos pendientes
+        pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
         stats = {
-            'total_jobs': len(jobs),
+            'total_jobs': Job.query.count(),
             'completed_jobs': CompletedJob.query.count(),
-            'pending_jobs': Job.query.filter_by(status='pending').count(),
+            'pending_jobs': PendingJob.query.count(),
             'designers_count': User.query.filter_by(is_designer=True).count()
         }
-    elif current_user.is_supervisor:
+        pending_verification_count = PendingJob.query.filter_by(pending_type='new_job').count()
+        pending_photos_count = PendingJob.query.filter_by(pending_type='photo_verification').count()
+
+        return render_template('dashboard_supervisor.html',
+                             pending_jobs=pending_jobs,
+                             pending_verification_count=pending_verification_count,
+                             pending_photos_count=pending_photos_count,
+                             stats=stats)
+    else:
         # Vista de supervisor
         jobs = Job.query.order_by(Job.created_at.desc()).all()
         stats = {
