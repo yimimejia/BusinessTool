@@ -4,12 +4,20 @@ html {
 }
 
 body {
-    background-color: #f8f9fa;
-    margin: 0;
-    padding: 0;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+}
+
+/* Allow text selection in input fields and textareas */
+input, textarea {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
 }
 
 .navbar {
@@ -69,11 +77,6 @@ body {
 }
 
 /* Estilos personalizados */
-body {
-    background-color: var(--bs-body-bg);
-    color: var(--bs-body-color);
-}
-
 .card {
     background-color: var(--bs-body-bg);
     border: 1px solid var(--bs-border-color);
