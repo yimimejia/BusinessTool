@@ -95,7 +95,6 @@ class User(UserMixin, db.Model):
         """Obtiene los trabajos pendientes del diseñador"""
         return Job.query.filter_by(designer_id=self.id, is_completed=False).all()
 
-
 class Notification(db.Model):
     __tablename__ = 'notifications'
     id = db.Column(db.Integer, primary_key=True)
@@ -273,7 +272,9 @@ class DeliveredJob(db.Model):
     registered_by = db.relationship('User', foreign_keys=[registered_by_id])
 
 class PendingJob(db.Model):
+    """Modelo para trabajos pendientes de verificación"""
     __tablename__ = 'pending_jobs'
+
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.String(255), nullable=False)
     designer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
@@ -282,57 +283,52 @@ class PendingJob(db.Model):
     client_name = db.Column(db.String(100))
     phone_number = db.Column(db.String(20))
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    qr_code = db.Column(db.String(100), unique=True)
     total_amount = db.Column(db.Numeric(10, 2))
     deposit_amount = db.Column(db.Numeric(10, 2))
     pending_type = db.Column(db.String(50), default='new_job')
-    photos = db.Column(db.Text)  # Para almacenar rutas de fotos en JSON
+    photos = db.Column(db.Text)
     original_job_id = db.Column(db.Integer)
     tags = db.Column(db.String(200))
     message = db.Column(db.Text)
+    qr_code = db.Column(db.String(100), unique=True)
 
     # Relationships
-    designer = db.relationship('User', foreign_keys=[designer_id])
-    registered_by = db.relationship('User', foreign_keys=[registered_by_id])
+    designer = db.relationship(
+        'User', 
+        foreign_keys=[designer_id],
+        backref=db.backref('pending_jobs_as_designer', lazy='dynamic')
+    )
+    registered_by = db.relationship(
+        'User', 
+        foreign_keys=[registered_by_id],
+        backref=db.backref('pending_jobs_as_registrar', lazy='dynamic')
+    )
+
+    def __init__(self, **kwargs):
+        super(PendingJob, self).__init__(**kwargs)
+        if not self.qr_code:
+            self.generate_qr_code()
+
+    def generate_qr_code(self):
+        """Genera un identificador único para el código QR"""
+        if not self.qr_code:
+            unique_id = f"{int(datetime.utcnow().timestamp())}-{random.randint(1000, 9999)}"
+            self.qr_code = base64.urlsafe_b64encode(unique_id.encode()).decode()
+        return self.qr_code
 
     @validates('phone_number')
     def validate_phone_number(self, key, phone_number):
         if not phone_number:
             return phone_number
 
-        # Eliminar cualquier caracter que no sea número
         cleaned_number = re.sub(r'[^\d]', '', phone_number)
-
-        # Si el número no empieza con 1, agregar el código de área
         if len(cleaned_number) == 10:
             cleaned_number = '1' + cleaned_number
         elif len(cleaned_number) > 11 or len(cleaned_number) < 10:
             raise ValueError('El número de teléfono debe tener 10 dígitos')
 
-        # Validar que empiece con 1
         if not cleaned_number.startswith('1'):
             raise ValueError('El número debe incluir el código de área (+1)')
 
-        # Formatear el número para almacenamiento: +1-XXX-XXXXXXX
         formatted_number = f'+{cleaned_number[0]}-{cleaned_number[1:4]}-{cleaned_number[4:]}'
         return formatted_number
-
-    def generate_qr_code(self):
-        """Genera un identificador único para el código QR"""
-        if not self.qr_code:
-            unique_id = f"{int(datetime.utcnow().timestamp())}-{self.id}-{random.randint(1000, 9999)}"
-            self.qr_code = base64.urlsafe_b64encode(unique_id.encode()).decode()
-        return self.qr_code
-
-    def to_job(self):
-        """Convierte el trabajo pendiente en un trabajo regular"""
-        return Job(
-            description=self.description,
-            designer_id=self.designer_id,
-            registered_by_id=self.registered_by_id,
-            invoice_number=self.invoice_number,
-            client_name=self.client_name,
-            phone_number=self.phone_number,
-            created_at=self.created_at,
-            tags=self.tags
-        )
