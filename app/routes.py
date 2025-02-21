@@ -323,12 +323,17 @@ def logout():
 @bp.route('/dashboard')
 @login_required
 def dashboard():
-    # Si es staff (admin o supervisor) ve todos los trabajos
-    if current_user.is_staff:
-        jobs = Job.query.all()
+    jobs_query = Job.query
+
+    if current_user.is_admin:
+        # Administrador ve todos los trabajos
+        jobs = jobs_query.all()
+    elif current_user.is_supervisor:
+        # Supervisor ve todos los trabajos pendientes y los últimos completados
+        jobs = jobs_query.order_by(Job.created_at.desc()).all()
     else:
-        # Si es diseñador, solo ve sus trabajos
-        jobs = Job.query.filter_by(designer_id=current_user.id).all()
+        # Diseñador solo ve sus trabajos asignados
+        jobs = jobs_query.filter_by(designer_id=current_user.id).all()
 
     # Estadísticas basadas en los trabajos filtrados
     stats = {
@@ -682,10 +687,22 @@ def completed_jobs():
 @login_required
 def complete_job(job_id):
     job = Job.query.get_or_404(job_id)
-    verification_code = request.form.get('admin_password')
+    admin_password = request.form.get('admin_password')
 
     if not current_user.is_staff and job.designer_id != current_user.id:
         flash('No tienes permiso para completar este trabajo', 'error')
+        return redirect(url_for('main.dashboard'))
+
+    # Verificar contraseña de administrador
+    valid_admin = False
+    admins = User.query.filter_by(is_admin=True).all()
+    for admin in admins:
+        if admin.check_password(admin_password):
+            valid_admin = True
+            break
+
+    if not valid_admin:
+        flash('Contraseña de administrador incorrecta', 'error')
         return redirect(url_for('main.dashboard'))
 
     # Verificar contraseña
@@ -739,18 +756,34 @@ def setup():
         username='admin',
         name='Administrador',
         is_admin=True,
+        is_supervisor=False,
+        is_designer=False,
         can_edit=True
     )
     admin.set_password('admin123')
     db.session.add(admin)
 
-    # Crear usuarios PC01-PC09
+    # Crear usuario supervisor
+    supervisor = User(
+        username='supervisor',
+        name='Supervisor',
+        is_admin=False,
+        is_supervisor=True,
+        is_designer=False,
+        can_edit=True
+    )
+    supervisor.set_password('super123')
+    db.session.add(supervisor)
+
+    # Crear usuarios PC01-PC09 (diseñadores)
     for i in range(1, 10):
         username = f'pc{i:02d}'
         user = User(
             username=username,
-            name=f'PC{i:02d}',  # Nombre también como PC01, PC02, etc.
+            name=f'PC{i:02d}',
             is_admin=False,
+            is_supervisor=False,
+            is_designer=True,
             can_edit=True
         )
         user.set_password('1245')
