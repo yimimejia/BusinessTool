@@ -30,3 +30,17 @@ def get_whatsapp_url(phone_number, message):
 def send_invoice_whatsapp(job, invoice_url):
     """Genera URL de WhatsApp para enviar factura"""
     return job.get_whatsapp_link(with_invoice=True, invoice_url=invoice_url)
+import urllib.parse
+
+def generate_whatsapp_link(phone_number, message):
+    """
+    Generate WhatsApp link with pre-filled message
+    """
+    # Remove any non-numeric characters from phone number
+    clean_number = ''.join(filter(str.isdigit, phone_number))
+    
+    # Encode message for URL
+    encoded_message = urllib.parse.quote(message)
+    
+    # Generate WhatsApp link
+    return f"https://wa.me/{clean_number}?text={encoded_message}"

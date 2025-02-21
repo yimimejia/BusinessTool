@@ -320,6 +320,42 @@ def logout():
     logout_user()
     return redirect(url_for('main.login'))
 
+@bp.route('/send_whatsapp/<int:job_id>')
+@login_required
+def send_whatsapp(job_id):
+    job = Job.query.get_or_404(job_id)
+    
+    if not job.client_phone:
+        flash('No hay número de teléfono registrado para este cliente', 'error')
+        return redirect(url_for('main.dashboard'))
+        
+    message = f"Hola {job.client_name}, tu trabajo está listo para recoger en FOTO VIDEO MOJICA."
+    whatsapp_link = generate_whatsapp_link(job.client_phone, message)
+    return redirect(whatsapp_link)
+
+@bp.route('/generate_invoice/<int:job_id>')
+@login_required
+def generate_invoice(job_id):
+    job = Job.query.get_or_404(job_id)
+    
+    # Generate QR code with job info
+    qr = qrcode.QRCode(version=1, box_size=10, border=5)
+    qr.add_data(f"https://{request.host}/job/{job.id}")
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill_color="black", back_color="white")
+    
+    # Convert QR to base64 for embedding in HTML
+    buffered = io.BytesIO()
+    qr_img.save(buffered, format="PNG")
+    qr_code = base64.b64encode(buffered.getvalue()).decode()
+    
+    # Render invoice template
+    html = render_template('invoice_pdf.html', 
+                         job=job,
+                         qr_code=f"data:image/png;base64,{qr_code}")
+                         
+    return html
+
 @bp.route('/dashboard')
 @login_required
 def dashboard():
