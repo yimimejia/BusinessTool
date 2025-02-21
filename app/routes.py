@@ -21,7 +21,6 @@ import time
 import re
 from PIL import Image
 
-
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -790,7 +789,7 @@ def completed_jobs():
 
     return render_template('completed_jobs.html', jobs=jobs)
 
-@bp.route('/jobs/<int:job_id>/complete', methods=['POST'])
+@bp.route('/jobs/<int:int:job_id>/complete', methods=['POST'])
 @login_required
 def complete_job(job_id):
     """Completar un trabajo y moverlo a la tabla de trabajos completados"""    # Obtener contraseña del admin (ya sea de JSON o form data)
@@ -859,14 +858,17 @@ def search_invoices():
     invoices = []
 
     if query:
-        # Seleccionar las columnas comunes específicamente
+        # Consulta para trabajos pendientes
         pending_jobs = (
             db.session.query(
-                Job.id,
-                Job.client_name,
-                Job.invoice_number,
-                Job.created_at,
-                literal_column("false").label("is_completed")
+                Job.id.label('id'),
+                Job.client_name.label('client_name'),
+                Job.invoice_number.label('invoice_number'),
+                Job.created_at.label('created_at'),
+                Job.description.label('description'),
+                Job.designer_id.label('designer_id'),
+                Job.total_amount.label('total_amount'),
+                literal_column("false").label('is_completed')
             ).filter(
                 or_(
                     Job.client_name.ilike(f'%{query}%'),
@@ -875,13 +877,17 @@ def search_invoices():
             )
         )
 
+        # Consulta para trabajos completados
         completed_jobs = (
             db.session.query(
-                CompletedJob.id,
-                CompletedJob.client_name,
-                CompletedJob.invoice_number,
-                CompletedJob.created_at,
-                literal_column("true").label("is_completed")
+                CompletedJob.id.label('id'),
+                CompletedJob.client_name.label('client_name'),
+                CompletedJob.invoice_number.label('invoice_number'),
+                CompletedJob.created_at.label('created_at'),
+                CompletedJob.description.label('description'),
+                CompletedJob.designer_id.label('designer_id'),
+                CompletedJob.total_amount.label('total_amount'),
+                literal_column("true").label('is_completed')
             ).filter(
                 or_(
                     CompletedJob.client_name.ilike(f'%{query}%'),
@@ -890,8 +896,9 @@ def search_invoices():
             )
         )
 
-        # Combinar las consultas y ordenar por fecha
-        invoices = pending_jobs.union(completed_jobs).order_by(desc('created_at')).all()
+        # Unir las consultas y ordenar por fecha
+        union_query = pending_jobs.union(completed_jobs).subquery()
+        invoices = db.session.query(union_query).order_by(desc(union_query.c.created_at)).all()
 
     return render_template('search_invoices.html', invoices=invoices)
 
@@ -1606,15 +1613,15 @@ def verify_job_qr(qr_code):
         return redirect(url_for('main.login'))
 
     # Determinar qué tipo de trabajo es y procesarlo
-    if job:
+    if job:        
         delivered_job = create_delivered_job_from_job(job)
         db.session.delete(job)
     elif completed_job:
         delivered_job = create_delivered_job_from_completed(completed_job)
         db.session.delete(completed_job)
-    elif pending_job:
-        delivered_job = create_delivered_job_from_pending(pending_job)
-        db.session.delete(pending_job)
+    else:
+        flash('Trabajo no encontrado', 'error')
+        return redirect(url_for('main.dashboard'))
 
     db.session.add(delivered_job)
     db.session.commit()
@@ -1625,7 +1632,7 @@ def verify_job_qr(qr_code):
     )
 
     flash('¡Trabajo marcado como entregado exitosamente!', 'success')
-    return render_template('job_delivered.html', job=delivered_job)
+    return redirect(url_for('main.dashboard'))
 
 def create_delivered_job_from_job(job):
     """Crea un trabajo entregado a partir de un trabajo regular"""
