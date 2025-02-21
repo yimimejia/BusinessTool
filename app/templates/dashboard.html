@@ -3,217 +3,86 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<!-- Estadísticas -->
-<div class="dashboard-stats">
-    <div class="stat-card">
-        <h3>Total Trabajos</h3>
-        <div class="stat-value">{{ stats.total_jobs or 0 }}</div>
+<div class="container">
+    <div class="alert alert-success">
+        ¡Bienvenido!
     </div>
 
-    <div class="stat-card">
-        <h3>Completados</h3>
-        <div class="stat-value">{{ stats.completed_jobs or 0 }}</div>
-    </div>
-
-    <div class="stat-card">
-        <h3>Pendientes</h3>
-        <div class="stat-value">{{ stats.pending_jobs or 0 }}</div>
-    </div>
-
-    <div class="stat-card">
-        <h3>Diseñadores</h3>
-        <div class="stat-value">{{ stats.designers or 0 }}</div>
-    </div>
-</div>
-
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h4 class="mb-0">
-            {% if current_user.is_admin %}
-            Panel de Administración
-            {% else %}
-            {% if current_user.is_staff %}Trabajos Pendientes{% else %}Mis Trabajos Pendientes{% endif %}
-            {% endif %}
-        </h4>
-        <div>
-            <!-- Botones de exportación -->
-            <div class="btn-group me-2">
-                <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown">
-                    <i class="bi bi-download"></i> Exportar
-                </button>
-                <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="{{ url_for('main.export_jobs', format='excel') }}">
-                        <i class="bi bi-file-excel"></i> Excel
-                    </a></li>
-                    <li><a class="dropdown-item" href="{{ url_for('main.export_jobs', format='pdf') }}">
-                        <i class="bi bi-file-pdf"></i> PDF
-                    </a></li>
-                </ul>
+    <div class="stats-panel mb-4">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="stats-item">
+                    <h3>{{ stats.total_jobs }}</h3>
+                    <p>Total Trabajos</p>
+                </div>
             </div>
-
-            {% if current_user.is_staff %}
-                {% if current_user.can_manage_users %}
-                <a href="{{ url_for('main.manage_users') }}" class="btn btn-info me-2">
-                    <i class="bi bi-people"></i> Gestionar Usuarios
-                </a>
-                {% endif %}
-                <a href="{{ url_for('main.new_job') }}" class="btn btn-primary">
-                    <i class="bi bi-plus-circle"></i> Nuevo Trabajo
-                </a>
-            {% endif %}
+            <div class="col-md-4">
+                <div class="stats-item">
+                    <h3>{{ stats.completed_jobs }}</h3>
+                    <p>Completados</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-item">
+                    <h3>{{ stats.pending_jobs }}</h3>
+                    <p>Pendientes</p>
+                </div>
+            </div>
         </div>
     </div>
-    <div class="card-body">
-        <!-- Búsqueda Avanzada -->
-        <div class="mb-4">
-            <div class="row">
-                <div class="col-md-4">
-                    <input type="text" id="searchQuery" class="form-control" placeholder="Buscar trabajo...">
-                </div>
-                <div class="col-md-2">
-                    <select id="statusFilter" class="form-select">
-                        <option value="">Estado</option>
-                        <option value="pending">Pendiente</option>
-                        <option value="completed">Completado</option>
-                    </select>
-                </div>
-                {% if current_user.is_staff %}
-                <div class="col-md-2">
-                    <select id="designerFilter" class="form-select">
-                        <option value="">Diseñador</option>
-                        {% for designer in designers %}
-                        <option value="{{ designer.id }}">{{ designer.name }}</option>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Mis Trabajos</h4>
+            {% if not current_user.is_admin %}
+            <a href="{{ url_for('main.new_job') }}" class="btn btn-primary">Nuevo Trabajo</a>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover datatable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Descripción</th>
+                            <th>Cliente</th>
+                            <th>Factura</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in jobs %}
+                        <tr>
+                            <td>{{ job.id }}</td>
+                            <td>{{ job.description }}</td>
+                            <td>{{ job.client_name }}</td>
+                            <td>{{ job.invoice_number }}</td>
+                            <td>
+                                {% if job.is_completed %}
+                                <span class="badge bg-success">Completado</span>
+                                {% else %}
+                                <span class="badge bg-warning">Pendiente</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    {% if current_user.is_staff %}
+                                    <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-sm btn-info">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% if not job.is_completed %}
+                                    <button class="btn btn-sm btn-success complete-job" data-job-id="{{ job.id }}">
+                                        <i class="bi bi-check-circle"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
                         {% endfor %}
-                    </select>
-                </div>
-                {% endif %}
-                <div class="col-md-2">
-                    <input type="text" id="tagFilter" class="form-control" placeholder="Etiqueta">
-                </div>
-                <div class="col-md-2">
-                    <button id="searchBtn" class="btn btn-primary w-100">
-                        <i class="bi bi-search"></i> Buscar
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Descripción</th>
-                        <th>Cliente</th>
-                        <th>Factura</th>
-                        <th>Teléfono</th>
-                        {% if current_user.is_staff %}
-                        <th>Diseñador</th>
-                        {% endif %}
-                        <th>Estado</th>
-                        <th>Etiquetas</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody id="jobsTableBody">
-                    {% for job in jobs %}
-                    <tr>
-                        <td>
-                            <a href="{{ url_for('main.generate_job_pdf', job_id=job.id) }}" target="_blank" class="text-primary">
-                                {{ job.id }}
-                            </a>
-                        </td>
-                        <td>{{ job.description }}</td>
-                        <td>{{ job.client_name }}</td>
-                        <td>{{ job.invoice_number }}</td>
-                        <td>{{ job.phone_number }}</td>
-                        {% if current_user.is_staff %}
-                        <td>{{ job.designer.name }}</td>
-                        {% endif %}
-                        <td>
-                            <span class="badge {% if job.is_completed %}bg-success{% else %}bg-warning{% endif %}">
-                                {{ 'Completado' if job.is_completed else 'Pendiente' }}
-                            </span>
-                        </td>
-                        <td>
-                            {% if job.tags %}
-                            {% for tag in job.tags.split(',') %}
-                            <span class="badge bg-info">{{ tag }}</span>
-                            {% endfor %}
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if not job.is_completed %}
-                                {% if current_user.is_staff %}
-                                <a href="{{ url_for('main.edit_job', job_id=job.id) }}" 
-                                   class="btn btn-info btn-sm">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                {% if current_user.can_delete_jobs %}
-                                <button type="button" class="btn btn-danger btn-sm delete-job" 
-                                        data-job-id="{{ job.id }}">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                                {% endif %}
-                                {% endif %}
-                                <button type="button" class="btn btn-success btn-sm complete-job"
-                                        data-job-id="{{ job.id }}">
-                                    <i class="bi bi-check-circle"></i>
-                                </button>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-{% if current_user.can_delete_jobs %}
-<div class="modal fade" id="deleteModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Confirmar Eliminación</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>¿Está seguro que desea eliminar este trabajo?</p>
-                <form id="deleteForm" method="POST">
-                    <div class="mb-3">
-                        <input type="password" name="admin_password" class="form-control" 
-                               placeholder="Contraseña de administrador" required>
-                    </div>
-                    <div class="text-end">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-danger">Eliminar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
-
-<div class="modal fade" id="completeModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Confirmar Trabajo Completado</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="completeForm" method="POST">
-                    <div class="mb-3">
-                        <label class="form-label">Ingrese su contraseña para confirmar:</label>
-                        <input type="password" name="admin_password" class="form-control" required>
-                    </div>
-                    <div class="text-end">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-success">Confirmar</button>
-                    </div>
-                </form>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -226,62 +95,11 @@ $(document).ready(function() {
     // Inicializar la tabla de manera segura
     initializeDataTable('.table');
 
-    // Configurar botones de eliminar
-    $('.delete-job').click(function() {
-        var jobId = $(this).data('job-id');
-        $('#deleteForm').attr('action', '/jobs/' + jobId + '/delete');
-        $('#deleteModal').modal('show');
-    });
-
     // Configurar botones de completar
     $('.complete-job').click(function() {
         var jobId = $(this).data('job-id');
         $('#completeForm').attr('action', '/jobs/' + jobId + '/complete');
         $('#completeModal').modal('show');
-    });
-
-    // Búsqueda avanzada
-    $('#searchBtn').click(function() {
-        const query = $('#searchQuery').val();
-        const status = $('#statusFilter').val();
-        const designer = $('#designerFilter').val();
-        const tag = $('#tagFilter').val();
-
-        $.get('/jobs/search', {
-            q: query,
-            status: status,
-            designer: designer,
-            tag: tag
-        }, function(data) {
-            // Destruir la tabla actual antes de actualizar
-            $('.table').DataTable().destroy();
-
-            // Actualizar tabla con resultados
-            const tbody = $('#jobsTableBody');
-            tbody.empty();
-
-            data.forEach(job => {
-                const row = `
-                    <tr>
-                        <td>${job.id}</td>
-                        <td>${job.description}</td>
-                        <td>${job.client_name}</td>
-                        <td>${job.invoice_number}</td>
-                        <td>${job.phone_number}</td>
-                        <td>${job.designer}</td>
-                        <td><span class="badge ${job.status === 'Completado' ? 'bg-success' : 'bg-warning'}">${job.status}</span></td>
-                        <td>${job.tags ? job.tags.split(',').map(tag => `<span class="badge bg-info">${tag}</span>`).join(' ') : ''}</td>
-                        <td>
-                            <!-- Acciones... -->
-                        </td>
-                    </tr>
-                `;
-                tbody.append(row);
-            });
-
-            // Reinicializar la tabla de manera segura después de actualizar los datos
-            initializeDataTable('.table');
-        });
     });
 });
 </script>
