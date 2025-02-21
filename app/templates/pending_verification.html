@@ -17,6 +17,8 @@
                         <tr>
                             <th>Cliente</th>
                             <th>Descripción</th>
+                            <th>Monto Total</th>
+                            <th>Abono</th>
                             <th>Diseñador</th>
                             <th>Registrado por</th>
                             <th>Fecha</th>
@@ -26,6 +28,22 @@
                     <tbody>
                         {% for job in jobs %}
                         {% if job.pending_type == 'new_job' %}
+                        <tr>
+                            <td>{{ job.client_name }}</td>
+                            <td>{{ job.description }}</td>
+                            <td>${{ "%.2f"|format(job.total_amount or 0) }}</td>
+                            <td>${{ "%.2f"|format(job.deposit_amount or 0) }}</td>
+                            <td>{{ job.designer.name }}</td>
+                            <td>{{ job.registered_by.name }}</td>
+                            <td>{{ job.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <button class="btn btn-success btn-sm" onclick="approveJob({{ job.id }})">Aprobar</button>
+                                    <button class="btn btn-danger btn-sm" onclick="rejectJob({{ job.id }})">Rechazar</button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %} %}
                         <tr>
                             <td>{{ job.client_name }}</td>
                             <td>{{ job.description }}</td>
