@@ -41,7 +41,8 @@ def create_app():
     }
     app.secret_key = os.environ.get("SESSION_SECRET", "dev-key-temporary")
     app.config["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379")
-    app.config['WTF_CSRF_ENABLED'] = False  # Deshabilitamos CSRF
+    app.config['WTF_CSRF_ENABLED'] = True
+app.config['WTF_CSRF_SECRET_KEY'] = os.environ.get("CSRF_SECRET_KEY", "csrf-key-temporary")
 
     # Create uploads directory
     upload_folder = os.path.join(app.static_folder, 'uploads')

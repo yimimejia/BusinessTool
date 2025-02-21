@@ -290,6 +290,7 @@
 
     <!-- Additional scripts -->
     {% block scripts %}
+{% from "_formhelpers.html" import csrf_token with context %}
         <script>
             // Call initializeDataTable for each DataTable on the page, passing the table ID as a selector string.
             // Example:  initializeDataTable('#myTable');
