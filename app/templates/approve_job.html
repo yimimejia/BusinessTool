@@ -5,11 +5,23 @@
     <div class="card">
         <div class="card-body">
             <form method="POST" action="{{ url_for('main.approve_job', job_id=job.id) }}">
-                {% if current_user.is_staff %}
+                {% if current_user.is_staff or current_user.is_admin %}
                 <div class="mb-3">
                     <label for="invoice_number" class="form-label">Número de Factura</label>
                     <input type="text" class="form-control" id="invoice_number" name="invoice_number" 
                            value="{{ job.invoice_number }}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="total_amount" class="form-label">Monto Total</label>
+                    <input type="number" class="form-control" id="total_amount" name="total_amount" 
+                           value="{{ job.total_amount or 0 }}" step="0.01" min="0" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="deposit_amount" class="form-label">Monto del Abono</label>
+                    <input type="number" class="form-control" id="deposit_amount" name="deposit_amount" 
+                           value="{{ job.deposit_amount or 0 }}" step="0.01" min="0" required>
                 </div>
                 {% endif %}
 
@@ -32,19 +44,7 @@
                               rows="3" required>{{ job.description }}</textarea>
                 </div>
 
-                <div class="mb-3">
-                    <label for="total_amount" class="form-label">Monto Total</label>
-                    <input type="number" class="form-control" id="total_amount" name="total_amount" 
-                           value="{{ job.total_amount or 0 }}" step="0.01" min="0" required>
-                </div>
-
-                <div class="mb-3">
-                    <label for="deposit_amount" class="form-label">Monto del Abono</label>
-                    <input type="number" class="form-control" id="deposit_amount" name="deposit_amount" 
-                           value="{{ job.deposit_amount or 0 }}" step="0.01" min="0" required>
-                </div>
-
-                {% if current_user.is_staff %}
+                {% if current_user.is_staff or current_user.is_admin %}
                 <div class="mb-3">
                     <label for="designer_id" class="form-label">Asignar a Diseñador</label>
                     <select class="form-select" id="designer_id" name="designer_id" required>
