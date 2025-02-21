@@ -1,70 +1,23 @@
 {% extends "base.html" %}
 
-{% block title %}Nuevo Trabajo{% endblock %}
-
 {% block content %}
-<div class="card">
-    <div class="card-header">
-        <h4 class="mb-0">Registrar Nuevo Trabajo</h4>
-    </div>
-    <div class="card-body">
-        <form method="POST" id="newJobForm">
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Descripción</label>
-                    <textarea name="description" class="form-control" rows="3" required></textarea>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Diseñador</label>
-                    {% if current_user.is_staff %}
-                    <select name="designer_id" class="form-select" required>
-                        <option value="">Seleccionar diseñador...</option>
-                        {% for designer in designers %}
-                        <option value="{{ designer.id }}">{{ designer.name }}</option>
-                        {% endfor %}
-                    </select>
-                    {% else %}
-                    <input type="text" class="form-control" value="{{ current_user.name }}" readonly>
-                    <input type="hidden" name="designer_id" value="{{ current_user.id }}">
-                    {% endif %}
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">Cliente</label>
-                    <input type="text" name="client_name" class="form-control" required>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">Teléfono</label>
-                    <input type="tel" name="phone_number" id="phone_number" class="form-control" 
-                           pattern="[0-9]*" inputmode="numeric" required
-                           placeholder="Ejemplo: 3051234567">
-                    <small class="text-muted">Solo números. El código de área (+1) se agregará automáticamente</small>
-                    <div id="phoneError" class="invalid-feedback">
-                        El número de teléfono debe tener 10 dígitos
-                    </div>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">Abono</label>
-                    <div class="input-group">
-                        <span class="input-group-text">$</span>
-                        <input type="number" name="deposit_amount" class="form-control" 
-                               step="0.01" min="0" placeholder="0.00">
-                    </div>
-                    <small class="text-muted">Opcional. Ingrese el monto del abono si aplica</small>
-                </div>
-                <div class="col-md-12 mb-3">
-                    <label class="form-label">Etiquetas (separadas por comas)</label>
-                    <input type="text" name="tags" class="form-control" placeholder="Ejemplo: urgente, fotografía, edición">
-                    <small class="text-muted">Las etiquetas ayudan a categorizar y buscar trabajos más fácilmente</small>
-                </div>
-            </div>
-            <div class="text-end">
-                <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary me-2">Cancelar</a>
-                <button type="submit" id="submitButton" class="btn btn-primary">
-                    <span id="submitText">Guardar Trabajo</span>
-                    <span id="loadingSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                </button>
-            </div>
-        </form>
-    </div>
+<div class="container mt-4">
+    <h2>Nuevo Trabajo</h2>
+    <form method="POST" class="mt-3">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+            <label for="description" class="form-label">Descripción del trabajo</label>
+            {{ form.description(class="form-control", id="description") }}
+        </div>
+        <div class="mb-3">
+            <label for="client_name" class="form-label">Nombre del cliente</label>
+            {{ form.client_name(class="form-control", id="client_name") }}
+        </div>
+        <div class="mb-3">
+            <label for="phone_number" class="form-label">Teléfono (solo números)</label>
+            {{ form.phone_number(class="form-control", id="phone_number", pattern="[0-9]*") }}
+        </div>
+        <button type="submit" class="btn btn-primary">Registrar Trabajo</button>
+    </form>
 </div>
 {% endblock %}
