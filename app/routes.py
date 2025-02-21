@@ -850,6 +850,48 @@ def complete_job(job_id):
         logger.error(f"Error al completar trabajo: {str(e)}")
         return jsonify({'success': False, 'message': 'Error de autenticación. Por favor, verifica la contraseña del administrador.'})
 
+@bp.route('/clean-database', methods=['POST'])
+@login_required
+@admin_required
+def clean_database():
+    """Limpiar todas las tablas de trabajos"""
+    try:
+        # Verificar contraseña de administrador
+        password = request.form.get('admin_password')
+        if not password:
+            flash('Se requiere contraseña de administrador', 'error')
+            return redirect(url_for('main.dashboard'))
+
+        # Verificar si la contraseña coincide con algún admin
+        admins = User.query.filter_by(is_admin=True).all()
+        valid_password = False
+        for admin in admins:
+            if admin.check_password(password):
+                valid_password = True
+                break
+
+        if not valid_password:
+            flash('Contraseña de administrador incorrecta', 'error')
+            return redirect(url_for('main.dashboard'))
+
+        # Limpiar todas las tablas
+        Job.query.delete()
+        CompletedJob.query.delete()
+        DeliveredJob.query.delete()
+        PendingJob.query.delete()
+        Message.query.delete()
+        
+        db.session.commit()
+        
+        log_activity('limpiar_base_datos', 'Base de datos limpiada exitosamente')
+        flash('Todas las tablas han sido limpiadas exitosamente', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al limpiar las tablas: {str(e)}', 'error')
+        
+    return redirect(url_for('main.dashboard'))
+
 @bp.route('/setup')
 def setup():
     if User.query.first() is not None:

@@ -108,28 +108,62 @@
       </div>
     </div>
   </div>
-</div>
 
-<!-- Modal de eliminación -->
-<div class="modal fade" id="deleteModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Confirmar Eliminación</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <p>¿Está seguro de que desea eliminar este trabajo?</p>
-        <form id="deleteForm" method="POST">
-          <input type="hidden" name="admin_password" id="adminPassword">
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-danger" onclick="confirmDelete()">Eliminar</button>
+  <!-- Modal de eliminación -->
+  <div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Confirmar Eliminación</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>¿Está seguro de que desea eliminar este trabajo?</p>
+          <form id="deleteForm" method="POST">
+            <input type="hidden" name="admin_password" id="adminPassword">
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" onclick="confirmDelete()">Eliminar</button>
+        </div>
       </div>
     </div>
   </div>
+
+  <!-- Modal para limpiar base de datos -->
+    <div class="modal fade" id="cleanDatabaseModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Limpiar Base de Datos</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="{{ url_for('main.clean_database') }}" method="POST">
+                    <div class="modal-body">
+                        <div class="alert alert-warning">
+                            <strong>¡Advertencia!</strong> Esta acción eliminará todos los trabajos registrados.
+                        </div>
+                        <div class="mb-3">
+                            <label for="admin_password" class="form-label">Contraseña de Administrador</label>
+                            <input type="password" class="form-control" id="admin_password" name="admin_password" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Limpiar Base de Datos</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botón para abrir el modal -->
+    <div class="mt-4">
+        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#cleanDatabaseModal">
+            Limpiar Base de Datos
+        </button>
+    </div>
 </div>
 
 <script>
