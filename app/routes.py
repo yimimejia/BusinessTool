@@ -3,7 +3,8 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from app import db
 from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob
-from app.utils.notifications import send_notification, WebAuthnCredential, PendingJob, Message
+from app.utils.notifications import send_notification, PendingJob, Message
+from app.models import WebAuthnCredential
 from datetime import datetime
 import json
 from functools import wraps
