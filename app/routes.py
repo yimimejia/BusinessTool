@@ -56,20 +56,53 @@ def dashboard():
     """Vista del dashboard"""
     return render_template('dashboard.html')
 
-@bp.route('/completed-jobs')
+@bp.route('/new-pending-job', methods=['GET', 'POST'])
 @login_required
-def completed_jobs():
-    """Vista de trabajos completados"""
-    jobs = CompletedJob.query.order_by(CompletedJob.completed_at.desc()).all()
-    return render_template('completed_jobs.html', jobs=jobs)
+def new_pending_job():
+    """Crear nuevo trabajo pendiente"""
+    if request.method == 'POST':
+        try:
+            # Obtener datos del formulario
+            description = request.form.get('description')
+            client_name = request.form.get('client_name')
+            phone_number = request.form.get('phone_number')
+
+            # Crear nuevo trabajo pendiente
+            new_job = PendingJob(
+                description=description,
+                designer_id=current_user.id,
+                registered_by_id=current_user.id,
+                client_name=client_name,
+                phone_number=phone_number,
+                pending_type='new_job'
+            )
+
+            db.session.add(new_job)
+            db.session.commit()
+
+            flash('Trabajo pendiente creado exitosamente', 'success')
+            return redirect(url_for('main.dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error al crear el trabajo: {str(e)}', 'error')
+            return redirect(url_for('main.new_pending_job'))
+
+    return render_template('new_pending_job.html')
 
 @bp.route('/pending-jobs')
 @login_required
 @staff_required
 def view_pending_jobs():
     """Ver trabajos pendientes"""
-    jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
+    jobs = PendingJob.query.filter_by(pending_type='new_job').order_by(PendingJob.created_at.desc()).all()
     return render_template('pending_jobs.html', jobs=jobs)
+
+@bp.route('/completed-jobs')
+@login_required
+def completed_jobs():
+    """Vista de trabajos completados"""
+    jobs = CompletedJob.query.order_by(CompletedJob.completed_at.desc()).all()
+    return render_template('completed_jobs.html', jobs=jobs)
 
 @bp.route('/pending-jobs/<int:job_id>/approve', methods=['POST'])
 @login_required
