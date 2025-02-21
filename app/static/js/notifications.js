@@ -33,3 +33,46 @@ evtSource.onmessage = function(event) {
 
 // Solicitar permisos al cargar la página
 document.addEventListener('DOMContentLoaded', requestNotificationPermission);
+// Inicializar notificaciones
+function initNotifications(userId) {
+    const evtSource = new EventSource('/stream');
+    
+    evtSource.addEventListener('notification', function(event) {
+        const notification = JSON.parse(event.data);
+        if (notification.user_id === userId) {
+            showNotification(notification);
+        }
+    });
+
+    evtSource.onerror = function(err) {
+        console.error("Error en EventSource:", err);
+    };
+}
+
+function showNotification(notification) {
+    const container = document.createElement('div');
+    container.className = `alert alert-${notification.type} alert-dismissible fade show`;
+    container.innerHTML = `
+        <strong>${notification.title}</strong>
+        <p>${notification.message}</p>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.getElementById('notifications-container').appendChild(container);
+    
+    // Auto-eliminar después de 5 segundos
+    setTimeout(() => {
+        container.remove();
+    }, 5000);
+}
+
+// Registrar service worker para notificaciones
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/js/sw.js')
+        .then(registration => {
+            console.log('ServiceWorker registrado exitosamente:', registration.scope);
+        })
+        .catch(error => {
+            console.log('Error registrando ServiceWorker:', error);
+        });
+}
