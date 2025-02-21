@@ -9,14 +9,22 @@ import json
 import random
 
 class WebAuthnCredential(db.Model):
+    __tablename__ = 'webauthn_credentials'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    credential_id = db.Column(db.String(255), unique=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    credential_id = db.Column(db.String(250), unique=True, nullable=False)
     public_key = db.Column(db.Text, nullable=False)
     sign_count = db.Column(db.Integer, default=0)
-    name = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_used_at = db.Column(db.DateTime)
+    name = db.Column(db.String(100))
+
+    def get_credential_data(self):
+        return {
+            'credentialId': self.credential_id,
+            'publicKey': self.public_key,
+            'signCount': self.sign_count,
+        }
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -29,9 +37,8 @@ class User(UserMixin, db.Model):
     is_designer = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     remember_token = db.Column(db.String(100))
-    permanent_session = db.Column(db.Boolean, default=False)  
+    permanent_session = db.Column(db.Boolean, default=False)
 
-    # Updated relationship to specify foreign key explicitly
     assigned_jobs = db.relationship('Job', 
                                   foreign_keys='Job.designer_id',
                                   backref='designer',
@@ -42,7 +49,6 @@ class User(UserMixin, db.Model):
     activities = db.relationship('ActivityLog', backref='user', lazy='dynamic')
     notifications = db.relationship('Notification', backref='user', lazy='dynamic')
     webauthn_credentials = db.relationship('WebAuthnCredential', backref='user')
-
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -90,7 +96,6 @@ class Job(db.Model):
     deposit_amount = db.Column(db.Numeric(10, 2), default=0)
     qr_code = db.Column(db.String(100), unique=True)
     tags = db.Column(db.String(200)) #Added from original
-
 
     @validates('phone_number')
     def validate_phone_number(self, key, phone_number):
@@ -241,24 +246,6 @@ class Notification(db.Model):
         db.session.commit()
         return notification
 
-class WebAuthnCredential(db.Model):
-    __tablename__ = 'webauthn_credentials'
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    credential_id = db.Column(db.String(250), unique=True, nullable=False)
-    public_key = db.Column(db.Text, nullable=False)
-    sign_count = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_used_at = db.Column(db.DateTime)
-    name = db.Column(db.String(100))  # Nombre del dispositivo
-
-    def get_credential_data(self):
-        return {
-            'credentialId': self.credential_id,
-            'publicKey': self.public_key,
-            'signCount': self.sign_count,
-        }
-
 class ActivityLog(db.Model):
     __tablename__ = 'activity_logs'
     id = db.Column(db.Integer, primary_key=True)
@@ -375,3 +362,5 @@ class PendingJob(db.Model):
             total_amount=self.total_amount,
             deposit_amount=self.deposit_amount
         )
+
+import urllib.parse

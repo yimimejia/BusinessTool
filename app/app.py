@@ -13,7 +13,7 @@ login_manager = LoginManager()
 
 def create_app():
     app = Flask(__name__)
-    app.secret_key = os.environ.get("SESSION_SECRET")  # Using exact format as required
+    app.secret_key = os.environ.get("SESSION_SECRET")
     app.config['TEMPLATES_AUTO_RELOAD'] = True
 
     # Database configuration
@@ -32,6 +32,8 @@ def create_app():
             "keepalives_count": 5
         }
     }
+
+    # Configuración de Redis para SSE
     app.config["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379")
 
     # Initialize extensions
@@ -44,9 +46,10 @@ def create_app():
 
     with app.app_context():
         from app import models
-
-        # Create tables
         db.create_all()
+
+        from app.routes import bp as routes_bp
+        app.register_blueprint(routes_bp)
 
         return app
 

@@ -1,35 +1,21 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response, send_from_directory, session, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
+from functools import wraps
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from app import db
-from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob
-from app.utils.notifications import send_notification, PendingJob, Message
-from app.models import WebAuthnCredential
+from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, PendingJob, Message
+from app.utils.notifications import send_notification
+from flask_sse import sse
 from datetime import datetime
 import json
-from functools import wraps
 import logging
 import os
 import base64
 import qrcode
-from webauthn import (
-    generate_registration_options,
-    verify_registration_response,
-    generate_authentication_options,
-    verify_authentication_response,
-    options_to_json,
-    base64url_to_bytes,
-)
-from webauthn.helpers.structs import (
-    AuthenticatorSelectionCriteria,
-    UserVerificationRequirement,
-    RegistrationCredential,
-    AuthenticationCredential,
-)
 import urllib.parse
 from werkzeug.utils import secure_filename
 import io
-from sqlalchemy.exc import OperationalError, SQLAlchemyError
 import time
 import re
 
@@ -59,6 +45,27 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def retry_on_db_error(max_retries=3, delay=1):
+    """Decorator para reintentar operaciones de base de datos"""
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            retries = 0
+            while retries < max_retries:
+                try:
+                    return f(*args, **kwargs)
+                except (OperationalError, SQLAlchemyError) as e:
+                    retries += 1
+                    if retries == max_retries:
+                        logging.error(f"Max retries reached for database operation: {str(e)}")
+                        raise
+                    logging.warning(f"Database operation failed, retrying ({retries}/{max_retries})")
+                    time.sleep(delay)
+                    db.session.rollback()
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
+
 def log_activity(action, details=None):
     """Registra una actividad en el log"""
     try:
@@ -73,43 +80,13 @@ def log_activity(action, details=None):
         db.session.commit()
 
         # Enviar notificación en tiempo real si es una acción importante
-        if action in ['nuevo_trabajo', 'trabajo_completado', 'trabajo_eliminado', 'trabajo_entregado', 'trabajo_entregado_qr', 'nuevo_trabajo_pendiente', 'trabajo_aprobado', 'trabajo_rechazado', 'enviar_mensaje', 'enviar_fotos', 'fotos_aprobadas']:
+        if action in ['nuevo_trabajo', 'trabajo_completado', 'trabajo_eliminado', 'trabajo_entregado']:
             sse.publish({
                 "message": f"{action}: {details}",
                 "type": "info"
             }, type='message')
     except Exception as e:
         logger.error(f"Error al registrar actividad: {str(e)}")
-
-def retry_on_db_error(max_retries=3, delay=1):
-    """Decorator para reintentar operaciones de base de datos"""
-    def decorator(f):
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            retries = 0
-            while retries < max_retries:
-                try:
-                    return f(*args, **kwargs)
-                except OperationalError as e:
-                    retries += 1
-                    if retries == max_retries:
-                        logging.error(f"Max retries reached for database operation: {str(e)}")
-                        raise
-                    logging.warning(f"Database operation failed, retrying ({retries}/{max_retries})")
-                    time.sleep(delay)
-                    db.session.rollback()
-                except SQLAlchemyError as e:
-                    retries += 1
-                    if retries == max_retries:
-                        logging.error(f"Max retries reached for database operation: {str(e)}")
-                        raise
-                    logging.warning(f"Database operation failed, retrying ({retries}/{max_retries})")
-                    time.sleep(delay)
-                    db.session.rollback()
-
-            return f(*args, **kwargs)
-        return wrapper
-    return decorator
 
 @bp.route('/jobs/<int:job_id>/send-photos', methods=['POST'])
 @login_required
@@ -775,27 +752,12 @@ def complete_job(job_id):
         flash('Contraseña de administrador incorrecta', 'error')
         return redirect(url_for('main.dashboard'))
 
-    # Verificar contraseña
-    admins = User.query.filter(
-        (User.is_admin == True) | (User.is_supervisor == True)
-    ).all()
-
-    valid_password = False
-    for admin in admins:
-        if admin.check_password(verification_code):
-            valid_password = True
-            break
-
-    if not valid_password:
-        flash('Contraseña incorrecta', 'error')
-        return redirect(url_for('main.dashboard'))
-
     # Crear trabajo completado
     completed_job = CompletedJob(
         original_job_id=job.id,
         description=job.description,
         designer_id=job.designer_id,
-        registered_by_id=job.registered_by_id,  # Mantener el usuario que registró
+        registered_by_id=job.registered_by_id,
         invoice_number=job.invoice_number,
         client_name=job.client_name,
         phone_number=job.phone_number,
@@ -1243,7 +1205,7 @@ def generate_job_pdf(job_id):
     img_buffer = io.BytesIO()
     qr.make_image(fill_color="black", back_color="white").save(img_buffer, format='PNG')
     qr_image = base64.b64encode(img_buffer.getvalue()).decode()
-
+    
     # Generar el QR si no existe
     if not job.qr_code:
         job.generate_qr_code()
