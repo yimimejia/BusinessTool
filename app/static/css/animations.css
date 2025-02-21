@@ -36,13 +36,12 @@
 }
 
 .company-name-animated {
+    margin: 20px 0;
+    letter-spacing: -1px;
+    white-space: nowrap;
     display: flex;
     justify-content: center;
-    flex-wrap: wrap;
-    gap: 2px;
-    opacity: 0;
-    animation: fadeIn 0.5s ease-in-out 1s forwards;
-    margin: 20px 0;
+    transform: scale(0.9);
 }
 
 .company-name-animated span {
