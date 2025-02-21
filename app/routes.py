@@ -432,12 +432,14 @@ def dashboard():
                              stats=stats)
 
     elif current_user.is_supervisor:
-        # Vista de supervisor
+        # Vista de supervisor - solo mostrar trabajos aprobados
+        approved_jobs = Job.query.filter(Job.status != 'pending').order_by(Job.created_at.desc()).all()
         pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
         pending_verification_count = PendingJob.query.filter_by(pending_type='new_job').count()
         pending_photos_count = PendingJob.query.filter_by(pending_type='photo_verification').count()
 
         return render_template('dashboard_supervisor.html',
+                             jobs=approved_jobs,
                              pending_jobs=pending_jobs,
                              pending_verification_count=pending_verification_count,
                              pending_photos_count=pending_photos_count,
