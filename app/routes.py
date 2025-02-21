@@ -797,7 +797,7 @@ def complete_job(job_id):
     admin_password = data.get('admin_password')
 
     if not admin_password:
-        return jsonify({''success': False, 'message': 'Se requiere contraseña de administrador'})
+        return jsonify({'success': False, 'message': 'Se requiere contraseña de administrador'})
 
     job = Job.query.get_or_404(job_id)
 
