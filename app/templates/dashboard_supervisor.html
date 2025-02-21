@@ -66,7 +66,7 @@
               <td>{{ job.phone_number }}</td>
               <td>{{ job.description }}</td>
               <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
-              <td>{{ job.created_by.name }}</td>
+              <td>{{ job.registered_by.name }}</td>
               <td>
                 {% if job.status == 'pending_verification' %}
                 <span class="badge bg-warning">Por Verificar</span>
