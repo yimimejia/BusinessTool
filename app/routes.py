@@ -789,7 +789,7 @@ def completed_jobs():
 
     return render_template('completed_jobs.html', jobs=jobs)
 
-@bp.route('/jobs/<int:int:job_id>/complete', methods=['POST'])
+@bp.route('/jobs/<int:job_id>/complete', methods=['POST'])
 @login_required
 def complete_job(job_id):
     """Completar un trabajo y moverlo a la tabla de trabajos completados"""    # Obtener contraseña del admin (ya sea de JSON o form data)
