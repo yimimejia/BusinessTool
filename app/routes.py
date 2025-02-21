@@ -804,16 +804,18 @@ def complete_job(job_id):
         return jsonify({'success': False, 'message': 'No tienes permiso para completar este trabajo'})
 
     try:
-        # Verificar contraseña de administrador
-        admins = User.query.filter_by(is_admin=True).all()
-        valid_admin = False
-        for admin in admins:
-            if admin and admin.check_password(admin_password):
-                valid_admin = True
+        # Verificar contraseña de administrador o supervisor
+        staff = User.query.filter(
+            (User.is_admin == True) | (User.is_supervisor == True)
+        ).all()
+        valid_auth = False
+        for user in staff:
+            if user and user.check_password(admin_password):
+                valid_auth = True
                 break
 
-        if not valid_admin:
-            return jsonify({'success': False, 'message': 'Contraseña de administrador incorrecta'})
+        if not valid_auth:
+            return jsonify({'success': False, 'message': 'Contraseña de administrador o supervisor incorrecta'})
 
         # Crear trabajo completado
         completed_job = CompletedJob(
