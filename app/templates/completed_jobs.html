@@ -65,8 +65,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <div class="d-flex gap-2">
                                     {% if current_user.is_designer %}
                                     <div class="dropdown d-inline">
-                                        <button class="btn btn-success dropdown-toggle" type="button" id="whatsappMenu{{ job.id }}" data-bs-toggle="dropdown" aria-expanded="false">
-                                            Enviar por WhatsApp
+                                        <button type="button" class="btn btn-success btn-sm dropdown-toggle" type="button" id="whatsappMenu{{ job.id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                            Enviar fotos
                                         </button>
                                         <div class="dropdown-menu p-3" aria-labelledby="whatsappMenu{{ job.id }}">
                                             <form method="POST" action="{{ url_for('main.send_job_photos', job_id=job.id) }}" enctype="multipart/form-data">
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </div>
                                     </div>
                                     {% endif %}
-                                    
+
                                     <form method="POST" action="{{ url_for('main.mark_called', job_id=job.id) if not job.is_called else url_for('main.mark_delivered', job_id=job.id) }}" class="d-inline">
                                         <button type="submit" class="btn {% if not job.is_called %}btn-info{% else %}btn-success{% endif %}" style="min-width: 120px;">
                                             {% if not job.is_called %}Llamado{% else %}Entregado{% endif %}
