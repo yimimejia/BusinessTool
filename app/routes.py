@@ -1343,71 +1343,47 @@ def webauthn_authenticate_complete():
         return jsonify({'status': 'error', 'message': error_message}), 400
 
 @bp.route('/jobs/<int:job_id>/pdf')
+@login_required
 def generate_job_pdf(job_id):
-    """Genera un PDF de la factura con código QR - accesible públicamente"""
-    job = Job.query.get_or_404(job_id)
+    """Generar PDF para un trabajo"""
+    try:
+        # Buscar primero en trabajos completados
+        job = CompletedJob.query.get(job_id)
+        if not job:
+            # Si no está en completados, buscar en trabajos pendientes
+            job = Job.query.get_or_404(job_id)
 
-    # Generar QR si no existe
-    if not job.qr_code:
-        job.generate_qr_code()
-        db.session.commit()
+        # Generar URL pública para el QR
+        if hasattr(job, 'qr_code') and job.qr_code:
+            qr_url = f"https://{request.host}/jobs/public/{job.qr_code}"
+        else:
+            qr_url = f"https://{request.host}/jobs/{job.id}"
 
-    # Crear QR
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_H,
-        box_size=10,
-        border=4
-    )
+        # Generate QR code with job info
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=5
+        )
+        qr.add_data(qr_url)
+        qr.make(fit=True)
+        qr_img = qr.make_image(fill_color="black", back_color="white")
 
-    # Agregar URL pública
-    qr_url = f"{request.url_root.rstrip('/')}/jobs/public/{job.qr_code}"
-    qr.add_data(qr_url)
-    qr.make(fit=True)
+        # Convert QR to base64 for embedding in HTML
+        buffered = io.BytesIO()
+        qr_img.save(buffered, format="PNG")
+        qr_code = base64.b64encode(buffered.getvalue()).decode()
 
-    # Crear imagen QR
-    img_buffer = io.BytesIO()
-    qr.make_image(fill_color="black", back_color="white").save(img_buffer, format='PNG')
-    qr_image = base64.b64encode(img_buffer.getvalue()).decode()
+        # Render invoice template
+        return render_template('invoice_pdf.html',
+                            job=job,
+                            qr_code=qr_code)
 
-    # Generar el QR si no existe
-    if not job.qr_code:
-        job.generate_qr_code()
-        db.session.commit()
-
-    # Generar QR
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_H,
-        box_size=15,
-        border=4
-    )
-    qr.add_data(json.dumps(job.to_qr_data()))
-    qr.make(fit=True)
-
-    # Crear imagen con mejor contraste
-    img = qr.make_image(fill_color="black", back_color="white")
-
-    # Convertir a base64
-    buffered = io.BytesIO()
-    img.save(buffered, format="PNG", quality=100)
-    qr_image = base64.b64encode(buffered.getvalue()).decode()
-
-    # Renderizar el HTML
-    html = render_template('invoice_pdf.html', job=job, qr_image=qr_image)
-
-    # Convertir a PDF usando WeasyPrint
-    from weasyprint import HTML
-    pdf = HTML(string=html).write_pdf()
-
-    return Response(
-        pdf,
-        mimetype='application/pdf',
-        headers={
-            'Content-Disposition': f'attachment; filename=factura_{job.invoice_number}.pdf',
-            'Content-Type': 'application/pdf'
-        }
-    )
+    except Exception as e:
+        logger.error(f"Error generando PDF del trabajo: {str(e)}")
+        flash('Error al generar el PDF del trabajo. Por favor, inténtelo de nuevo.', 'error')
+        return redirect(url_for('main.dashboard'))
 
 @bp.route('/process-qr', methods=['POST'])
 def process_qr():
