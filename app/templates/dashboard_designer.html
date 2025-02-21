@@ -6,7 +6,6 @@
   <div class="card mt-4">
     <div class="card-header d-flex justify-content-between align-items-center">
       <h5 class="mb-0">Trabajos Pendientes</h5>
-      <a href="{{ url_for('main.new_job') }}" class="btn btn-primary btn-sm">Nuevo Trabajo</a>
     </div>
     <div class="card-body">
       <div class="table-responsive">
@@ -28,7 +27,7 @@
             {% for job in jobs %}
             <tr>
               <td>
-                <a href="{{ url_for('main.view_invoice', job_id=job.id) }}" class="text-primary">
+                <a href="{{ url_for('main.generate_invoice', job_id=job.id) }}" class="text-primary">
                   {{ job.id }}
                 </a>
               </td>

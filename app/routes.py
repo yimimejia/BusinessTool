@@ -542,11 +542,12 @@ def delete_user(user_id):
 @bp.route('/jobs/new', methods=['GET', 'POST'])
 @login_required
 def new_job():
+    """Crear nuevo trabajo"""
     if request.method == 'POST':
         try:
             # Formatear número de teléfono
-            phone_number = request.form.get('phone_number')
-            if not phone_number.startswith('+1'):
+            phone_number = request.form.get('phone_number', '').strip()
+            if phone_number and not phone_number.startswith('+1'):
                 phone_number = f'+1{phone_number}' if phone_number.startswith('1') else f'+1{phone_number}'
 
             # Procesar etiquetas
@@ -554,14 +555,10 @@ def new_job():
             if tags:
                 tags = ','.join([tag.strip() for tag in tags.split(',') if tag.strip()])
 
-            # Procesar el monto del abono
-            deposit_amount = request.form.get('deposit_amount')
-            if deposit_amount:
-                deposit_amount = float(deposit_amount)
-
             # Si no es staff, siempre usar el ID del usuario actual como diseñador
-            designer_id = current_user.id if not current_user.is_staff else request.form.get('designer_id')
+            designer_id = request.form.get('designer_id') if current_user.is_staff else current_user.id
 
+            # Crear el trabajo
             job = Job(
                 description=request.form.get('description'),
                 designer_id=designer_id,
@@ -569,12 +566,9 @@ def new_job():
                 invoice_number=request.form.get('invoice_number'),
                 client_name=request.form.get('client_name'),
                 phone_number=phone_number,
-                deposit_amount=deposit_amount,
-                tags=tags
+                tags=tags,
+                total_amount=float(request.form.get('total_amount', 0))
             )
-
-            # Generar código QR único
-            job.generate_qr_code()
 
             db.session.add(job)
             db.session.commit()
@@ -584,14 +578,15 @@ def new_job():
                 f"Trabajo creado para {job.client_name} (Factura: {job.invoice_number})"
             )
 
-            # Redirigir a la página del QR
-            return redirect(url_for('main.show_job_qr', job_id=job.id))
+            flash('Trabajo creado exitosamente', 'success')
+            return redirect(url_for('main.dashboard'))
 
         except ValueError as e:
             flash(str(e), 'error')
             db.session.rollback()
         except Exception as e:
-            flash('Error al crear el trabajo. Verifica el formato del número telefónico (+1-XXX-XXXXXXX)', 'error')
+            logger.error(f"Error al crear trabajo: {str(e)}")
+            flash('Error al crear el trabajo', 'error')
             db.session.rollback()
 
     # Solo obtener diseñadores si el usuario es staff
@@ -828,7 +823,7 @@ def setup():
             username=username,
             name=f'PC{i:02d}',
             is_admin=False,
-is_supervisor=False,
+            is_supervisor=False,
             is_designer=True
         )
         user.set_password('1245')
@@ -1603,8 +1598,75 @@ def approve_job(job_id):
         except Exception as e:
             db.session.rollback()
             flash(f'Error al aprobar el trabajo: {str(e)}', 'error')
-            return redirect(url_for('main.dashboard'))
+            returnredirect(url_for('main.dashboard'))
 
     # GET: Mostrar formulario de aprobación
     designers = User.query.filter_by(is_designer=True).all()
     return render_template('approve_job.html', job=job, designers=designers)
+
+@bp.route('/api/complete_job', methods=['POST'])
+@login_required
+def api_complete_job():
+    """API endpoint para completar un trabajo con autorización"""
+    data = request.get_json()
+    job_id = data.get('job_id')
+    auth_username = data.get('auth_username')
+    auth_password = data.get('auth_password')
+
+    if not all([job_id, auth_username, auth_password]):
+        return jsonify({
+            'success': False,
+            'message': 'Faltan datos requeridos'
+        })
+
+    # Verificar credenciales de administrador
+    admin = User.query.filter(
+        User.username == auth_username,
+        (User.is_admin == True) | (User.is_supervisor == True)
+    ).first()
+
+    if not admin or not admin.check_password(auth_password):
+        return jsonify({
+            'success': False,
+            'message': 'Credenciales de administrador inválidas'
+        })
+
+    try:
+        job = Job.query.get_or_404(job_id)
+
+        # Crear trabajo completado
+        completed_job = CompletedJob(
+            original_job_id=job.id,
+            description=job.description,
+            designer_id=job.designer_id,
+            registered_by_id=job.registered_by_id,
+            invoice_number=job.invoice_number,
+            client_name=job.client_name,
+            phone_number=job.phone_number,
+            created_at=job.created_at,
+            completed_at=datetime.utcnow(),
+            tags=job.tags,
+            total_amount=job.total_amount
+        )
+
+        db.session.add(completed_job)
+        db.session.delete(job)
+        db.session.commit()
+
+        log_activity(
+            'trabajo_completado',
+            f"Trabajo completado para {completed_job.client_name} (Factura: {completed_job.invoice_number})"
+        )
+
+        return jsonify({
+            'success': True,
+            'message': 'Trabajo marcado como completado exitosamente'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al completar trabajo: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Error al procesar la solicitud'
+        }), 500
