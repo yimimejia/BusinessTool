@@ -4,38 +4,25 @@
 
 {% block content %}
 <!-- Estadísticas -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <h5 class="card-title">Total Trabajos</h5>
-                <h2>{{ stats.total_jobs }}</h2>
-            </div>
-        </div>
+<div class="dashboard-stats">
+    <div class="stat-card">
+        <h3>Total Trabajos</h3>
+        <div class="stat-value">{{ stats.total_jobs }}</div>
     </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <h5 class="card-title">Completados</h5>
-                <h2>{{ stats.completed_jobs }}</h2>
-            </div>
-        </div>
+
+    <div class="stat-card">
+        <h3>Completados</h3>
+        <div class="stat-value">{{ stats.completed_jobs }}</div>
     </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <h5 class="card-title">Pendientes</h5>
-                <h2>{{ stats.pending_jobs }}</h2>
-            </div>
-        </div>
+
+    <div class="stat-card">
+        <h3>Pendientes</h3>
+        <div class="stat-value">{{ stats.pending_jobs }}</div>
     </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <h5 class="card-title">Diseñadores</h5>
-                <h2>{{ stats.designers }}</h2>
-            </div>
-        </div>
+
+    <div class="stat-card">
+        <h3>Diseñadores</h3>
+        <div class="stat-value">{{ stats.designers }}</div>
     </div>
 </div>
 
