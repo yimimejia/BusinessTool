@@ -795,7 +795,7 @@ def delete_job(job_id):
             break
 
     if not valid_password:
-        flash('Contraseña incorrecta. Se requiere contraseñade administrador.', 'error')
+        flash('Contraseña incorrecta. Se requiere contraseña de administrador.', 'error')
         return redirect(url_for('main.dashboard'))
 
     job = Job.query.get_or_404(job_id)
@@ -1591,7 +1591,7 @@ def approve_pending_job(job_id):
 
             # Preparar mensaje de WhatsApp
             clean_phone = pending_job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
-            whatsapp_message = f"""Hola {pending_job.client_name}, aquí están las fotos de su trabajo:
+            whatsapp_message = f"""Hola {pendingjob.client_name}, aquí están las fotos de su trabajo:
 
 Para ver todas sus fotos, haga clic en el siguiente enlace (disponible por 3 días):
 {gallery_url}"""
@@ -1906,3 +1906,54 @@ def api_complete_job():
 @bp.route('/public/invoice/<string:qr_code>')
 def public_invoice(qr_code):
     return generate_invoice_view(qr_code=qr_code)
+@bp.route('/jobs/<int:job_id>/generate-pdf')
+@login_required
+def generate_job_pdf_new(job_id):
+    """Generar PDF para un trabajo"""
+    try:
+        # Buscar primero en trabajos activos
+        job = Job.query.get(job_id)
+        if not job:
+            # Si no está en activos, buscar en completados
+            job = CompletedJob.query.get_or_404(job_id)
+
+        # Convertir los montos a float, usar 0 si no existen
+        try:
+            total_amount = float(job.total_amount if job.total_amount else 0)
+            deposit_amount = float(job.deposit_amount if job.deposit_amount else 0)
+        except (TypeError, ValueError):
+            total_amount = 0
+            deposit_amount = 0
+
+        # Generar QR si no existe
+        if not job.qr_code:
+            job.generate_qr_code()
+            db.session.commit()
+
+        # Generar el código QR
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4
+        )
+        qr.add_data(url_for('main.public_job', qr_code=job.qr_code, _external=True))
+        qr.make(fit=True)
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+
+        # Convertir QR a base64
+        buffered = io.BytesIO()
+        qr_img.save(buffered, format="PNG")
+        qr_code_image = base64.b64encode(buffered.getvalue()).decode()
+
+        # Renderizar la plantilla con los montos explícitos
+        return render_template('invoice_pdf.html',
+                          job=job,
+                          qr_code=qr_code_image,
+                          total_amount=total_amount,
+                          deposit_amount=deposit_amount)
+
+    except Exception as e:
+        logger.error(f"Error generando PDF del trabajo: {str(e)}")
+        flash('Error al generar el PDF. Por favor, inténtelo de nuevo.', 'error')
+        return redirect(url_for('main.dashboard'))
