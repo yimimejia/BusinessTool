@@ -787,7 +787,7 @@ def delete_job(job_id):
             break
 
     if not valid_password:
-        flash('Contraseña incorrecta. Se requiere contraseña de administrador.', 'error')
+        flash('Contraseña incorrecta. Se requiere contraseñade administrador.', 'error')
         return redirect(url_for('main.dashboard'))
 
     job = Job.query.get_or_404(job_id)
@@ -1445,12 +1445,57 @@ def qr_scanner():
     """Página pública para escanear códigos QR"""
     return render_template('qr_scanner.html')
 
-@bp.route('/jobs/public/<qr_code>')
+@bp.route('/jobs/public/<string:qr_code>')
 def public_job(qr_code):
-    job = Job.query.filter_by(qr_code=qr_code).first()
-    if not job:
-        return "Trabajo no encontrado", 404
-    return render_template('public_job.html', job=job)
+    """Vista pública de un trabajo accesible por QR"""
+    try:
+        # Buscar primero en trabajos activos
+        job = Job.query.filter_by(qr_code=qr_code).first()
+        if not job:
+            # Si no está en activos, buscar en completados
+            job = CompletedJob.query.filter_by(qr_code=qr_code).first()
+            if not job:
+                # Si no está en completados, buscar en pendientes
+                job = PendingJob.query.filter_by(qr_code=qr_code).first()
+                if not job:
+                    return "Trabajo no encontrado", 404
+
+        # Asegurar que los montos sean números
+        total_amount = float(job.total_amount) if job.total_amount else 0
+        deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount else 0
+
+        # Generar URL pública para el QR si no existe
+        if not job.qr_code:
+            job.generate_qr_code()
+            db.session.commit()
+
+        qr_url = url_for('main.public_job', qr_code=job.qr_code, _external=True)
+
+        # Generate QR code
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=5
+        )
+        qr.add_data(qr_url)
+        qr.make(fit=True)
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+
+        # Convert QR to base64
+        buffered = io.BytesIO()
+        qr_img.save(buffered, format="PNG")
+        qr_code_image = base64.b64encode(buffered.getvalue()).decode()
+
+        return render_template('invoice_pdf.html',
+                          job=job,
+                          qr_code=qr_code_image,
+                          total_amount=total_amount,
+                          deposit_amount=deposit_amount)
+
+    except Exception as e:
+        logger.error(f"Error mostrando trabajo público: {str(e)}")
+        return "Error al mostrar el trabajo", 500
 
 @bp.route('/jobs/pending/new', methods=['GET', 'POST'])
 @login_required
@@ -1603,7 +1648,7 @@ def reject_pending_job(job_id):
 
     return redirect(url_for('main.pending_jobs'))
 
-@bp.route('/jobs/public/<qr_code>')
+@bp.route('/jobs/public/<string:qr_code>')
 def verify_job_qr(qr_code):
     """Ruta pública para verificar un trabajo mediante QR"""
     job = Job.query.filter_by(qr_code=qr_code).first()
@@ -1622,8 +1667,8 @@ def verify_job_qr(qr_code):
         delivered_job = create_delivered_job_from_completed(completed_job)
         db.session.delete(completed_job)
     else:
-        flash('Trabajo no encontrado', 'error')
-        return redirect(url_for('main.dashboard'))
+        delivered_job = create_delivered_job_from_pending(pending_job)
+        db.session.delete(pending_job)
 
     db.session.add(delivered_job)
     db.session.commit()
@@ -1810,116 +1855,6 @@ def api_complete_job():
             return jsonify({'success': False, 'message': 'Contraseña de administrador incorrecta'})
 
         # Crear trabajo completado
-        completed_job = CompletedJob(
-            original_job_id=job.id,
-            description=job.description,
-            designer_id=job.designer_id,
-            registered_by_id=job.registered_by_id,
-            invoice_number=job.invoice_number,
-            client_name=job.client_name,
-            phone_number=job.phone_number,
-            created_at=job.created_at,
-            completed_at=datetime.utcnow(),
-            tags=job.tags
-        )
-
-        db.session.add(completed_job)
-        db.session.delete(job)
-        db.session.commit()
-
-        log_activity(
-            'trabajo_completado',
-            f"Trabajo completado para {completed_job.client_name} (Factura: {completed_job.invoice_number})"
-        )
-
-        return jsonify({'success': True, 'message': 'Trabajo completado exitosamente'})
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error al completar trabajo: {str(e)}")
-        return jsonify({'success': False, 'message': 'Error al procesar la solicitud'})
-
-@bp.route('/public/invoice/<string:qr_code>')
-def public_invoice(qr_code):
-    return generate_invoice_view(qr_code=qr_code)
-
-# Eliminar la ruta duplicada  '/generate_invoice/<int:job_id>'
-
-@bp.route('/jobs/public/<qr_code>')
-def public_job(qr_code):
-    job = Job.query.filter_by(qr_code=qr_code).first()
-    if not job:
-        return "Trabajo no encontrado", 404
-    return render_template('public_job.html', job=job)
-    
-@bp.route('/jobs/pending/<int:job_id>/approve', methods=['GET', 'POST'])
-@login_required
-@staff_required
-def approve_job(job_id):
-    try:
-        job = PendingJob.query.get_or_404(job_id)
-
-        if request.method == 'POST':
-            try:
-                approved_job = Job(
-                    description=request.form.get('description'),
-                    designer_id=request.form.get('designer_id'),
-                    registered_by_id=current_user.id,
-                    invoice_number=request.form.get('invoice_number'),
-                    client_name=request.form.get('client_name'),
-                    phone_number=request.form.get('phone_number'),
-                    total_amount=float(request.form.get('total_amount', 0)),
-                    deposit_amount=float(request.form.get('deposit_amount', 0)),
-                    tags=request.form.get('tags')
-                )
-
-                approved_job.generate_qr_code()
-
-                db.session.add(approved_job)
-                db.session.delete(job)
-                db.session.commit()
-
-                flash('Trabajo aprobado exitosamente', 'success')
-                return redirect(url_for('main.show_job_qr', job_id=approved_job.id))
-
-            except Exception as e:
-                db.session.rollback()
-                flash(f'Error al aprobar el trabajo: {str(e)}', 'error')
-                return redirect(url_for('main.dashboard'))
-
-        designers = User.query.filter_by(is_designer=True).all()
-        return render_template('approve_job.html', job=job, designers=designers)
-
-    except Exception as e:
-        flash(f'Error al cargar el trabajo: {str(e)}', 'error')
-        return redirect(url_for('main.dashboard'))
-
-@bp.route('/api/complete_job', methods=['POST'])
-@login_required
-def api_complete_job():
-    try:
-        data = request.get_json()
-        job_id = data.get('job_id')
-        auth_password = data.get('auth_password')
-
-        if not job_id or not auth_password:
-            return jsonify({'success': False, 'message': 'Faltan datos requeridos'})
-
-        job = Job.query.get_or_404(job_id)
-
-        if not current_user.is_staff and job.designer_id != current_user.id:
-            return jsonify({'success': False, 'message': 'No tienes permiso para completar este trabajo'})
-
-        valid_admin = False
-        admins = User.query.filter_by(is_admin=True).all()
-        for admin in admins:
-            if admin.check_password(auth_password):
-                valid_admin = True
-                break
-
-        if not valid_admin:
-            return jsonify({'success': False, 'message': 'Contraseña de administrador incorrecta'})
-
         completed_job = CompletedJob(
             original_job_id=job.id,
             description=job.description,
