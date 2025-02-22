@@ -133,8 +133,11 @@
                 let totalAmount = parseFloat(totalAmountInput.value) || 0;
                 let depositAmount = parseFloat(this.value) || 0;
 
+                // Solo validar que el abono no sea mayor al total y no sea negativo
                 if (depositAmount > totalAmount) {
                     this.value = totalAmount;
+                } else if (depositAmount < 0) {
+                    this.value = 0;
                 }
             });
         });
