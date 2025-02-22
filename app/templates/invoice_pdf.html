@@ -63,10 +63,10 @@
 
         <div class="amounts">
             <h3>Detalles del Pago</h3>
-            <p><strong>Monto Total:</strong> ${{ "%.2f"|format(total_amount) }}</p>
+            <p><strong>Monto Total:</strong> RD${{ "{:,.2f}".format(total_amount) }}</p>
             {% if deposit_amount > 0 %}
-            <p><strong>Abono:</strong> ${{ "%.2f"|format(deposit_amount) }}</p>
-            <p><strong>Restante:</strong> ${{ "%.2f"|format(total_amount - deposit_amount) }}</p>
+            <p><strong>Abono:</strong> RD${{ "{:,.2f}".format(deposit_amount) }}</p>
+            <p><strong>Restante:</strong> RD${{ "{:,.2f}".format(total_amount - deposit_amount) }}</p>
             {% endif %}
         </div>
 

@@ -332,7 +332,57 @@ def send_whatsapp(job_id):
 @login_required
 def generate_invoice(job_id):
     """Generar factura para un trabajo"""
-    return generate_invoice_view(job_id=job_id)
+    try:
+        # Buscar primero en trabajos activos
+        job = Job.query.get(job_id)
+        if not job:
+            # Si no está en activos, buscar en completados
+            job = CompletedJob.query.get_or_404(job_id)
+
+        # Manejar los montos de manera segura
+        try:
+            total_amount = float(job.total if hasattr(job, 'total') else 0)
+            deposit_amount = float(job.deposit if hasattr(job, 'deposit') else 0)
+        except (TypeError, ValueError) as e:
+            logger.error(f"Error convirtiendo montos: {str(e)}")
+            total_amount = 0
+            deposit_amount = 0
+
+        # Generar QR si no existe
+        if not job.qr_code:
+            job.generate_qr_code()
+            db.session.commit()
+
+        # Generar código QR
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4
+        )
+
+        # Usar URL absoluta para el QR
+        qr_url = url_for('main.view_public_invoice', qr_code=job.qr_code, _external=True)
+        qr.add_data(qr_url)
+        qr.make(fit=True)
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+
+        # Convertir QR a base64
+        buffered = io.BytesIO()
+        qr_img.save(buffered, format="PNG")
+        qr_code_image = base64.b64encode(buffered.getvalue()).decode()
+
+        # Renderizar plantilla con los montos correctos
+        return render_template('invoice_pdf.html',
+                          job=job,
+                          qr_code=qr_code_image,
+                          total_amount=total_amount,
+                          deposit_amount=deposit_amount)
+
+    except Exception as e:
+        logger.error(f"Error generando factura: {str(e)}")
+        flash('Error al generar la factura. Por favor, inténtelo de nuevo.', 'error')
+        return redirect(url_for('main.dashboard'))
 
 @bp.route('/public/invoice/<string:qr_code>')
 def view_public_invoice(qr_code):
@@ -1387,41 +1437,45 @@ def generate_job_pdf(job_id):
             # Si no está en activos, buscar en completados
             job = CompletedJob.query.get_or_404(job_id)
 
-        # Asegurar que los montos sean números
-        total_amount = float(job.total_amount) if hasattr(job, 'total_amount') and job.total_amount else 0.0
-        deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount else 0.0
-        remaining_amount = total_amount - deposit_amount
+        # Obtener los montos de manera segura
+        try:
+            total = float(job.total) if hasattr(job, 'total') else 0.0
+            deposit = float(job.deposit) if hasattr(job, 'deposit') else 0.0
+        except (TypeError, ValueError) as e:
+            logger.error(f"Error convirtiendo montos: {str(e)}")
+            total = 0.0
+            deposit = 0.0
 
         # Generar QR si no existe
         if not job.qr_code:
             job.generate_qr_code()
             db.session.commit()
 
-        qr_url = url_for('main.public_job', qr_code=job.qr_code, _external=True)
-
-        # Generate QR code
+        # Generar código QR
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_L,
             box_size=10,
-            border=5
+            border=4
         )
+
+        # Usar URL absoluta para el QR
+        qr_url = url_for('main.public_invoice', qr_code=job.qr_code, _external=True)
         qr.add_data(qr_url)
         qr.make(fit=True)
         qr_img = qr.make_image(fill_color="black", back_color="white")
 
-        # Convert QR to base64
+        # Convertir QR a base64
         buffered = io.BytesIO()
         qr_img.save(buffered, format="PNG")
         qr_code_image = base64.b64encode(buffered.getvalue()).decode()
 
-        # Render invoice template with explicit amount values
+        # Renderizar plantilla con los montos correctos
         return render_template('invoice_pdf.html',
                           job=job,
                           qr_code=qr_code_image,
-                          total_amount="{:.2f}".format(total_amount),
-                          deposit_amount="{:.2f}".format(deposit_amount),
-                          remaining_amount="{:.2f}".format(remaining_amount))
+                          total_amount=total,
+                          deposit_amount=deposit)
 
     except Exception as e:
         logger.error(f"Error generando PDF del trabajo: {str(e)}")
@@ -1543,7 +1597,7 @@ def new_pending_job():
 
         except Exception as e:
             db.session.rollback()
-            flash('Error al crear el trabajo pendiente', 'error')
+            flash('Error al crear el trabajopendiente', 'error')
             return redirect(url_for('main.dashboard'))
 
     return render_template('new_pending_job.html')
@@ -1591,7 +1645,7 @@ def approve_pending_job(job_id):
 
             # Preparar mensaje de WhatsApp
             clean_phone = pending_job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
-            whatsapp_message = f"""Hola {pendingjob.client_name}, aquí están las fotos de su trabajo:
+            whatsapp_message = f"""Hola {pending_job.client_name}, aquí están las fotos de su trabajo:
 
 Para ver todas sus fotos, haga clic en el siguiente enlace (disponible por 3 días):
 {gallery_url}"""
@@ -1616,7 +1670,7 @@ Para ver todas sus fotos, haga clic en el siguiente enlace (disponible por 3 dí
                 designer_id=pending_job.designer_id,
                 registered_by_id=current_user.id,
                 invoice_number=request.form.get('invoice_number'),
-                clientname=pending_job.client_name,
+                client_name=pending_job.client_name,
                 phone_number=pending_job.phone_number,
                 total_amount=request.form.get('total_amount', type=float),
                 deposit_amount=request.form.get('deposit_amount', type=float),
@@ -1726,7 +1780,7 @@ def create_delivered_job_from_completed(completed_job):
         description=completed_job.description,
         designer_id=completed_job.designer_id,
         registered_by_id=completed_job.registered_by_id,
-        invoice_number=completed_job.invoicenumber,
+        invoice_number=completed_job.invoice_number,
         client_name=completed_job.client_name,
         phone_number=completed_job.phone_number,
         created_at=completed_job.created_at,
