@@ -792,7 +792,7 @@ def mark_delivered(job_id):
 
     log_activity(
         'trabajo_entregado',
-        f"Trabajo entregado: {delivered_job.client_name} (Factura: {delivered_job.invoice_number})"
+        f"Trabajo entregado: {delivered_job.client_name} (Factura: {delivered_job.invoice_number})```python
     )
 
     flash('Trabajo marcado como entregado', 'success')
@@ -817,7 +817,7 @@ def delete_job(job_id):
             break
 
     if not valid_password:
-                flash('Contraseña incorrecta. Se requiere contraseña de administrador.', 'error')
+        flash('Contraseña incorrecta. Se requiere contraseña de administrador.', 'error')
         return redirect(url_for('main.dashboard'))
 
     job = Job.query.get_or_404(job_id)
@@ -1612,7 +1612,7 @@ def pending_photos():
         jobs = PendingJob.query.filter_by(pending_type='photo_verification').all()
         return render_template('pending_photos.html', jobs=jobs)
     except Exception as e:
-        flash(f'Error al cargar fotos pendientes: {str(e)}', 'error')
+        flash(f'Error al cargar fotos pendientes:{str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
 
 @bp.route('/jobs/pending/<int:job_id>/approve`, methods=['POST'])
@@ -1999,3 +1999,34 @@ def generate_job_pdf_new(job_id):
         logger.error(f"Error generando PDF del trabajo: {str(e)}")
         flash('Error al generar el PDF. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.dashboard'))
+
+@bp.route('/jobs/<int:job_id>/approve', methods=['GET', 'POST'])
+@login_required
+@staff_required
+def approve_pending_job(job_id):
+    """Aprobar un trabajo pendiente"""
+    pending_job = PendingJob.query.get_or_404(job_id)
+
+    # Crear nuevo trabajo activo
+    job = Job(
+        description=pending_job.description,
+        designer_id=pending_job.designer_id,
+        registered_by_id=current_user.id,
+        invoice_number=pending_job.invoice_number,
+        client_name=pending_job.client_name,
+        phone_number=pending_job.phone_number,
+        total_amount=pending_job.total_amount
+    )
+
+    # Eliminar el trabajo pendiente
+    db.session.add(job)
+    db.session.delete(pending_job)
+    db.session.commit()
+
+    log_activity(
+        'aprobar_trabajo',
+        f"Trabajo aprobado: {job.client_name} (Factura: {job.invoice_number})"
+    )
+
+    flash('Trabajo aprobado exitosamente', 'success')
+    return redirect(url_for('main.dashboard'))
