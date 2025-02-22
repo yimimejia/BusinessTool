@@ -30,7 +30,7 @@
             <h3>Detalles del Pago</h3>
             <p><strong>Monto Total:</strong> RD${{ "%.2f"|format(total_amount|float) }}</p>
             {% if deposit_amount and deposit_amount|float > 0 %}
-            <p><strong>Depósito:</strong> RD${{ "%.2f"|format(deposit_amount|float) }}</p>
+            <p><strong>Abono:</strong> RD${{ "%.2f"|format(deposit_amount|float) }}</p>
             <p><strong>Restante:</strong> RD${{ "%.2f"|format((total_amount|float - deposit_amount|float)) }}</p>
             {% else %}
             <p><strong>Restante:</strong> RD${{ "%.2f"|format(total_amount|float) }}</p>
