@@ -1,15 +1,37 @@
+
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Factura</title>
+    <title>Factura - FOTO VIDEO MOJICA</title>
     <style>
-        body { font-family: Arial, sans-serif; }
-        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .invoice-details { margin-bottom: 20px; }
-        .amount-section { margin: 20px 0; border-top: 1px solid #ddd; padding-top: 20px; }
-        .qr-code { text-align: center; margin-top: 30px; }
-        .qr-code img { max-width: 150px; }
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .invoice-details {
+            margin-bottom: 30px;
+        }
+        .amount-section {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 30px;
+            background-color: #f9f9f9;
+        }
+        .qr-code {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .qr-code img {
+            max-width: 200px;
+        }
     </style>
 </head>
 <body>
@@ -28,12 +50,12 @@
 
         <div class="amount-section">
             <h3>Detalles del Pago</h3>
-            <p><strong>Monto Total:</strong> RD${{ "%.2f"|format(total_amount|float) }}</p>
+            <p><strong>Monto Total:</strong> RD${{ "{:,.2f}".format(total_amount|float) }}</p>
             {% if deposit_amount and deposit_amount|float > 0 %}
-            <p><strong>Depósito:</strong> RD${{ "%.2f"|format(deposit_amount|float) }}</p>
-            <p><strong>Restante:</strong> RD${{ "%.2f"|format((total_amount|float - deposit_amount|float)) }}</p>
+            <p><strong>Depósito:</strong> RD${{ "{:,.2f}".format(deposit_amount|float) }}</p>
+            <p><strong>Restante:</strong> RD${{ "{:,.2f}".format((total_amount|float - deposit_amount|float)) }}</p>
             {% else %}
-            <p><strong>Restante:</strong> RD${{ "%.2f"|format(total_amount|float) }}</p>
+            <p><strong>Restante:</strong> RD${{ "{:,.2f}".format(total_amount|float) }}</p>
             {% endif %}
         </div>
 
