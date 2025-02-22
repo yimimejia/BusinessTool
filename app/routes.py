@@ -1579,21 +1579,36 @@ def new_pending_job():
             if not phone_number.startswith('+1'):
                 phone_number = f'+1{phone_number}' if phone_number.startswith('1') else f'+1{phone_number}'
 
-            pending_job = PendingJob(
-                description=request.form.get('description'),
-                designer_id=request.form.get('designer_id'),
-                registered_by_id=current_user.id,
-                invoice_number=request.form.get('invoice_number'),
-                client_name=request.form.get('client_name'),
-                phone_number=phone_number
-            )
-
-            db.session.add(pending_job)
-            db.session.commit()
-
-            flash('Trabajo pendiente creado exitosamente', 'success')
-            # Redireccionar a la factura después de crear el trabajo
-            return redirect(url_for('main.generate_job_pdf', job_id=pending_job.id))
+            # Si es staff, crear trabajo directamente
+            if current_user.is_staff:
+                job = Job(
+                    description=request.form.get('description'),
+                    designer_id=request.form.get('designer_id'),
+                    registered_by_id=current_user.id,
+                    invoice_number=request.form.get('invoice_number'),
+                    client_name=request.form.get('client_name'),
+                    phone_number=phone_number,
+                    total_amount=float(request.form.get('total_amount', 0)),
+                    deposit_amount=float(request.form.get('deposit_amount', 0))
+                )
+                db.session.add(job)
+                db.session.commit()
+                flash('Trabajo creado exitosamente', 'success')
+                return redirect(url_for('main.generate_job_pdf', job_id=job.id))
+            else:
+                # Si no es staff, crear trabajo pendiente
+                pending_job = PendingJob(
+                    description=request.form.get('description'),
+                    designer_id=request.form.get('designer_id'),
+                    registered_by_id=current_user.id,
+                    invoice_number=request.form.get('invoice_number'),
+                    client_name=request.form.get('client_name'),
+                    phone_number=phone_number
+                )
+                db.session.add(pending_job)
+                db.session.commit()
+                flash('Trabajo pendiente creado exitosamente', 'success')
+                return redirect(url_for('main.dashboard'))
 
         except Exception as e:
             db.session.rollback()
