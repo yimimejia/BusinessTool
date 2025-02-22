@@ -1380,8 +1380,8 @@ def generate_job_pdf(job_id):
             job = CompletedJob.query.get_or_404(job_id)
 
         # Asegurar que los montos sean números
-        total = float(job.total) if hasattr(job, 'total') and job.total else 0
-        deposit = float(job.deposit) if hasattr(job, 'deposit') and job.deposit else 0
+        total_amount = float(job.total_amount) if hasattr(job, 'total_amount') and job.total_amount else 0
+        deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount else 0
 
         # Generar QR si no existe
         if not job.qr_code:
@@ -1410,8 +1410,8 @@ def generate_job_pdf(job_id):
         return render_template('invoice_pdf.html',
                           job=job,
                           qr_code=qr_code_image,
-                          total=total,
-                          deposit=deposit)
+                          total_amount=total_amount,
+                          deposit_amount=deposit_amount)
 
     except Exception as e:
         logger.error(f"Error generando PDF del trabajo: {str(e)}")
@@ -1604,7 +1604,7 @@ Para ver todas sus fotos, haga clic en el siguiente enlace (disponible por 3 dí
                 designer_id=pending_job.designer_id,
                 registered_by_id=current_user.id,
                 invoice_number=request.form.get('invoice_number'),
-                client_name=pending_job.client_name,
+                clientname=pending_job.client_name,
                 phone_number=pending_job.phone_number,
                 total_amount=request.form.get('total_amount', type=float),
                 deposit_amount=request.form.get('deposit_amount', type=float),
