@@ -356,10 +356,16 @@ def generate_invoice_view(job_id=None, qr_code=None):
                 if not job:
                     return "Factura no encontrada", 404
 
-        # Asegurar que los montos sean números y formatearlos
-        total_amount = float(job.total_amount) if job.total_amount else 0.0
-        deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount else 0.0
-        remaining_amount = total_amount - deposit_amount
+        # Asegurar que los montos sean números y convertirlos de Decimal a float
+        try:
+            total_amount = float(job.total_amount) if job.total_amount else 0.0
+            deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount else 0.0
+            remaining_amount = total_amount - deposit_amount
+        except (TypeError, ValueError) as e:
+            logger.error(f"Error convirtiendo montos: {str(e)}")
+            total_amount = 0.0
+            deposit_amount = 0.0
+            remaining_amount = 0.0
 
         # Generar URL pública para el QR
         if not job.qr_code:
