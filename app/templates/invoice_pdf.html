@@ -1,171 +1,44 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Factura Digital - {{ job.invoice_number }}</title>
+    <title>Factura</title>
     <style>
-        body {
-            font-family: 'Helvetica', Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #1a1d21;
-            color: #ffffff;
-            line-height: 1.6;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background-color: #282c34;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-            padding-bottom: 20px;
-        }
-        .header h1 {
-            color: #ffffff;
-            margin: 0;
-            font-size: 24px;
-            font-weight: bold;
-        }
-        .details-section {
-            margin-bottom: 30px;
-        }
-        .details-row {
-            display: flex;
-            margin-bottom: 15px;
-            align-items: center;
-        }
-        .details-label {
-            font-weight: bold;
-            width: 140px;
-            color: #a8b2d1;
-        }
-        .details-value {
-            flex: 1;
-        }
-        .amounts-section {
-            background-color: rgba(255, 255, 255, 0.05);
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-        }
-        .amount-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .amount-row:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-        }
-        .amount-label {
-            color: #a8b2d1;
-            font-weight: bold;
-        }
-        .amount-value {
-            font-weight: bold;
-            color: #ffffff;
-        }
-        .qr-section {
-            text-align: center;
-            margin-top: 30px;
-            padding: 20px;
-            background-color: #ffffff;
-            border-radius: 8px;
-        }
-        .qr-code {
-            width: 200px;
-            height: 200px;
-            margin: 0 auto 10px;
-        }
-        .qr-caption {
-            color: #333333;
-            font-size: 14px;
-        }
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            color: #a8b2d1;
-            font-size: 14px;
-        }
-        @media print {
-            body {
-                background-color: #ffffff;
-                color: #000000;
-            }
-            .container {
-                background-color: #ffffff;
-                box-shadow: none;
-            }
-            .header h1 {
-                color: #000000;
-            }
-            .details-label, .amount-label {
-                color: #666666;
-            }
-            .amount-value {
-                color: #000000;
-            }
-            .amounts-section {
-                background-color: #f8f9fa;
-            }
-        }
+        body { font-family: Arial, sans-serif; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .invoice-details { margin-bottom: 20px; }
+        .amount-section { margin: 20px 0; border-top: 1px solid #ddd; padding-top: 20px; }
+        .qr-code { text-align: center; margin-top: 30px; }
+        .qr-code img { max-width: 150px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Factura Digital</h1>
+            <h1>FOTO VIDEO MOJICA</h1>
+            <h2>Factura #{{ job.invoice_number }}</h2>
         </div>
 
-        <div class="details-section">
-            <div class="details-row">
-                <span class="details-label">No. Factura:</span>
-                <span class="details-value">{{ job.invoice_number }}</span>
-            </div>
-            <div class="details-row">
-                <span class="details-label">Cliente:</span>
-                <span class="details-value">{{ job.client_name }}</span>
-            </div>
-            <div class="details-row">
-                <span class="details-label">Descripción:</span>
-                <span class="details-value">{{ job.description }}</span>
-            </div>
-            <div class="details-row">
-                <span class="details-label">Fecha:</span>
-                <span class="details-value">{{ job.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
-            </div>
+        <div class="invoice-details">
+            <p><strong>Cliente:</strong> {{ job.client_name }}</p>
+            <p><strong>Fecha:</strong> {{ job.created_at.strftime('%d/%m/%Y') }}</p>
+            <p><strong>Teléfono:</strong> {{ job.phone_number }}</p>
+            <p><strong>Descripción:</strong> {{ job.description }}</p>
         </div>
 
-        <div class="amounts-section">
-            <div class="amount-row">
-                <span class="amount-label">Total:</span>
-                <span class="amount-value">${{ "%.2f"|format(total_amount if total_amount is not None else 0) }}</span>
-            </div>
-            <div class="amount-row">
-                <span class="amount-label">Abono:</span>
-                <span class="amount-value">${{ "%.2f"|format(deposit_amount if deposit_amount is not None else 0) }}</span>
-            </div>
-            <div class="amount-row">
-                <span class="amount-label">Restante:</span>
-                <span class="amount-value">${{ "%.2f"|format((total_amount - deposit_amount) if total_amount is not None and deposit_amount is not None else 0) }}</span>
-            </div>
+        <div class="amount-section">
+            <h3>Detalles del Pago</h3>
+            <p><strong>Monto Total:</strong> RD${{ total_amount }}</p>
+            {% if deposit_amount %}
+            <p><strong>Depósito:</strong> RD${{ deposit_amount }}</p>
+            <p><strong>Restante:</strong> RD${{ total_amount - deposit_amount }}</p>
+            {% endif %}
         </div>
 
-        <div class="qr-section">
-            <img src="data:image/png;base64,{{ qr_code }}" alt="Código QR" class="qr-code">
-            <p class="qr-caption">Escanee este código para verificar su trabajo</p>
-        </div>
-
-        <div class="footer">
-            <p>FOTO VIDEO MOJICA</p>
-            <p>Gracias por su preferencia</p>
+        <div class="qr-code">
+            {% if qr_code %}
+            <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code">
+            {% endif %}
         </div>
     </div>
 </body>
