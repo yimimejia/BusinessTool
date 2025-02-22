@@ -1604,17 +1604,23 @@ Para ver todas sus fotos, haga clic en el siguiente enlace (disponible por 3 dí
             return redirect(whatsapp_url)
 
         else:
+            # Obtener los datos del formulario
+            invoice_number = request.form.get('invoice_number')
+            total_amount = float(request.form.get('total_amount', 0))
+            deposit_amount = float(request.form.get('deposit_amount', 0))
+            tags = request.form.get('tags', '').strip()
+
             # Crear el trabajo regular
             job = Job(
                 description=pending_job.description,
                 designer_id=pending_job.designer_id,
                 registered_by_id=current_user.id,
-                invoice_number=request.form.get('invoice_number'),
-                clientname=pending_job.client_name,
+                invoice_number=invoice_number,
+                client_name=pending_job.client_name,
                 phone_number=pending_job.phone_number,
-                total_amount=request.form.get('total_amount', type=float),
-                deposit_amount=request.form.get('deposit_amount', type=float),
-                tags=request.form.get('tags', '').strip()
+                total_amount=total_amount,
+                deposit_amount=deposit_amount,
+                tags=tags
             )
 
             # Generar código QR
@@ -1626,7 +1632,7 @@ Para ver todas sus fotos, haga clic en el siguiente enlace (disponible por 3 dí
 
             log_activity(
                 'trabajo_aprobado',
-                f"Trabajo aprobado: {job.client_name} (Factura: {job.invoice_number})"
+                f"Trabajo aprobado: {job.client_name} (Factura: {invoice_number})"
             )
 
             flash('Trabajo aprobado exitosamente', 'success')
