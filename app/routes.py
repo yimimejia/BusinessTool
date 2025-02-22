@@ -479,18 +479,16 @@ def dashboard():
                              pending_jobs=pending_jobs,
                              stats=stats)
     elif current_user.is_supervisor:
-        # Vista de supervisor - mostrar todos los trabajos pendientes
+        # Vista de supervisor - mostrar trabajos regulares
         jobs = Job.query.order_by(Job.created_at.desc()).all()
-        pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
         stats = {
             'total_jobs': len(jobs),
             'completed_jobs': CompletedJob.query.count(),
-            'pending_jobs': len(pending_jobs),
+            'pending_jobs': Job.query.filter_by(status='pending').count(),
             'designers_count': User.query.filter_by(is_designer=True).count()
         }
         return render_template('dashboard_supervisor.html',
                              jobs=jobs,
-                             pending_jobs=pending_jobs,
                              stats=stats)
         # Vista de supervisor
         jobs = Job.query.order_by(Job.created_at.desc()).all()
