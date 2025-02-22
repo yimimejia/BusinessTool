@@ -43,9 +43,11 @@
               <td>{{ job.registered_by.name }}</td>
               <td>{{ job.tags }}</td>
               <td>
-                <span class="badge bg-primary">{{ job.status }}</span>
+                <span class="badge {% if job.status == 'pending' %}bg-warning{% else %}bg-success{% endif %}">
+                  {{ job.status|upper }}
+                </span>
               </td>
-              <td>
+              <td>d>
                 <div class="btn-group">
                   <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-pencil"></i> Editar
