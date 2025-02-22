@@ -139,18 +139,22 @@
             </div>
             <div class="details-row">
                 <span class="details-label">Fecha:</span>
-                <span class="details-value">{{ job.created_at.strftime('%H:%M') }}</span>
+                <span class="details-value">{{ job.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
             </div>
         </div>
 
         <div class="amounts-section">
             <div class="amount-row">
                 <span class="amount-label">Total:</span>
-                <span class="amount-value">${{ job.total_amount|int if job.total_amount else 0 }}</span>
+                <span class="amount-value">${{ "%.2f"|format(total_amount) }}</span>
             </div>
             <div class="amount-row">
                 <span class="amount-label">Abono:</span>
-                <span class="amount-value">${{ job.deposit_amount|int if job.deposit_amount else 0 }}</span>
+                <span class="amount-value">${{ "%.2f"|format(deposit_amount) }}</span>
+            </div>
+            <div class="amount-row">
+                <span class="amount-label">Restante:</span>
+                <span class="amount-value">${{ "%.2f"|format(total_amount - deposit_amount) }}</span>
             </div>
         </div>
 
