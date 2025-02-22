@@ -64,8 +64,12 @@
         <div class="amounts">
             <h3>Detalles del Pago</h3>
             <p><strong>Monto Total:</strong> RD${{ "{:,.2f}".format(job.total_amount|float) }}</p>
+            {% if job.deposit_amount and job.deposit_amount|float > 0 %}
             <p><strong>Abono:</strong> RD${{ "{:,.2f}".format(job.deposit_amount|float) }}</p>
             <p><strong>Restante:</strong> RD${{ "{:,.2f}".format((job.total_amount|float - job.deposit_amount|float)) }}</p>
+            {% else %}
+            <p><strong>Restante:</strong> RD${{ "{:,.2f}".format(job.total_amount|float) }}</p>
+            {% endif %}
         </div>
 
         <div class="qr-section">

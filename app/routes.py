@@ -417,6 +417,11 @@ def generate_invoice_view(job_id=None, qr_code=None):
             deposit_amount = 0.0
             remaining_amount = 0.0
 
+        # Formatear los montos a 2 decimales
+        total_amount = "{:.2f}".format(total_amount)
+        deposit_amount = "{:.2f}".format(deposit_amount)
+        remaining_amount = "{:.2f}".format(remaining_amount)
+
         # Generar URL pública para el QR
         if not job.qr_code:
             job.generate_qr_code()
@@ -444,9 +449,9 @@ def generate_invoice_view(job_id=None, qr_code=None):
         return render_template('invoice_pdf.html',
                           job=job,
                           qr_code=qr_code_image,
-                          total_amount="{:.2f}".format(total_amount),
-                          deposit_amount="{:.2f}".format(deposit_amount),
-                          remaining_amount="{:.2f}".format(remaining_amount))
+                          total_amount=total_amount,
+                          deposit_amount=deposit_amount,
+                          remaining_amount=remaining_amount)
 
     except Exception as e:
         logger.error(f"Error generando factura: {str(e)}")
@@ -781,8 +786,7 @@ def edit_job(job_id):
 
 @bp.route('/completed-jobs/<int:job_id>/mark-called', methods=['POST'])
 @login_required
-@staff_required
-def mark_called(job_id):
+@staff_requireddef mark_called(job_id):
     job = CompletedJob.query.get_or_404(job_id)
     job.is_called = True
     job.called_at = datetime.utcnow()
