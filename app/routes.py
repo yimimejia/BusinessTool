@@ -1616,7 +1616,7 @@ def pending_photos():
         for job in jobs:
             logger.info(f"Photo job: ID={job.id}, Client={job.client_name}")
 
-        return render_template('pending_photos.html', jobs=jobs))
+        return render_template('pending_photos.html', jobs=jobs)
     except Exception as e:
         logger.error(f"Error al cargar fotos pendientes: {str(e)}")
         flash(f'Error al cargar fotos pendientes: {str(e)}', 'error')
