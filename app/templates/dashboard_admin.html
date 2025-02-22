@@ -1,43 +1,27 @@
 {% extends "base.html" %}
+{% block title %}Panel de Administrador{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
-  <h2>Panel de Administración</h2>
-
-  <div class="dashboard-stats">
-    <div class="stat-card">
-      <h3>Total Trabajos</h3>
-      <div class="stat-value">{{ stats.total_jobs or 0 }}</div>
-    </div>
-
-    <div class="stat-card">
-      <h3>Completados</h3>
-      <div class="stat-value">{{ stats.completed_jobs or 0 }}</div>
-    </div>
-
-    <div class="stat-card">
-      <h3>Pendientes</h3>
-      <div class="stat-value">{{ stats.pending_jobs or 0 }}</div>
-    </div>
-
-    <div class="stat-card">
-      <h3>Diseñadores</h3>
-      <div class="stat-value">{{ stats.designers or 0 }}</div>
-    </div>
-  </div>
+  <h2>Panel de Administrador</h2>
 
   <div class="card mt-4">
     <div class="card-header d-flex justify-content-between align-items-center">
-      <h5 class="mb-0">Trabajos Pendientes</h5>
+      <h5 class="mb-0">Gestión de Trabajos</h5>
       <a href="{{ url_for('main.new_pending_job') }}" class="btn btn-primary">Nuevo Trabajo</a>
     </div>
     <div class="card-body">
       <div class="table-responsive">
-        <table class="table">
+        <table class="table" id="jobsTable">
           <thead>
             <tr>
+              <th>ID</th>
               <th>Factura</th>
               <th>Cliente</th>
-              <th>Diseñador</th>
+              <th>Teléfono</th>
+              <th>Descripción</th>
+              <th>Fecha</th>
+              <th>Registrado por</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -45,18 +29,22 @@
           <tbody>
             {% for job in jobs %}
             <tr>
-              <td><a href="{{ url_for('main.generate_job_pdf', job_id=job.id) }}" target="_blank" class="text-primary text-decoration-none">{{ job.invoice_number }}</a></td>
-              <td><a href="{{ url_for('main.generate_job_pdf', job_id=job.id) }}" target="_blank" class="text-decoration-none">{{ job.client_name }}</a></td>
-              <td>{{ job.designer.name }}</td>
-              <td>
-                <span class="badge {% if job.is_completed %}bg-success{% else %}bg-warning{% endif %}">
-                  {{ 'Completado' if job.is_completed else 'Pendiente' }}
-                </span>
-              </td>
+              <td>{{ job.id }}</td>
+              <td>{{ job.invoice_number }}</td>
+              <td>{{ job.client_name }}</td>
+              <td>{{ job.phone_number }}</td>
+              <td>{{ job.description }}</td>
+              <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
+              <td>{{ job.registered_by.name }}</td>
+              <td><span class="badge bg-{{ job.status_color }}">{{ job.status_text }}</span></td>
               <td>
                 <div class="btn-group">
-                  <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-sm btn-outline-primary">Editar</a>
-                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteJob({{ job.id }})">Eliminar</button>
+                  <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-pencil"></i> Editar
+                  </a>
+                  <button class="btn btn-danger btn-sm delete-job" data-job-id="{{ job.id }}">
+                    <i class="bi bi-trash"></i> Eliminar
+                  </button>
                 </div>
               </td>
             </tr>
@@ -66,123 +54,67 @@
       </div>
     </div>
   </div>
-
-  <div class="card mt-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <h5 class="mb-0">Trabajos Recientes</h5>
-      <a href="{{ url_for('main.new_job') }}" class="btn btn-primary btn-sm">Nuevo Trabajo</a>
-    </div>
-    <div class="card-body">
-      <div class="table-responsive">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Factura</th>
-              <th>Cliente</th>
-              <th>Diseñador</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for job in jobs %}
-            <tr>
-              <td><a href="{{ url_for('main.generate_job_pdf', job_id=job.id) }}" target="_blank" class="text-primary text-decoration-none">{{ job.invoice_number }}</a></td>
-              <td><a href="{{ url_for('main.generate_job_pdf', job_id=job.id) }}" target="_blank" class="text-decoration-none">{{ job.client_name }}</a></td>
-              <td>{{ job.designer.name }}</td>
-              <td>
-                <span class="badge {% if job.is_completed %}bg-success{% else %}bg-warning{% endif %}">
-                  {{ 'Completado' if job.is_completed else 'Pendiente' }}
-                </span>
-              </td>
-              <td>
-                <div class="btn-group">
-                  <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-sm btn-outline-primary">Editar</a>
-                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteJob({{ job.id }})">Eliminar</button>
-                </div>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal de eliminación -->
-  <div class="modal fade" id="deleteModal" tabindex="-1">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Confirmar Eliminación</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <p>¿Está seguro de que desea eliminar este trabajo?</p>
-          <form id="deleteForm" method="POST">
-            <input type="hidden" name="admin_password" id="adminPassword">
-          </form>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-danger" onclick="confirmDelete()">Eliminar</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal para limpiar base de datos -->
-    <div class="modal fade" id="cleanDatabaseModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Limpiar Base de Datos</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form action="{{ url_for('main.clean_database') }}" method="POST">
-                    <div class="modal-body">
-                        <div class="alert alert-warning">
-                            <strong>¡Advertencia!</strong> Esta acción eliminará todos los trabajos registrados.
-                        </div>
-                        <div class="mb-3">
-                            <label for="admin_password" class="form-label">Contraseña de Administrador</label>
-                            <input type="password" class="form-control" id="admin_password" name="admin_password" required>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-danger">Limpiar Base de Datos</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Botón para abrir el modal -->
-    <div class="mt-4">
-        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#cleanDatabaseModal">
-            Limpiar Base de Datos
-        </button>
-    </div>
 </div>
 
+<!-- Modal de Confirmación de Eliminación -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirmar Eliminación</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        ¿Está seguro de que desea eliminar este trabajo?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="confirmDelete">Eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
 <script>
-let jobToDelete = null;
+$(document).ready(function() {
+  $('#jobsTable').DataTable({
+    language: {
+      url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+    },
+    order: [[0, 'desc']]
+  });
 
-function deleteJob(jobId) {
-  jobToDelete = jobId;
-  const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-  modal.show();
-}
+  let jobIdToDelete = null;
+  const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
 
-function confirmDelete() {
-  const password = prompt('Ingrese la contraseña de administrador para confirmar:');
-  if (password) {
-    const form = document.getElementById('deleteForm');
-    form.action = `/jobs/${jobToDelete}/delete`;
-    document.getElementById('adminPassword').value = password;
-    form.submit();
-  }
-}
+  $('.delete-job').click(function() {
+    jobIdToDelete = $(this).data('job-id');
+    deleteModal.show();
+  });
+
+  $('#confirmDelete').click(function() {
+    fetch(`/jobs/${jobIdToDelete}/delete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        location.reload();
+      } else {
+        alert('Error al eliminar el trabajo');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Error al procesar la solicitud');
+    });
+  });
+});
 </script>
 {% endblock %}
