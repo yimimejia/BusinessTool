@@ -1,87 +1,46 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Factura Digital - FOTO VIDEO MOJICA</title>
+    <title>Factura</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            line-height: 1.6;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            border: 1px solid #ddd;
-            padding: 20px;
-            border-radius: 8px;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #333;
-            padding-bottom: 20px;
-        }
-        .details {
-            margin-bottom: 30px;
-        }
-        .amounts {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 30px;
-        }
-        .qr-section {
-            text-align: center;
-        }
-        .qr-section img {
-            max-width: 200px;
-            margin: 20px 0;
-        }
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            font-size: 0.9em;
-            color: #666;
-        }
+        body { font-family: Arial, sans-serif; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .invoice-details { margin-bottom: 20px; }
+        .amount-section { margin: 20px 0; border-top: 1px solid #ddd; padding-top: 20px; }
+        .qr-code { text-align: center; margin-top: 30px; }
+        .qr-code img { max-width: 150px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>FOTO VIDEO MOJICA</h1>
-            <h2>Factura Digital #{{ job.invoice_number }}</h2>
+            <h2>Factura #{{ job.invoice_number }}</h2>
         </div>
 
-        <div class="details">
+        <div class="invoice-details">
             <p><strong>Cliente:</strong> {{ job.client_name }}</p>
             <p><strong>Fecha:</strong> {{ job.created_at.strftime('%d/%m/%Y') }}</p>
-            <p><strong>Descripción:</strong> {{ job.description }}</p>
-            {% if job.phone_number %}
             <p><strong>Teléfono:</strong> {{ job.phone_number }}</p>
-            {% endif %}
+            <p><strong>Descripción:</strong> {{ job.description }}</p>
         </div>
 
-        <div class="amounts">
+        <div class="amount-section">
             <h3>Detalles del Pago</h3>
-            <p><strong>Monto Total:</strong> RD${{ "{:,.2f}".format(job.total_amount|float) }}</p>
-            {% if job.deposit_amount and job.deposit_amount|float > 0 %}
-            <p><strong>Abono:</strong> RD${{ "{:,.2f}".format(job.deposit_amount|float) }}</p>
-            <p><strong>Restante:</strong> RD${{ "{:,.2f}".format((job.total_amount|float - job.deposit_amount|float)) }}</p>
+            <p><strong>Monto Total:</strong> RD${{ "%.2f"|format(total_amount|float) }}</p>
+            {% if deposit_amount and deposit_amount|float > 0 %}
+            <p><strong>Depósito:</strong> RD${{ "%.2f"|format(deposit_amount|float) }}</p>
+            <p><strong>Restante:</strong> RD${{ "%.2f"|format((total_amount|float - deposit_amount|float)) }}</p>
             {% else %}
-            <p><strong>Restante:</strong> RD${{ "{:,.2f}".format(job.total_amount|float) }}</p>
+            <p><strong>Restante:</strong> RD${{ "%.2f"|format(total_amount|float) }}</p>
             {% endif %}
         </div>
 
-        <div class="qr-section">
+        <div class="qr-code">
             {% if qr_code %}
-            <img src="data:image/png;base64,{{ qr_code }}" alt="Código QR">
-            <p><small>Escanee este código para verificar su trabajo</small></p>
+            <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code">
             {% endif %}
-        </div>
-
-        <div class="footer">
-            <p><strong>FOTO VIDEO MOJICA</strong></p>
-            <p>¡Gracias por su preferencia!</p>
         </div>
     </div>
 </body>

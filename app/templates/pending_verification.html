@@ -122,13 +122,3 @@
     </div>
 </div>
 {% endblock %}
-
-{% block scripts %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        if (typeof initializeDataTable === 'function') {
-            initializeDataTable('#pendingVerificationTable');
-        }
-    });
-</script>
-{% endblock %}

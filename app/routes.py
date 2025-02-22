@@ -332,57 +332,7 @@ def send_whatsapp(job_id):
 @login_required
 def generate_invoice(job_id):
     """Generar factura para un trabajo"""
-    try:
-        # Buscar primero en trabajos activos
-        job = Job.query.get(job_id)
-        if not job:
-            # Si no está en activos, buscar en completados
-            job = CompletedJob.query.get_or_404(job_id)
-
-        # Manejar los montos de manera segura
-        try:
-            total_amount = float(job.total if hasattr(job, 'total') else 0)
-            deposit_amount = float(job.deposit if hasattr(job, 'deposit') else 0)
-        except (TypeError, ValueError) as e:
-            logger.error(f"Error convirtiendo montos: {str(e)}")
-            total_amount = 0
-            deposit_amount = 0
-
-        # Generar QR si no existe
-        if not job.qr_code:
-            job.generate_qr_code()
-            db.session.commit()
-
-        # Generar código QR
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
-            border=4
-        )
-
-        # Usar URL absoluta para el QR
-        qr_url = url_for('main.view_public_invoice', qr_code=job.qr_code, _external=True)
-        qr.add_data(qr_url)
-        qr.make(fit=True)
-        qr_img = qr.make_image(fill_color="black", back_color="white")
-
-        # Convertir QR a base64
-        buffered = io.BytesIO()
-        qr_img.save(buffered, format="PNG")
-        qr_code_image = base64.b64encode(buffered.getvalue()).decode()
-
-        # Renderizar plantilla con los montos correctos
-        return render_template('invoice_pdf.html',
-                              job=job,
-                              qr_code=qr_code_image,
-                              total_amount=total_amount,
-                              deposit_amount=deposit_amount)
-
-    except Exception as e:
-        logger.error(f"Error generando factura: {str(e)}")
-        flash('Error al generar la factura. Por favor, inténtelo de nuevo.', 'error')
-        return redirect(url_for('main.dashboard'))
+    return generate_invoice_view(job_id=job_id)
 
 @bp.route('/public/invoice/<string:qr_code>')
 def view_public_invoice(qr_code):
@@ -406,21 +356,10 @@ def generate_invoice_view(job_id=None, qr_code=None):
                 if not job:
                     return "Factura no encontrada", 404
 
-        # Asegurar que los montos sean números y convertirlos de Decimal a float
-        try:
-            total_amount = float(job.total_amount) if job.total_amount else 0.0
-            deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount else 0.0
-            remaining_amount = total_amount - deposit_amount
-        except (TypeError, ValueError) as e:
-            logger.error(f"Error convirtiendo montos: {str(e)}")
-            total_amount = 0.0
-            deposit_amount = 0.0
-            remaining_amount = 0.0
-
-        # Formatear los montos a 2 decimales
-        total_amount = "{:.2f}".format(total_amount)
-        deposit_amount = "{:.2f}".format(deposit_amount)
-        remaining_amount = "{:.2f}".format(remaining_amount)
+        # Asegurar que los montos sean números y formatearlos
+        total_amount = float(job.total_amount) if job.total_amount else 0.0
+        deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount else 0.0
+        remaining_amount = total_amount - deposit_amount
 
         # Generar URL pública para el QR
         if not job.qr_code:
@@ -447,11 +386,11 @@ def generate_invoice_view(job_id=None, qr_code=None):
 
         # Render invoice template with explicit amount values
         return render_template('invoice_pdf.html',
-                              job=job,
-                              qr_code=qr_code_image,
-                              total_amount=total_amount,
-                              deposit_amount=deposit_amount,
-                              remaining_amount=remaining_amount)
+                          job=job,
+                          qr_code=qr_code_image,
+                          total_amount="{:.2f}".format(total_amount),
+                          deposit_amount="{:.2f}".format(deposit_amount),
+                          remaining_amount="{:.2f}".format(remaining_amount))
 
     except Exception as e:
         logger.error(f"Error generando factura: {str(e)}")
@@ -464,55 +403,87 @@ def generate_invoice_view(job_id=None, qr_code=None):
 @login_required
 def dashboard():
     """Vista del dashboard con estadísticas por rol"""
-    try:
-        if current_user.is_admin or current_user.is_supervisor:
-            # Vista de administrador/supervisor - mostrar todos los trabajos y pendientes
-            jobs = Job.query.order_by(Job.created_at.desc()).all()
+    if current_user.is_admin:
+        # Vista de administrador - mostrar todos los trabajos y pendientes
+        jobs = Job.query.order_by(Job.created_at.desc()).all()
+        pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
+        stats = {
+            'total_jobs': len(jobs),
+            'completed_jobs': CompletedJob.query.count(),
+            'pending_jobs': len(pending_jobs),
+            'designers_count': User.query.filter_by(is_designer=True).count()
+        }
+        return render_template('dashboard_admin.html', 
+                             jobs=jobs,
+                             pending_jobs=pending_jobs,
+                             stats=stats)
+    elif current_user.is_supervisor:
+        # Vista de supervisor - mostrar trabajos regulares
+        jobs = Job.query.order_by(Job.created_at.desc()).all()
+        stats = {
+            'total_jobs': len(jobs),
+            'completed_jobs': CompletedJob.query.count(),
+            'pending_jobs': Job.query.filter_by(status='pending').count(),
+            'designers_count': User.query.filter_by(is_designer=True).count()
+        }
+        return render_template('dashboard_supervisor.html',
+                             jobs=jobs,
+                             stats=stats)
+        # Vista de supervisor
+        jobs = Job.query.order_by(Job.created_at.desc()).all()
+        stats = {
+            'total_jobs': len(jobs),
+            'completed_jobs': CompletedJob.query.count(),
+            'pending_jobs': Job.query.filter_by(status='pending').count(),
+            'designers_count': User.query.filter_by(is_designer=True).count()
+        }
+    else:
+        # Vista de diseñador - excluir trabajos pendientes por verificar
+        jobs = Job.query.filter_by(designer_id=current_user.id).order_by(Job.created_at.desc()).all()
+        pending_jobs = PendingJob.query.filter_by(
+            designer_id=current_user.id,
+            pending_type='photo_verification'
+        ).all()
+        stats = {
+            'total_jobs': len(jobs),
+            'completed_jobs': CompletedJob.query.filter_by(designer_id=current_user.id).count(),
+            'pending_jobs': len(pending_jobs),
+            'delivered_jobs': DeliveredJob.query.filter_by(designer_id=current_user.id).count()
+        }
 
-            # Obtener todos los trabajos pendientes
-            pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
-            completed_jobs_count = CompletedJob.query.count()
+    if current_user.is_admin:
+        # Vista de administrador
+        jobs = Job.query.order_by(Job.created_at.desc()).all()
+        pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
+        return render_template('dashboard_admin.html', 
+                             jobs=jobs, 
+                             pending_jobs=pending_jobs,
+                             stats=stats)
 
-            # Logging para debug de pending_jobs
-            logger.info(f"User {current_user.username} accessing dashboard")
-            logger.info(f"Active jobs count: {len(jobs)}")
-            logger.info(f"Pending jobs count: {len(pending_jobs)}")
-            for job in pending_jobs:
-                logger.info(f"Pending job: ID={job.id}, Type={job.pending_type}, Client={job.client_name}")
+    elif current_user.is_supervisor:
+        # Vista de supervisor - solo mostrar trabajos aprobados
+        approved_jobs = Job.query.filter(Job.status != 'pending').order_by(Job.created_at.desc()).all()
+        pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
+        pending_verification_count = PendingJob.query.filter_by(pending_type='new_job').count()
+        pending_photos_count = PendingJob.query.filter_by(pending_type='photo_verification').count()
 
-            stats = {
-                'total_jobs': len(jobs) + len(pending_jobs),
-                'completed_jobs': completed_jobs_count,
-                'pending_jobs': len(pending_jobs),
-                'designers': User.query.filter_by(is_designer=True).count()
-            }
+        return render_template('dashboard_supervisor.html',
+                             jobs=approved_jobs,
+                             pending_jobs=pending_jobs,
+                             pending_verification_count=pending_verification_count,
+                             pending_photos_count=pending_photos_count,
+                             stats=stats)
 
-            # Para supervisor y admin, mostrar la misma vista pero con diferente plantilla
-            template = 'dashboard_admin.html' if current_user.is_admin else 'dashboard_supervisor.html'
-            return render_template(template,
-                                   jobs=jobs,
-                                   pending_jobs=pending_jobs,
-                                   stats=stats)
-        else:
-            # Vista de diseñador
-            jobs = Job.query.filter_by(designer_id=current_user.id).order_by(Job.created_at.desc()).all()
-            pending_jobs = PendingJob.query.filter_by(designer_id=current_user.id).all()
-
-            stats = {
-                'total_jobs': len(jobs),
-                'completed_jobs': CompletedJob.query.filter_by(designer_id=current_user.id).count(),
-                'pending_jobs': len(pending_jobs),
-                'delivered_jobs': DeliveredJob.query.filter_by(designer_id=current_user.id).count()
-            }
-
-            return render_template('dashboard_designer.html',
-                                   jobs=jobs,
-                                   stats=stats)
-
-    except Exception as e:
-        logger.error(f"Error en dashboard: {str(e)}")
-        flash('Error al cargar el dashboard', 'error')
-        return redirect(url_for('main.index'))
+    else:
+        # Vista de diseñador
+        jobs = Job.query.filter_by(designer_id=current_user.id).order_by(Job.created_at.desc()).all()
+        stats = {
+            'total_jobs': len(jobs),
+            'completed_jobs': CompletedJob.query.filter_by(designer_id=current_user.id).count(),
+            'pending_jobs': Job.query.filter_by(designer_id=current_user.id, status='pending').count(),
+            'delivered_jobs': DeliveredJob.query.filter_by(designer_id=current_user.id).count()
+        }
+        return render_template('dashboard_designer.html', jobs=jobs, stats=stats)
 
 @bp.route('/manage-users')
 @login_required
@@ -775,7 +746,7 @@ def mark_delivered(job_id):
         completed_job_id=job.id,
         description=job.description,
         designer_id=job.designer_id,
-        registered_by_id=job.registered_by_id,
+        registered_by_id=job.registered_by_id,  # Mantener el usuario que registró
         invoice_number=job.invoice_number,
         client_name=job.client_name,
         phone_number=job.phone_number,
@@ -796,7 +767,7 @@ def mark_delivered(job_id):
         f"Trabajo entregado: {delivered_job.client_name} (Factura: {delivered_job.invoice_number})"
     )
 
-    flash('Trabajo marcadocomo entregado', 'success')
+    flash('Trabajo marcado como entregado', 'success')
     return redirect(url_for('main.completed_jobs'))
 
 @bp.route('/jobs/<int:job_id>/delete', methods=['POST'])
@@ -818,7 +789,7 @@ def delete_job(job_id):
             break
 
     if not valid_password:
-        flash('Contraseña incorrecta. Se requiere contraseña de administrador.', 'error')
+        flash('Contraseña incorrecta. Se requiere contraseñade administrador.', 'error')
         return redirect(url_for('main.dashboard'))
 
     job = Job.query.get_or_404(job_id)
@@ -1123,9 +1094,8 @@ def export_jobs(format):
         output.seek(0)
 
         return Response(
-            output,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            headers={'Content-Disposition': f'attachment;filename=trabajos_{datetime.now().strftime("%Y%m%d")}.xlsx'}
+                        output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',            headers={'Content-Disposition': f'attachment;filename=trabajos_{datetime.now().strftime("%Y%m%d")}.xlsx'}
         )
 
     else:  # PDF
@@ -1357,8 +1327,7 @@ def webauthn_authenticate_complete():
             raise ValueError("Datos de autenticación no encontrados. Por favor, inicie el proceso nuevamente.")
 
         user = User.query.filter_by(username=username).first()
-        if not user:
-            raise ValueError("Usuario no encontrado")
+        if not user:            raise ValueError("Usuario no encontrado")
 
         credential = AuthenticationCredential.from_json(request.json)
 
@@ -1412,45 +1381,41 @@ def generate_job_pdf(job_id):
             # Si no está en activos, buscar en completados
             job = CompletedJob.query.get_or_404(job_id)
 
-        # Obtener los montos de manera segura
-        try:
-            total = float(job.total) if hasattr(job, 'total') else 0.0
-            deposit = float(job.deposit) if hasattr(job, 'deposit') else 0.0
-        except (TypeError, ValueError) as e:
-            logger.error(f"Error convirtiendo montos: {str(e)}")
-            total = 0.0
-            deposit = 0.0
+        # Asegurar que los montos sean números
+        total_amount = float(job.total_amount) if hasattr(job, 'total_amount') and job.total_amount else 0.0
+        deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount else 0.0
+        remaining_amount = total_amount - deposit_amount
 
         # Generar QR si no existe
         if not job.qr_code:
             job.generate_qr_code()
             db.session.commit()
 
-        # Generar código QR
+        qr_url = url_for('main.public_job', qr_code=job.qr_code, _external=True)
+
+        # Generate QR code
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_L,
             box_size=10,
-            border=4
+            border=5
         )
-
-        # Usar URL absoluta para el QR
-        qr_url = url_for('main.public_invoice', qr_code=job.qr_code, _external=True)
         qr.add_data(qr_url)
         qr.make(fit=True)
         qr_img = qr.make_image(fill_color="black", back_color="white")
 
-        # Convertir QR a base64
+        # Convert QR to base64
         buffered = io.BytesIO()
         qr_img.save(buffered, format="PNG")
         qr_code_image = base64.b64encode(buffered.getvalue()).decode()
 
-        # Renderizar plantilla con los montos correctos
+        # Render invoice template with explicit amount values
         return render_template('invoice_pdf.html',
-                              job=job,
-                              qr_code=qr_code_image,
-                              total_amount=total,
-                              deposit_amount=deposit)
+                          job=job,
+                          qr_code=qr_code_image,
+                          total_amount="{:.2f}".format(total_amount),
+                          deposit_amount="{:.2f}".format(deposit_amount),
+                          remaining_amount="{:.2f}".format(remaining_amount))
 
     except Exception as e:
         logger.error(f"Error generando PDF del trabajo: {str(e)}")
@@ -1535,11 +1500,11 @@ def public_job(qr_code):
         qr_code_image = base64.b64encode(buffered.getvalue()).decode()
 
         return render_template('invoice_pdf.html',
-                              job=job,
-                              qr_code=qr_code_image,
-                              total_amount="{:.2f}".format(total_amount),
-                              deposit_amount="{:.2f}".format(deposit_amount),
-                              remaining_amount="{:.2f}".format(remaining_amount))
+                          job=job,
+                          qr_code=qr_code_image,
+                          total_amount="{:.2f}".format(total_amount),
+                          deposit_amount="{:.2f}".format(deposit_amount),
+                          remaining_amount="{:.2f}".format(remaining_amount))
 
     except Exception as e:
         logger.error(f"Error mostrando trabajo público: {str(e)}")
@@ -1554,40 +1519,25 @@ def new_pending_job():
             if not phone_number.startswith('+1'):
                 phone_number = f'+1{phone_number}' if phone_number.startswith('1') else f'+1{phone_number}'
 
-            # Si es staff, crear trabajo directamente
-            if current_user.is_staff:
-                job = Job(
-                    description=request.form.get('description'),
-                    designer_id=request.form.get('designer_id'),
-                    registered_by_id=current_user.id,
-                    invoice_number=request.form.get('invoice_number'),
-                    client_name=request.form.get('client_name'),
-                    phone_number=phone_number,
-                    total_amount=float(request.form.get('total_amount', 0)),
-                    deposit_amount=float(request.form.get('deposit_amount', 0))
-                )
-                db.session.add(job)
-                db.session.commit()
-                flash('Trabajo creado exitosamente', 'success')
-                return redirect(url_for('main.generate_job_pdf', job_id=job.id))
-            else:
-                # Si no es staff, crear trabajo pendiente
-                pending_job = PendingJob(
-                    description=request.form.get('description'),
-                    designer_id=request.form.get('designer_id'),
-                    registered_by_id=current_user.id,
-                    invoice_number=request.form.get('invoice_number'),
-                    client_name=request.form.get('client_name'),
-                    phone_number=phone_number
-                )
-                db.session.add(pending_job)
-                db.session.commit()
-                flash('Trabajo pendiente creado exitosamente', 'success')
-                return redirect(url_for('main.dashboard'))
+            pending_job = PendingJob(
+                description=request.form.get('description'),
+                designer_id=request.form.get('designer_id'),
+                registered_by_id=current_user.id,
+                invoice_number=request.form.get('invoice_number'),
+                client_name=request.form.get('client_name'),
+                phone_number=phone_number
+            )
+
+            db.session.add(pending_job)
+            db.session.commit()
+
+            flash('Trabajo pendiente creado exitosamente', 'success')
+            # Redireccionar a la factura después de crear el trabajo
+            return redirect(url_for('main.generate_job_pdf', job_id=pending_job.id))
 
         except Exception as e:
             db.session.rollback()
-            flash('Error al crear el trabajopendiente', 'error')
+            flash('Error al crear el trabajo pendiente', 'error')
             return redirect(url_for('main.dashboard'))
 
     return render_template('new_pending_job.html')
@@ -1604,149 +1554,89 @@ def pending_verification():
         flash(f'Error al cargar trabajos pendientes: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
 
-@bp.route('/pending-photos')
+@bp.route('/jobs/pending/photos')
 @login_required
 @staff_required
 def pending_photos():
+    """Vista de fotos pendientes por aprobar"""
     try:
-        jobs = PendingJob.query.filter_by(pending_type='photo_verification').order_by(PendingJob.created_at.desc()).all()
-
-        # Agregar logging para debug
-        logger.info(f"Total pending photo jobs: {len(jobs)}")
-        for job in jobs:
-            logger.info(f"Photo job: ID={job.id}, Client={job.client_name}")
-
+        jobs = PendingJob.query.filter_by(pending_type='photo_verification').all()
         return render_template('pending_photos.html', jobs=jobs)
     except Exception as e:
-        logger.error(f"Error al cargar fotos pendientes: {str(e)}")
         flash(f'Error al cargar fotos pendientes: {str(e)}', 'error')
-        return redirect(url_for('main.dashboard'))
-
-@bp.route('/jobs/<int:job_id>/delete', methods=['POST'])
-@login_required
-@admin_required
-def delete_job(job_id):
-    password = request.form.get('admin_password')
-    if not password:
-        flash('Se requiere contraseña para eliminar', 'error')
-        return redirect(url_for('main.dashboard'))
-
-    # Verificar si la contraseña coincide con algún admin solamente
-    admins = User.query.filter_by(is_admin=True).all()
-
-    valid_password = False
-    for admin in admins:
-        if admin.check_password(password):
-            valid_password = True
-            break
-
-    if not valid_password:
-        flash('Contraseña incorrecta. Se requiere contraseña de administrador.', 'error')
-        return redirect(url_for('main.dashboard'))
-
-    job = Job.query.get_or_404(job_id)
-    db.session.delete(job)
-    db.session.commit()
-
-    log_activity(
-        'trabajo_eliminado',
-        f"Trabajo eliminado: {job.client_name} (Factura: {job.invoice_number})"
-    )
-
-    flash('Trabajo eliminado exitosamente', 'success')
-    return redirect(url_for('main.dashboard'))
-
-@bp.route('/jobs/pending', methods=['GET'])
-@login_required
-def pending_jobs():
-    """Ver trabajos pendientes"""
-    try:
-        # Mejorar el logging para debug
-        logger.info("Consultando trabajos pendientes...")
-        jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
-        logger.info(f"Total de trabajos pendientes encontrados: {len(jobs)}")
-
-        for job in jobs:
-            logger.info(f"Trabajo pendiente: ID={job.id}, Cliente={job.client_name}, Tipo={job.pending_type}")
-
-        return render_template('pending_jobs.html', jobs=jobs)
-    except Exception as e:
-        logger.error(f"Error al cargar trabajos pendientes: {str(e)}")
-        flash(f'Error al cargar trabajos pendientes: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
 
 @bp.route('/jobs/pending/<int:job_id>/approve', methods=['POST'])
 @login_required
 @staff_required
 def approve_pending_job(job_id):
-    """Aprobar un trabajo pendiente y crear el trabajo activo correspondiente"""
+    """Aprobar un trabajo pendiente"""
     try:
         pending_job = PendingJob.query.get_or_404(job_id)
-        logger.info(f"Procesando aprobación de trabajo pendiente: ID={job_id}, Tipo={pending_job.pending_type}")
 
-        if pending_job.pending_type == 'new_job':
-            # Crear nuevo trabajo activo
+        if pending_job.pending_type == 'photo_verification':
+            # Si es verificación de fotos, aprobar y enviar por WhatsApp
+            photos = json.loads(pending_job.photos) if pending_job.photos else []
+
+            # Generar enlace temporal para las fotos
+            from app.utils.links import generate_temporary_link
+            token = generate_temporary_link(photos)
+            gallery_url = f"{request.url_root.rstrip('/')}/gallery/{token}"
+
+            # Preparar mensaje de WhatsApp
+            clean_phone = pending_job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+            whatsapp_message = f"""Hola {pending_job.client_name}, aquí están las fotos de su trabajo:
+
+Para ver todas sus fotos, haga clic en el siguiente enlace (disponible por 3 días):
+{gallery_url}"""
+
+            # Eliminar el trabajo pendiente
+            db.session.delete(pending_job)
+            db.session.commit()
+
+            log_activity(
+                'fotos_aprobadas',
+                f"Fotos aprobadas y enviadas - Trabajo #{pending_job.original_job_id}, Cliente: {pending_job.client_name}"
+            )
+
+            # Redirigir a WhatsApp con el mensaje
+            whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(whatsapp_message)}"
+            return redirect(whatsapp_url)
+
+        else:
+            # Crear el trabajo regular
             job = Job(
                 description=pending_job.description,
                 designer_id=pending_job.designer_id,
-                registered_by_id=pending_job.registered_by_id,
+                registered_by_id=current_user.id,
                 invoice_number=request.form.get('invoice_number'),
-                client_name=pending_job.client_name,
+                clientname=pending_job.client_name,
                 phone_number=pending_job.phone_number,
-                total_amount=float(request.form.get('total_amount', 0)),
-                deposit_amount=float(request.form.get('deposit_amount', 0)),
-                tags=request.form.get('tags')
+                total_amount=request.form.get('total_amount', type=float),
+                deposit_amount=request.form.get('deposit_amount', type=float),
+                tags=request.form.get('tags', '').strip()
             )
+
+            # Generar código QR
+            job.generate_qr_code()
 
             db.session.add(job)
             db.session.delete(pending_job)
+            db.session.commit()
 
             log_activity(
-                'aprobar_trabajo',
-                f"Trabajo aprobado y creado: {job.client_name} (Factura: {job.invoice_number})"
+                'trabajo_aprobado',
+                f"Trabajo aprobado: {job.client_name} (Factura: {job.invoice_number})"
             )
 
-            flash('Trabajo aprobado y creado exitosamente', 'success')
-
-        elif pending_job.pending_type == 'photo_verification':
-            # Actualizar trabajo completado con fotos verificadas
-            completed_job = CompletedJob.query.get(pending_job.original_job_id)
-            if completed_job:
-                if pending_job.photos:
-                    completed_job.verified_photos = pending_job.photos
-                completed_job.photos_verified = True
-                completed_job.photos_verified_at = datetime.utcnow()
-
-                db.session.delete(pending_job)
-
-                log_activity(
-                    'aprobar_fotos',
-                    f"Fotos aprobadas - Trabajo #{completed_job.id}, Cliente: {completed_job.client_name}"
-                )
-
-                flash('Fotos verificadas exitosamente', 'success')
-            else:
-                raise ValueError("Trabajo completado no encontrado")
-
-        db.session.commit()
-        logger.info(f"Trabajo pendiente aprobado exitosamente: ID={job_id}")
-
-        # Redireccionar según el tipo de trabajo
-        if pending_job.pending_type == 'photo_verification':
-            return redirect(url_for('main.completed_jobs'))
-        return redirect(url_for('main.dashboard'))
-
-    except ValueError as e:
-        db.session.rollback()
-        logger.error(f"Error de validación al aprobar trabajo: {str(e)}")
-        flash(str(e), 'error')
-        return redirect(url_for('main.dashboard'))
+            flash('Trabajo aprobado exitosamente', 'success')
+            return redirect(url_for('main.pending_jobs'))
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error al aprobar trabajo pendiente: {str(e)}")
-        flash('Error al procesar la solicitud', 'error')
-        return redirect(url_for('main.dashboard'))
+        logging.error(f"Error al aprobar trabajo pendiente: {str(e)}")
+        flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
+        return redirect(url_for('main.pending_jobs'))
 
 @bp.route('/jobs/pending/<int:job_id>/reject', methods=['POST'])
 @login_required
@@ -1783,7 +1673,7 @@ def verify_job_qr(qr_code):
         return redirect(url_for('main.login'))
 
     # Determinar qué tipo de trabajo es y procesarlo
-    if job:
+    if job:        
         delivered_job = create_delivered_job_from_job(job)
         db.session.delete(job)
     elif completed_job:
@@ -1830,7 +1720,7 @@ def create_delivered_job_from_completed(completed_job):
         description=completed_job.description,
         designer_id=completed_job.designer_id,
         registered_by_id=completed_job.registered_by_id,
-        invoice_number=completed_job.invoice_number,
+        invoice_number=completed_job.invoicenumber,
         client_name=completed_job.client_name,
         phone_number=completed_job.phone_number,
         created_at=completed_job.created_at,
@@ -1896,18 +1786,10 @@ def utility_processor():
 def pending_jobs():
     """Ver trabajos pendientes"""
     try:
-        # Mejorar el logging para debug
-        logger.info("Consultando trabajos pendientes...")
         jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
-        logger.info(f"Total de trabajos pendientes encontrados: {len(jobs)}")
-
-        for job in jobs:
-            logger.info(f"Trabajo pendiente: ID={job.id}, Cliente={job.client_name}, Tipo={job.pending_type}")
-
         return render_template('pending_jobs.html', jobs=jobs)
     except Exception as e:
-        logger.error(f"Error al cargar trabajos pendientes: {str(e)}")
-        flash(f'Error al cargar trabajos pendientes: {str(e)}', 'error')
+        flash(f'Error al cargar trabajos pendientes: {str(e)}', '`error')
         return redirect(url_for('main.dashboard'))
 
 @bp.route('/jobs/<int:job_id>/approve', methods=['GET', 'POST'])
@@ -2018,85 +1900,3 @@ def api_complete_job():
 @bp.route('/public/invoice/<string:qr_code>')
 def public_invoice(qr_code):
     return generate_invoice_view(qr_code=qr_code)
-@bp.route('/jobs/<int:job_id>/generate-pdf')
-@login_required
-def generate_job_pdf_new(job_id):
-    """Generar PDF para un trabajo"""
-    try:
-        # Buscar primero en trabajos activos
-        job = Job.query.get(job_id)
-        if not job:
-            # Si no está en activos, buscar en completados
-            job = CompletedJob.query.get_or_404(job_id)
-
-        # Convertir los montos a float, usar 0 si no existen
-        try:
-            total_amount = float(job.total_amount if job.total_amount else 0)
-            deposit_amount = float(job.deposit_amount if job.deposit_amount else 0)
-        except (TypeError, ValueError):
-            total_amount = 0
-            deposit_amount = 0
-
-        # Generar QR si no existe
-        if not job.qr_code:
-            job.generate_qr_code()
-            db.session.commit()
-
-        # Generar el código QR
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
-            border=4
-        )
-        qr.add_data(url_for('main.public_job', qr_code=job.qr_code, _external=True))
-        qr.make(fit=True)
-        qr_img = qr.make_image(fill_color="black", back_color="white")
-
-        # Convertir QR a base64
-        buffered = io.BytesIO()
-        qr_img.save(buffered, format="PNG")
-        qr_code_image = base64.b64encode(buffered.getvalue()).decode()
-
-        # Renderizar la plantilla con los montos explícitos
-        return render_template('invoice_pdf.html',
-                              job=job,
-                              qr_code=qr_code_image,
-                              total_amount=total_amount,
-                              deposit_amount=deposit_amount)
-
-    except Exception as e:
-        logger.error(f"Error generando PDF del trabajo: {str(e)}")
-        flash('Error al generar el PDF. Por favor, inténtelo de nuevo.', 'error')
-        return redirect(url_for('main.dashboard'))
-
-@bp.route('/jobs/<int:job_id>/approve', methods=['GET', 'POST'])
-@login_required
-@staff_required
-def approve_pending_job(job_id):
-    """Aprobar un trabajo pendiente"""
-    pending_job = PendingJob.query.get_or_404(job_id)
-
-    # Crear nuevo trabajo activo
-    job = Job(
-        description=pending_job.description,
-        designer_id=pending_job.designer_id,
-        registered_by_id=current_user.id,
-        invoice_number=pending_job.invoice_number,
-        client_name=pending_job.client_name,
-        phone_number=pending_job.phone_number,
-        total_amount=pending_job.total_amount
-    )
-
-    # Eliminar el trabajo pendiente
-    db.session.add(job)
-    db.session.delete(pending_job)
-    db.session.commit()
-
-    log_activity(
-        'aprobar_trabajo',
-        f"Trabajo aprobado: {job.client_name} (Factura: {job.invoice_number})"
-    )
-
-    flash('Trabajo aprobado exitosamente', 'success')
-    return redirect(url_for('main.dashboard'))
