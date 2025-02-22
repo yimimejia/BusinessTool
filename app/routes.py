@@ -374,10 +374,10 @@ def generate_invoice(job_id):
 
         # Renderizar plantilla con los montos correctos
         return render_template('invoice_pdf.html',
-                          job=job,
-                          qr_code=qr_code_image,
-                          total_amount=total_amount,
-                          deposit_amount=deposit_amount)
+                              job=job,
+                              qr_code=qr_code_image,
+                              total_amount=total_amount,
+                              deposit_amount=deposit_amount)
 
     except Exception as e:
         logger.error(f"Error generando factura: {str(e)}")
@@ -447,11 +447,11 @@ def generate_invoice_view(job_id=None, qr_code=None):
 
         # Render invoice template with explicit amount values
         return render_template('invoice_pdf.html',
-                          job=job,
-                          qr_code=qr_code_image,
-                          total_amount=total_amount,
-                          deposit_amount=deposit_amount,
-                          remaining_amount=remaining_amount)
+                              job=job,
+                              qr_code=qr_code_image,
+                              total_amount=total_amount,
+                              deposit_amount=deposit_amount,
+                              remaining_amount=remaining_amount)
 
     except Exception as e:
         logger.error(f"Error generando factura: {str(e)}")
@@ -464,42 +464,35 @@ def generate_invoice_view(job_id=None, qr_code=None):
 @login_required
 def dashboard():
     """Vista del dashboard con estadísticas por rol"""
-    if current_user.is_admin:
-        # Vista de administrador - mostrar todos los trabajos y pendientes
+    if current_user.is_admin or current_user.is_supervisor:
+        # Vista de administrador/supervisor - mostrar todos los trabajos y pendientes
         jobs = Job.query.order_by(Job.created_at.desc()).all()
         pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
         stats = {
             'total_jobs': len(jobs),
             'completed_jobs': CompletedJob.query.count(),
             'pending_jobs': len(pending_jobs),
-            'designers_count': User.query.filter_by(is_designer=True).count()
+            'designers': User.query.filter_by(is_designer=True).count()
         }
-        return render_template('dashboard_admin.html', 
-                             jobs=jobs,
-                             pending_jobs=pending_jobs,
-                             stats=stats)
-    elif current_user.is_supervisor:
-        # Vista de supervisor - mostrar trabajos regulares
-        jobs = Job.query.order_by(Job.created_at.desc()).all()
-        stats = {
-            'total_jobs': len(jobs),
-            'completed_jobs': CompletedJob.query.count(),
-            'pending_jobs': Job.query.filter_by(status='pending').count(),
-            'designers_count': User.query.filter_by(is_designer=True).count()
-        }
-        return render_template('dashboard_supervisor.html',
-                             jobs=jobs,
-                             stats=stats)
-        # Vista de supervisor
-        jobs = Job.query.order_by(Job.created_at.desc()).all()
-        stats = {
-            'total_jobs': len(jobs),
-            'completed_jobs': CompletedJob.query.count(),
-            'pending_jobs': Job.query.filter_by(status='pending').count(),
-            'designers_count': User.query.filter_by(is_designer=True).count()
-        }
+
+        if current_user.is_admin:
+            return render_template('dashboard_admin.html', 
+                                    jobs=jobs,
+                                    pending_jobs=pending_jobs,
+                                    stats=stats)
+        else:
+            # Vista de supervisor
+            pending_verification_count = PendingJob.query.filter_by(pending_type='new_job').count()
+            pending_photos_count = PendingJob.query.filter_by(pending_type='photo_verification').count()
+
+            return render_template('dashboard_supervisor.html',
+                                    jobs=jobs,
+                                    pending_jobs=pending_jobs,
+                                    pending_verification_count=pending_verification_count,
+                                    pending_photos_count=pending_photos_count,
+                                    stats=stats)
     else:
-        # Vista de diseñador - excluir trabajos pendientes por verificar
+        # Vista de diseñador
         jobs = Job.query.filter_by(designer_id=current_user.id).order_by(Job.created_at.desc()).all()
         pending_jobs = PendingJob.query.filter_by(
             designer_id=current_user.id,
@@ -512,38 +505,6 @@ def dashboard():
             'delivered_jobs': DeliveredJob.query.filter_by(designer_id=current_user.id).count()
         }
 
-    if current_user.is_admin:
-        # Vista de administrador
-        jobs = Job.query.order_by(Job.created_at.desc()).all()
-        pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
-        return render_template('dashboard_admin.html', 
-                             jobs=jobs, 
-                             pending_jobs=pending_jobs,
-                             stats=stats)
-
-    elif current_user.is_supervisor:
-        # Vista de supervisor - solo mostrar trabajos aprobados
-        approved_jobs = Job.query.filter(Job.status != 'pending').order_by(Job.created_at.desc()).all()
-        pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
-        pending_verification_count = PendingJob.query.filter_by(pending_type='new_job').count()
-        pending_photos_count = PendingJob.query.filter_by(pending_type='photo_verification').count()
-
-        return render_template('dashboard_supervisor.html',
-                             jobs=approved_jobs,
-                             pending_jobs=pending_jobs,
-                             pending_verification_count=pending_verification_count,
-                             pending_photos_count=pending_photos_count,
-                             stats=stats)
-
-    else:
-        # Vista de diseñador
-        jobs = Job.query.filter_by(designer_id=current_user.id).order_by(Job.created_at.desc()).all()
-        stats = {
-            'total_jobs': len(jobs),
-            'completed_jobs': CompletedJob.query.filter_by(designer_id=current_user.id).count(),
-            'pending_jobs': Job.query.filter_by(designer_id=current_user.id, status='pending').count(),
-            'delivered_jobs': DeliveredJob.query.filter_by(designer_id=current_user.id).count()
-        }
         return render_template('dashboard_designer.html', jobs=jobs, stats=stats)
 
 @bp.route('/manage-users')
@@ -1155,8 +1116,9 @@ def export_jobs(format):
         output.seek(0)
 
         return Response(
-                        output,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',            headers={'Content-Disposition': f'attachment;filename=trabajos_{datetime.now().strftime("%Y%m%d")}.xlsx'}
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            headers={'Content-Disposition': f'attachment;filename=trabajos_{datetime.now().strftime("%Y%m%d")}.xlsx'}
         )
 
     else:  # PDF
@@ -1388,7 +1350,8 @@ def webauthn_authenticate_complete():
             raise ValueError("Datos de autenticación no encontrados. Por favor, inicie el proceso nuevamente.")
 
         user = User.query.filter_by(username=username).first()
-        if not user:            raise ValueError("Usuario no encontrado")
+        if not user:
+            raise ValueError("Usuario no encontrado")
 
         credential = AuthenticationCredential.from_json(request.json)
 
@@ -1477,10 +1440,10 @@ def generate_job_pdf(job_id):
 
         # Renderizar plantilla con los montos correctos
         return render_template('invoice_pdf.html',
-                          job=job,
-                          qr_code=qr_code_image,
-                          total_amount=total,
-                          deposit_amount=deposit)
+                              job=job,
+                              qr_code=qr_code_image,
+                              total_amount=total,
+                              deposit_amount=deposit)
 
     except Exception as e:
         logger.error(f"Error generando PDF del trabajo: {str(e)}")
@@ -1565,11 +1528,11 @@ def public_job(qr_code):
         qr_code_image = base64.b64encode(buffered.getvalue()).decode()
 
         return render_template('invoice_pdf.html',
-                          job=job,
-                          qr_code=qr_code_image,
-                          total_amount="{:.2f}".format(total_amount),
-                          deposit_amount="{:.2f}".format(deposit_amount),
-                          remaining_amount="{:.2f}".format(remaining_amount))
+                              job=job,
+                              qr_code=qr_code_image,
+                              total_amount="{:.2f}".format(total_amount),
+                              deposit_amount="{:.2f}".format(deposit_amount),
+                              remaining_amount="{:.2f}".format(remaining_amount))
 
     except Exception as e:
         logger.error(f"Error mostrando trabajo público: {str(e)}")
@@ -1654,8 +1617,7 @@ def approve_pending_job(job_id):
     try:
         pending_job = PendingJob.query.get_or_404(job_id)
 
-        if pending_job.pending_type == 'photo_verification':
-            # Si es verificación de fotos, aprobar y enviar por WhatsApp
+        if pending_job.pending_type == 'photo_verification':# Si es verificación de fotos, aprobar y enviar por WhatsApp
             photos = json.loads(pending_job.photos) if pending_job.photos else []
 
             # Generar enlace temporal para las fotos
@@ -1753,7 +1715,7 @@ def verify_job_qr(qr_code):
         return redirect(url_for('main.login'))
 
     # Determinar qué tipo de trabajo es y procesarlo
-    if job:        
+    if job:
         delivered_job = create_delivered_job_from_job(job)
         db.session.delete(job)
     elif completed_job:
@@ -2022,10 +1984,10 @@ def generate_job_pdf_new(job_id):
 
         # Renderizar la plantilla con los montos explícitos
         return render_template('invoice_pdf.html',
-                          job=job,
-                          qr_code=qr_code_image,
-                          total_amount=total_amount,
-                          deposit_amount=deposit_amount)
+                              job=job,
+                              qr_code=qr_code_image,
+                              total_amount=total_amount,
+                              deposit_amount=deposit_amount)
 
     except Exception as e:
         logger.error(f"Error generando PDF del trabajo: {str(e)}")
