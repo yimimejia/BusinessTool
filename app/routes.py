@@ -798,8 +798,7 @@ def mark_delivered(job_id):
     flash('Trabajo marcado como entregado', 'success')
     return redirect(url_for('main.completed_jobs'))
 
-@bp.route('/jobs/<int:job_id>/delete', methods=['POST```python
-'])
+@bp.route('/jobs/<int:job_id>/delete', methods=['POST'])
 @login_required
 @admin_required
 def delete_job(job_id):
