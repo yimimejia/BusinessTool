@@ -473,11 +473,12 @@ def dashboard():
             pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
             completed_jobs_count = CompletedJob.query.count()
 
-            # Logging para debug
+            # Logging para debug de pending_jobs
             logger.info(f"User {current_user.username} accessing dashboard")
-            logger.info(f"Active jobs: {len(jobs)}")
-            logger.info(f"Pending jobs: {len(pending_jobs)}")
-            logger.info(f"Pending job types: {[job.pending_type for job in pending_jobs]}")
+            logger.info(f"Active jobs count: {len(jobs)}")
+            logger.info(f"Pending jobs count: {len(pending_jobs)}")
+            for job in pending_jobs:
+                logger.info(f"Pending job: ID={job.id}, Type={job.pending_type}, Client={job.client_name}")
 
             stats = {
                 'total_jobs': len(jobs) + len(pending_jobs),
@@ -489,9 +490,9 @@ def dashboard():
             # Para supervisor y admin, mostrar la misma vista pero con diferente plantilla
             template = 'dashboard_admin.html' if current_user.is_admin else 'dashboard_supervisor.html'
             return render_template(template,
-                                jobs=jobs,
-                                pending_jobs=pending_jobs,
-                                stats=stats)
+                                   jobs=jobs,
+                                   pending_jobs=pending_jobs,
+                                   stats=stats)
         else:
             # Vista de diseñador
             jobs = Job.query.filter_by(designer_id=current_user.id).order_by(Job.created_at.desc()).all()
@@ -504,9 +505,9 @@ def dashboard():
                 'delivered_jobs': DeliveredJob.query.filter_by(designer_id=current_user.id).count()
             }
 
-            return render_template('dashboard_designer.html', 
-                                jobs=jobs,
-                                stats=stats)
+            return render_template('dashboard_designer.html',
+                                   jobs=jobs,
+                                   stats=stats)
 
     except Exception as e:
         logger.error(f"Error en dashboard: {str(e)}")
@@ -774,7 +775,7 @@ def mark_delivered(job_id):
         completed_job_id=job.id,
         description=job.description,
         designer_id=job.designer_id,
-        registered_by_id=job.registered_by_id,  # Mantener el usuario que registró
+        registered_by_id=job.registered_by_id,
         invoice_number=job.invoice_number,
         client_name=job.client_name,
         phone_number=job.phone_number,
@@ -792,7 +793,7 @@ def mark_delivered(job_id):
 
     log_activity(
         'trabajo_entregado',
-        f"Trabajo entregado: {delivered_job.client_name} (Factura: {delivered_job.invoice_number})```python
+        f"Trabajo entregado: {delivered_job.client_name} (Factura: {delivered_job.invoice_number})"
     )
 
     flash('Trabajo marcado como entregado', 'success')
@@ -1603,88 +1604,95 @@ def pending_verification():
         flash(f'Error al cargar trabajos pendientes: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
 
-@bp.route('/jobs/pending/photos')
+@bp.route('/pending-photos')
 @login_required
 @staff_required
 def pending_photos():
-    """Vista de fotos pendientes por aprobar"""
     try:
-        jobs = PendingJob.query.filter_by(pending_type='photo_verification').all()
+        jobs = PendingJob.query.filter_by(pending_type='photo_verification').order_by(PendingJob.created_at.desc()).all()
+
+        # Agregar logging para debug
+        logger.info(f"Total pending photo jobs: {len(jobs)}")
+        for job in jobs:
+            logger.info(f"Pending photo job: ID={job.id}, Client={job.client_name}")
+
         return render_template('pending_photos.html', jobs=jobs)
     except Exception as e:
-        flash(f'Error al cargar fotos pendientes:{str(e)}', 'error')
+        flash(f'Error al cargar fotos pendientes: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
 
-@bp.route('/jobs/pending/<int:job_id>/approve`, methods=['POST'])
+@bp.route('/jobs/pending/<int:job_id>/approve', methods=['POST'])
 @login_required
 @staff_required
 def approve_pending_job(job_id):
-    """Aprobar un trabajo pendiente"""
+    """Aprobar un trabajo pendiente y crear el trabajo activo correspondiente"""
     try:
         pending_job = PendingJob.query.get_or_404(job_id)
+        logger.info(f"Procesando aprobación de trabajo pendiente: ID={job_id}, Tipo={pending_job.pending_type}")
 
-        if pending_job.pending_type == 'photo_verification':# Si es verificación de fotos, aprobar y enviar por WhatsApp
-            photos = json.loads(pending_job.photos) if pending_job.photos else []
-
-            # Generar enlace temporal para las fotos
-            from app.utils.links import generate_temporary_link
-            token = generate_temporary_link(photos)
-            gallery_url = f"{request.url_root.rstrip('/')}/gallery/{token}"
-
-            # Preparar mensaje de WhatsApp
-            clean_phone = pending_job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
-            whatsapp_message = f"""Hola {pending_job.client_name}, aquí están las fotos de su trabajo:
-
-Para ver todas sus fotos, haga clic en el siguiente enlace (disponible por 3 días):
-{gallery_url}"""
-
-            # Eliminar el trabajo pendiente
-            db.session.delete(pending_job)
-            db.session.commit()
-
-            log_activity(
-                'fotos_aprobadas',
-                f"Fotos aprobadas y enviadas - Trabajo #{pending_job.original_job_id}, Cliente: {pending_job.client_name}"
-            )
-
-            # Redirigir a WhatsApp con el mensaje
-            whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(whatsapp_message)}"
-            return redirect(whatsapp_url)
-
-        else:
-            # Crear el trabajo regular
+        if pending_job.pending_type == 'new_job':
+            # Crear nuevo trabajo activo
             job = Job(
                 description=pending_job.description,
                 designer_id=pending_job.designer_id,
-                registered_by_id=current_user.id,
+                registered_by_id=pending_job.registered_by_id,
                 invoice_number=request.form.get('invoice_number'),
                 client_name=pending_job.client_name,
                 phone_number=pending_job.phone_number,
-                total_amount=request.form.get('total_amount', type=float),
-                deposit_amount=request.form.get('deposit_amount', type=float),
-                tags=request.form.get('tags', '').strip()
+                total_amount=float(request.form.get('total_amount', 0)),
+                deposit_amount=float(request.form.get('deposit_amount', 0)),
+                tags=request.form.get('tags')
             )
-
-            # Generar código QR
-            job.generate_qr_code()
 
             db.session.add(job)
             db.session.delete(pending_job)
-            db.session.commit()
 
             log_activity(
-                'trabajo_aprobado',
-                f"Trabajo aprobado: {job.client_name} (Factura: {job.invoice_number})"
+                'aprobar_trabajo',
+                f"Trabajo aprobado y creado: {job.client_name} (Factura: {job.invoice_number})"
             )
 
-            flash('Trabajo aprobado exitosamente', 'success')
-            return redirect(url_for('main.pending_jobs'))
+            flash('Trabajo aprobado y creado exitosamente', 'success')
+
+        elif pending_job.pending_type == 'photo_verification':
+            # Actualizar trabajo completado con fotos verificadas
+            completed_job = CompletedJob.query.get(pending_job.original_job_id)
+            if completed_job:
+                if pending_job.photos:
+                    completed_job.verified_photos = pending_job.photos
+                completed_job.photos_verified = True
+                completed_job.photos_verified_at = datetime.utcnow()
+
+                db.session.delete(pending_job)
+
+                log_activity(
+                    'aprobar_fotos',
+                    f"Fotos aprobadas - Trabajo #{completed_job.id}, Cliente: {completed_job.client_name}"
+                )
+
+                flash('Fotos verificadas exitosamente', 'success')
+            else:
+                raise ValueError("Trabajo completado no encontrado")
+
+        db.session.commit()
+        logger.info(f"Trabajo pendiente aprobado exitosamente: ID={job_id}")
+
+        # Redireccionar según el tipo de trabajo
+        if pending_job.pending_type == 'photo_verification':
+            return redirect(url_for('main.completed_jobs'))
+        return redirect(url_for('main.dashboard'))
+
+    except ValueError as e:
+        db.session.rollback()
+        logger.error(f"Error de validación al aprobar trabajo: {str(e)}")
+        flash(str(e), 'error')
+        return redirect(url_for('main.dashboard'))
 
     except Exception as e:
         db.session.rollback()
-        logging.error(f"Error al aprobar trabajo pendiente: {str(e)}")
-        flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
-        return redirect(url_for('main.pending_jobs'))
+        logger.error(f"Error al aprobar trabajo pendiente: {str(e)}")
+        flash('Error al procesar la solicitud', 'error')
+        return redirect(url_for('main.dashboard'))
 
 @bp.route('/jobs/pending/<int:job_id>/reject', methods=['POST'])
 @login_required
