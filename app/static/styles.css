@@ -87,6 +87,7 @@ input, textarea {
 .table {
     color: var(--bs-body-color);
     margin-top: 1.5rem;
+    font-size: 0.9rem;
 }
 
 .navbar {
@@ -165,7 +166,7 @@ input, textarea {
     /* Mejoras para el panel de administración en móvil */
     .table td,
     .table th {
-        padding: 1rem 0.75rem;
+        padding: 0.75rem 0.5rem;
     }
 
     .table-responsive {
