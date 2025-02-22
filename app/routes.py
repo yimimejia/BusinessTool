@@ -786,7 +786,8 @@ def edit_job(job_id):
 
 @bp.route('/completed-jobs/<int:job_id>/mark-called', methods=['POST'])
 @login_required
-@staff_requireddef mark_called(job_id):
+@staff_required
+def mark_called(job_id):
     job = CompletedJob.query.get_or_404(job_id)
     job.is_called = True
     job.called_at = datetime.utcnow()
