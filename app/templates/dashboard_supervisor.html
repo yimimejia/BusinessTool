@@ -2,7 +2,7 @@
 {% block title %}Panel de Supervisor{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-4" style="max-width: 1400px;">  <!-- Ajusta este valor si quieres aún más ancho -->
   <h2>Panel de Supervisor</h2>
 
   <div class="card mt-4">
@@ -10,58 +10,57 @@
       <h5 class="mb-0">Trabajos Pendientes</h5>
       <a href="{{ url_for('main.new_pending_job') }}" class="btn btn-primary">Nuevo Trabajo</a>
     </div>
-    <div class="card-body">
-      <div class="table-responsive">
-        <table class="table" id="jobsTable">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Factura</th>
-              <th>Cliente</th>
-              <th>Teléfono</th>
-              <th>Descripción</th>
-              <th>Fecha</th>
-              <th>Registrado por</th>
-              <th>Etiquetas</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for job in jobs %}
-            <tr>
-              <td>
-                <a href="{{ url_for('main.show_job_qr', job_id=job.id) }}" class="text-primary">
-                  {{ job.id }}
+    <div class="card-body" style="overflow-x: auto;">  <!-- Permite que la tabla se muestre sin recortar -->
+      <table class="table" id="jobsTable" style="min-width: 1000px;"> 
+        <!-- El min-width obliga a que la tabla no se encoja demasiado -->
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Factura</th>
+            <th>Cliente</th>
+            <th>Teléfono</th>
+            <th>Descripción</th>
+            <th>Fecha</th>
+            <th>Registrado por</th>
+            <th>Etiquetas</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for job in jobs %}
+          <tr>
+            <td>
+              <a href="{{ url_for('main.show_job_qr', job_id=job.id) }}" class="text-primary">
+                {{ job.id }}
+              </a>
+            </td>
+            <td>{{ job.invoice_number }}</td>
+            <td>{{ job.client_name }}</td>
+            <td>{{ job.phone_number }}</td>
+            <td>{{ job.description }}</td>
+            <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
+            <td>{{ job.registered_by.name }}</td>
+            <td>{{ job.tags }}</td>
+            <td>
+              <span class="badge bg-primary">{{ job.status }}</span>
+            </td>
+            <td>
+              <div class="btn-group">
+                <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-sm btn-outline-primary">
+                  <i class="bi bi-pencil"></i> Editar
                 </a>
-              </td>
-              <td>{{ job.invoice_number }}</td>
-              <td>{{ job.client_name }}</td>
-              <td>{{ job.phone_number }}</td>
-              <td>{{ job.description }}</td>
-              <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
-              <td>{{ job.registered_by.name }}</td>
-              <td>{{ job.tags }}</td>
-              <td>
-                <span class="badge bg-primary">{{ job.status }}</span>
-              </td>
-              <td>
-                <div class="btn-group">
-                  <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-pencil"></i> Editar
-                  </a>
-                  {% if job.status == 'pending' %}
-                  <button class="btn btn-success btn-sm complete-job" data-job-id="{{ job.id }}" onclick="completeJob({{ job.id }})">
-                    <i class="bi bi-check-circle"></i> Completar
-                  </button>
-                  {% endif %}
-                </div>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+                {% if job.status == 'pending' %}
+                <button class="btn btn-success btn-sm complete-job" data-job-id="{{ job.id }}" onclick="completeJob({{ job.id }})">
+                  <i class="bi bi-check-circle"></i> Completar
+                </button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
