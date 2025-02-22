@@ -796,7 +796,7 @@ def mark_delivered(job_id):
         f"Trabajo entregado: {delivered_job.client_name} (Factura: {delivered_job.invoice_number})"
     )
 
-    flash('Trabajo marcado como entregado', 'success')
+    flash('Trabajo marcadocomo entregado', 'success')
     return redirect(url_for('main.completed_jobs'))
 
 @bp.route('/jobs/<int:job_id>/delete', methods=['POST'])
@@ -1614,11 +1614,65 @@ def pending_photos():
         # Agregar logging para debug
         logger.info(f"Total pending photo jobs: {len(jobs)}")
         for job in jobs:
-            logger.info(f"Pending photo job: ID={job.id}, Client={job.client_name}")
+            logger.info(f"Photo job: ID={job.id}, Client={job.client_name}")
 
-        return render_template('pending_photos.html', jobs=jobs)
+        return render_template('pending_photos.html', jobs=jobs))
     except Exception as e:
+        logger.error(f"Error al cargar fotos pendientes: {str(e)}")
         flash(f'Error al cargar fotos pendientes: {str(e)}', 'error')
+        return redirect(url_for('main.dashboard'))
+
+@bp.route('/jobs/<int:job_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_job(job_id):
+    password = request.form.get('admin_password')
+    if not password:
+        flash('Se requiere contraseña para eliminar', 'error')
+        return redirect(url_for('main.dashboard'))
+
+    # Verificar si la contraseña coincide con algún admin solamente
+    admins = User.query.filter_by(is_admin=True).all()
+
+    valid_password = False
+    for admin in admins:
+        if admin.check_password(password):
+            valid_password = True
+            break
+
+    if not valid_password:
+        flash('Contraseña incorrecta. Se requiere contraseña de administrador.', 'error')
+        return redirect(url_for('main.dashboard'))
+
+    job = Job.query.get_or_404(job_id)
+    db.session.delete(job)
+    db.session.commit()
+
+    log_activity(
+        'trabajo_eliminado',
+        f"Trabajo eliminado: {job.client_name} (Factura: {job.invoice_number})"
+    )
+
+    flash('Trabajo eliminado exitosamente', 'success')
+    return redirect(url_for('main.dashboard'))
+
+@bp.route('/jobs/pending', methods=['GET'])
+@login_required
+def pending_jobs():
+    """Ver trabajos pendientes"""
+    try:
+        # Mejorar el logging para debug
+        logger.info("Consultando trabajos pendientes...")
+        jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
+        logger.info(f"Total de trabajos pendientes encontrados: {len(jobs)}")
+
+        for job in jobs:
+            logger.info(f"Trabajo pendiente: ID={job.id}, Cliente={job.client_name}, Tipo={job.pending_type}")
+
+        return render_template('pending_jobs.html', jobs=jobs)
+    except Exception as e:
+        logger.error(f"Error al cargar trabajos pendientes: {str(e)}")
+        flash(f'Error al cargar trabajos pendientes: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
 
 @bp.route('/jobs/pending/<int:job_id>/approve', methods=['POST'])
@@ -1842,10 +1896,18 @@ def utility_processor():
 def pending_jobs():
     """Ver trabajos pendientes"""
     try:
+        # Mejorar el logging para debug
+        logger.info("Consultando trabajos pendientes...")
         jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
+        logger.info(f"Total de trabajos pendientes encontrados: {len(jobs)}")
+
+        for job in jobs:
+            logger.info(f"Trabajo pendiente: ID={job.id}, Cliente={job.client_name}, Tipo={job.pending_type}")
+
         return render_template('pending_jobs.html', jobs=jobs)
     except Exception as e:
-        flash(f'Error al cargar trabajos pendientes: {str(e)}', '`error')
+        logger.error(f"Error al cargar trabajos pendientes: {str(e)}")
+        flash(f'Error al cargar trabajos pendientes: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
 
 @bp.route('/jobs/<int:job_id>/approve', methods=['GET', 'POST'])
