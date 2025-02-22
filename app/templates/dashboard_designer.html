@@ -20,6 +20,7 @@
               <th>Descripción</th>
               <th>Fecha</th>
               <th>Registrado por</th>
+              <th>Etiquetas</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -38,8 +39,9 @@
               <td>{{ job.description }}</td>
               <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
               <td>{{ job.registered_by.name }}</td>
+              <td>{{ job.tags }}</td>
               <td>
-                <span class="badge bg-{{ job.status_color }}">{{ job.status_text }}</span>
+                <span class="badge bg-primary">{{ job.status }}</span>
               </td>
               <td>
                 <div class="btn-group">
