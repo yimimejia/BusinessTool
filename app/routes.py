@@ -779,10 +779,11 @@ def remove_job(job_id):
         flash('Se requiere contraseña para eliminar', 'error')
         return redirect(url_for('main.dashboard'))
 
+    # Verificar```python
     # Verificar si la contraseña coincide con algún admin solamente
     admins = User.query.filter_by(is_admin=True).all()
 
-    valid_password = False
+    valid_password =False
     for admin in admins:
         if admin.check_password(password):
             valid_password = True
@@ -1424,32 +1425,59 @@ def generate_job_pdf(job_id):
 
 @bp.route('/process-qr', methods=['POST'])
 def process_qr():
-    """Procesa un código QR escaneado sin requerir autenticación"""
+    """Procesar código QR y redirigir al trabajo correspondiente"""
     try:
-        data = request.json
+        data = request.get_json()
         if not data:
-            return jsonify({'success': False, 'message': 'No se recibieron datos'}), 400
+            return jsonify({
+                'success': False,
+                'error': 'No se proporcionaron datos'
+            }), 400
 
-        # Obtener el código QR
         qr_code = data.get('qr_code')
-        if not qr_code:
-            return jsonify({'success': False, 'message': 'Código QR inválido'}), 400
+        job_id = data.get('job_id')
 
-        # Buscar el trabajo por el código QR
-        job = Job.query.filter_by(qr_code=qr_code).first()
+        if not qr_code and not job_id:
+            return jsonify({
+                'success': False,
+                'error': 'Se requiere qr_code o job_id'
+            }), 400
+
+        # Buscar primero en trabajos activos
+        job = None
+        if qr_code:
+            job = Job.query.filter_by(qr_code=qr_code).first()
+            if not job:
+                # Si no está en activos, buscar en completados
+                job = CompletedJob.query.filter_by(qr_code=qr_code).first()
+        elif job_id:
+            job = Job.query.get(job_id)
+            if not job:
+                job = CompletedJob.query.get(job_id)
+
         if not job:
-            return jsonify({'success': False, 'message': 'Trabajo no encontrado'}), 404
+            return jsonify({
+                'success': False,
+                'error': 'Trabajo no encontrado'
+            }), 404
 
-        # Redirigir a la vista pública del trabajo
+        # Construir URL de redirección
+        if isinstance(job, CompletedJob):
+            redirect_url = url_for('main.view_completed_job', job_id=job.id)
+        else:
+            redirect_url = url_for('main.view_job', job_id=job.id)
+
         return jsonify({
             'success': True,
-            'message': 'Trabajo encontrado',
-            'redirect_url': url_for('main.generate_job_pdf', job_id=job.id)
+            'redirect_url': redirect_url
         })
 
     except Exception as e:
         logger.error(f"Error procesando QR: {str(e)}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({
+            'success': False,
+            'error': 'Error interno del servidor'
+        }), 500
 
 @bp.route('/qr-scanner')
 def qr_scanner():
@@ -1906,3 +1934,14 @@ def api_complete_job():
 @bp.route('/public/invoice/<string:qr_code>')
 def public_invoice(qr_code):
     return generate_invoice_view(qr_code=qr_code)
+@bp.route('/jobs/<int:job_id>/view')
+def view_job(job_id):
+    """Ver detalles de un trabajo activo"""
+    job = Job.query.get_or_404(job_id)
+    return render_template('job_details.html', job=job)
+
+@bp.route('/completed-jobs/<int:job_id>/view')
+def view_completed_job(job_id):
+    """Ver detalles de un trabajo completado"""
+    job = CompletedJob.query.get_or_404(job_id)
+    return render_template('job_details.html', job=job)

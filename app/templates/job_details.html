@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Detalles del Trabajo{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4 class="mb-0">Detalles del Trabajo #{{ job.invoice_number }}</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Cliente:</strong> {{ job.client_name }}</p>
+                    <p><strong>Descripción:</strong> {{ job.description }}</p>
+                    <p><strong>Fecha:</strong> {{ job.created_at.strftime('%d/%m/%Y') }}</p>
+                    {% if job.phone_number %}
+                    <p><strong>Teléfono:</strong> {{ job.phone_number }}</p>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Estado:</strong> 
+                        {% if job is instanceof('CompletedJob') %}
+                        <span class="badge bg-success">Completado</span>
+                        {% else %}
+                        <span class="badge bg-warning">Pendiente</span>
+                        {% endif %}
+                    </p>
+                    <p><strong>Monto Total:</strong> RD${{ "%.2f"|format(job.total_amount|float) }}</p>
+                    {% if job.deposit_amount %}
+                    <p><strong>Abono:</strong> RD${{ "%.2f"|format(job.deposit_amount|float) }}</p>
+                    <p><strong>Restante:</strong> RD${{ "%.2f"|format((job.total_amount|float - job.deposit_amount|float)) }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if job.qr_code %}
+            <div class="text-center mt-4">
+                <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code" class="img-fluid" style="max-width: 200px;">
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
