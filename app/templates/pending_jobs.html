@@ -12,7 +12,15 @@
         <div class="card-body">
             {% if jobs %}
             <div class="table-responsive">
-                <table class="table table-hover" id="pendingJobsTable">
+                <table class="table table-hover" id="pendingJobsTable" style="table-layout: fixed;">
+                    <colgroup>
+                        <col style="width: 15%">
+                        <col style="width: 25%">
+                        <col style="width: 15%">
+                        <col style="width: 15%">
+                        <col style="width: 15%">
+                        <col style="width: 15%">
+                    </colgroup>
                     <thead>
                         <tr>
                             <th>Cliente</th>
@@ -26,9 +34,9 @@
                     <tbody>
                         {% for job in jobs %}
                         <tr>
-                            <td>{{ job.client_name }}</td>
-                            <td>{{ job.description }}</td>
-                            <td>{{ job.designer.name }}</td>
+                            <td style="word-wrap: break-word">{{ job.client_name }}</td>
+                            <td style="word-wrap: break-word">{{ job.description }}</td>
+                            <td style="word-wrap: break-word">{{ job.designer.name }}</td>
                             <td>{{ job.registered_by.name }}</td>
                             <td>{{ job.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                             <td>
