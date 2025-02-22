@@ -146,15 +146,15 @@
         <div class="amounts-section">
             <div class="amount-row">
                 <span class="amount-label">Total:</span>
-                <span class="amount-value">${{ "%.2f"|format(total_amount) }}</span>
+                <span class="amount-value">${{ "%.2f"|format(total_amount if total_amount is not None else 0) }}</span>
             </div>
             <div class="amount-row">
                 <span class="amount-label">Abono:</span>
-                <span class="amount-value">${{ "%.2f"|format(deposit_amount) }}</span>
+                <span class="amount-value">${{ "%.2f"|format(deposit_amount if deposit_amount is not None else 0) }}</span>
             </div>
             <div class="amount-row">
                 <span class="amount-label">Restante:</span>
-                <span class="amount-value">${{ "%.2f"|format(total_amount - deposit_amount) }}</span>
+                <span class="amount-value">${{ "%.2f"|format((total_amount - deposit_amount) if total_amount is not None and deposit_amount is not None else 0) }}</span>
             </div>
         </div>
 

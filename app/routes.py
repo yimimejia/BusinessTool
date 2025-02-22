@@ -356,9 +356,10 @@ def generate_invoice_view(job_id=None, qr_code=None):
                 if not job:
                     return "Factura no encontrada", 404
 
-        # Asegurar que los montos sean números
-        total_amount = float(job.total_amount) if job.total_amount else 0
-        deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount else 0
+        # Asegurar que los montos sean números y formatearlos
+        total_amount = float(job.total_amount) if job.total_amount else 0.0
+        deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount else 0.0
+        remaining_amount = total_amount - deposit_amount
 
         # Generar URL pública para el QR
         if not job.qr_code:
@@ -387,8 +388,9 @@ def generate_invoice_view(job_id=None, qr_code=None):
         return render_template('invoice_pdf.html',
                           job=job,
                           qr_code=qr_code_image,
-                          total_amount=total_amount,
-                          deposit_amount=deposit_amount)
+                          total_amount="{:.2f}".format(total_amount),
+                          deposit_amount="{:.2f}".format(deposit_amount),
+                          remaining_amount="{:.2f}".format(remaining_amount))
 
     except Exception as e:
         logger.error(f"Error generando factura: {str(e)}")
@@ -958,16 +960,16 @@ def clean_database():
         DeliveredJob.query.delete()
         PendingJob.query.delete()
         Message.query.delete()
-        
+
         db.session.commit()
-        
+
         log_activity('limpiar_base_datos', 'Base de datos limpiada exitosamente')
         flash('Todas las tablas han sido limpiadas exitosamente', 'success')
-        
+
     except Exception as e:
         db.session.rollback()
         flash(f'Error al limpiar las tablas: {str(e)}', 'error')
-        
+
     return redirect(url_for('main.dashboard'))
 
 @bp.route('/setup')
@@ -1380,8 +1382,9 @@ def generate_job_pdf(job_id):
             job = CompletedJob.query.get_or_404(job_id)
 
         # Asegurar que los montos sean números
-        total_amount = float(job.total_amount) if hasattr(job, 'total_amount') and job.total_amount else 0
-        deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount else 0
+        total_amount = float(job.total_amount) if hasattr(job, 'total_amount') and job.total_amount else 0.0
+        deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount else 0.0
+        remaining_amount = total_amount - deposit_amount
 
         # Generar QR si no existe
         if not job.qr_code:
@@ -1410,8 +1413,9 @@ def generate_job_pdf(job_id):
         return render_template('invoice_pdf.html',
                           job=job,
                           qr_code=qr_code_image,
-                          total_amount=total_amount,
-                          deposit_amount=deposit_amount)
+                          total_amount="{:.2f}".format(total_amount),
+                          deposit_amount="{:.2f}".format(deposit_amount),
+                          remaining_amount="{:.2f}".format(remaining_amount))
 
     except Exception as e:
         logger.error(f"Error generando PDF del trabajo: {str(e)}")
@@ -1468,8 +1472,9 @@ def public_job(qr_code):
                     return "Trabajo no encontrado", 404
 
         # Asegurar que los montos sean números
-        total_amount = float(job.total_amount) if job.total_amount else 0
-        deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount else 0
+        total_amount = float(job.total_amount) if job.total_amount else 0.0
+        deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount else 0.0
+        remaining_amount = total_amount - deposit_amount
 
         # Generar URL pública para el QR si no existe
         if not job.qr_code:
@@ -1497,8 +1502,9 @@ def public_job(qr_code):
         return render_template('invoice_pdf.html',
                           job=job,
                           qr_code=qr_code_image,
-                          total_amount=total_amount,
-                          deposit_amount=deposit_amount)
+                          total_amount="{:.2f}".format(total_amount),
+                          deposit_amount="{:.2f}".format(deposit_amount),
+                          remaining_amount="{:.2f}".format(remaining_amount))
 
     except Exception as e:
         logger.error(f"Error mostrando trabajo público: {str(e)}")
