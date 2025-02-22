@@ -32,6 +32,8 @@
             {% if deposit_amount %}
             <p><strong>Depósito:</strong> RD${{ deposit_amount }}</p>
             <p><strong>Restante:</strong> RD${{ total_amount - deposit_amount }}</p>
+            {% else %}
+            <p><strong>Restante:</strong> RD${{ total_amount }}</p>
             {% endif %}
         </div>
 
