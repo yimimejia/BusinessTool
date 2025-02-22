@@ -279,3 +279,15 @@ input, textarea {
     background-color: rgba(var(--bs-primary-rgb), 0.9);
     border-color: rgba(var(--bs-primary-rgb), 0.9);
 }
+
+/* Estilos para los botones de acción */
+.btn-sm {
+    padding: 0.15rem 0.35rem;
+    font-size: 0.75rem;
+}
+
+/* Added styles for edit and complete buttons */
+.btn-edit, .btn-complete {
+    padding: 0.25rem 0.5rem; /* Reduced padding */
+    font-size: 0.8rem;       /* Reduced font size */
+}
