@@ -1373,19 +1373,24 @@ def webauthn_authenticate_complete():
 def generate_job_pdf(job_id):
     """Generar PDF para un trabajo"""
     try:
-        # Buscar primero en trabajos completados
-        job = CompletedJob.query.get(job_id)
+        # Buscar primero en trabajos activos
+        job = Job.query.get(job_id)
         if not job:
-            # Si no está en completados, buscar en trabajos pendientes
-            job = Job.query.get_or_404(job_id)
+            # Si no está en activos, buscar en completados
+            job = CompletedJob.query.get_or_404(job_id)
 
-        # Generar URL pública para el QR
-        if hasattr(job, 'qr_code') and job.qr_code:
-            qr_url = f"https://{request.host}/jobs/public/{job.qr_code}"
-        else:
-            qr_url = f"https://{request.host}/jobs/{job.id}"
+        # Asegurar que los montos sean números
+        total = float(job.total) if hasattr(job, 'total') and job.total else 0
+        deposit = float(job.deposit) if hasattr(job, 'deposit') and job.deposit else 0
 
-        # Generate QR code with job info
+        # Generar QR si no existe
+        if not job.qr_code:
+            job.generate_qr_code()
+            db.session.commit()
+
+        qr_url = url_for('main.public_job', qr_code=job.qr_code, _external=True)
+
+        # Generate QR code
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -1396,19 +1401,21 @@ def generate_job_pdf(job_id):
         qr.make(fit=True)
         qr_img = qr.make_image(fill_color="black", back_color="white")
 
-        # Convert QR to base64 for embedding in HTML
+        # Convert QR to base64
         buffered = io.BytesIO()
         qr_img.save(buffered, format="PNG")
-        qr_code = base64.b64encode(buffered.getvalue()).decode()
+        qr_code_image = base64.b64encode(buffered.getvalue()).decode()
 
-        # Render invoice template
+        # Render invoice template with explicit amount values
         return render_template('invoice_pdf.html',
-                            job=job,
-                            qr_code=qr_code)
+                          job=job,
+                          qr_code=qr_code_image,
+                          total=total,
+                          deposit=deposit)
 
     except Exception as e:
         logger.error(f"Error generando PDF del trabajo: {str(e)}")
-        flash('Error al generar el PDF del trabajo. Por favor, inténtelo de nuevo.', 'error')
+        flash('Error al generar el PDF. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.dashboard'))
 
 @bp.route('/process-qr', methods=['POST'])
