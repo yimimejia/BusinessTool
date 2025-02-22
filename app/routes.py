@@ -464,48 +464,54 @@ def generate_invoice_view(job_id=None, qr_code=None):
 @login_required
 def dashboard():
     """Vista del dashboard con estadísticas por rol"""
-    if current_user.is_admin or current_user.is_supervisor:
-        # Vista de administrador/supervisor - mostrar todos los trabajos y pendientes
-        jobs = Job.query.order_by(Job.created_at.desc()).all()
-        pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
-        stats = {
-            'total_jobs': len(jobs),
-            'completed_jobs': CompletedJob.query.count(),
-            'pending_jobs': len(pending_jobs),
-            'designers': User.query.filter_by(is_designer=True).count()
-        }
+    try:
+        if current_user.is_admin or current_user.is_supervisor:
+            # Vista de administrador/supervisor - mostrar todos los trabajos y pendientes
+            jobs = Job.query.order_by(Job.created_at.desc()).all()
 
-        if current_user.is_admin:
-            return render_template('dashboard_admin.html', 
-                                    jobs=jobs,
-                                    pending_jobs=pending_jobs,
-                                    stats=stats)
+            # Obtener todos los trabajos pendientes
+            pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
+            completed_jobs_count = CompletedJob.query.count()
+
+            # Logging para debug
+            logger.info(f"User {current_user.username} accessing dashboard")
+            logger.info(f"Active jobs: {len(jobs)}")
+            logger.info(f"Pending jobs: {len(pending_jobs)}")
+            logger.info(f"Pending job types: {[job.pending_type for job in pending_jobs]}")
+
+            stats = {
+                'total_jobs': len(jobs) + len(pending_jobs),
+                'completed_jobs': completed_jobs_count,
+                'pending_jobs': len(pending_jobs),
+                'designers': User.query.filter_by(is_designer=True).count()
+            }
+
+            # Para supervisor y admin, mostrar la misma vista pero con diferente plantilla
+            template = 'dashboard_admin.html' if current_user.is_admin else 'dashboard_supervisor.html'
+            return render_template(template,
+                                jobs=jobs,
+                                pending_jobs=pending_jobs,
+                                stats=stats)
         else:
-            # Vista de supervisor
-            pending_verification_count = PendingJob.query.filter_by(pending_type='new_job').count()
-            pending_photos_count = PendingJob.query.filter_by(pending_type='photo_verification').count()
+            # Vista de diseñador
+            jobs = Job.query.filter_by(designer_id=current_user.id).order_by(Job.created_at.desc()).all()
+            pending_jobs = PendingJob.query.filter_by(designer_id=current_user.id).all()
 
-            return render_template('dashboard_supervisor.html',
-                                    jobs=jobs,
-                                    pending_jobs=pending_jobs,
-                                    pending_verification_count=pending_verification_count,
-                                    pending_photos_count=pending_photos_count,
-                                    stats=stats)
-    else:
-        # Vista de diseñador
-        jobs = Job.query.filter_by(designer_id=current_user.id).order_by(Job.created_at.desc()).all()
-        pending_jobs = PendingJob.query.filter_by(
-            designer_id=current_user.id,
-            pending_type='photo_verification'
-        ).all()
-        stats = {
-            'total_jobs': len(jobs),
-            'completed_jobs': CompletedJob.query.filter_by(designer_id=current_user.id).count(),
-            'pending_jobs': len(pending_jobs),
-            'delivered_jobs': DeliveredJob.query.filter_by(designer_id=current_user.id).count()
-        }
+            stats = {
+                'total_jobs': len(jobs),
+                'completed_jobs': CompletedJob.query.filter_by(designer_id=current_user.id).count(),
+                'pending_jobs': len(pending_jobs),
+                'delivered_jobs': DeliveredJob.query.filter_by(designer_id=current_user.id).count()
+            }
 
-        return render_template('dashboard_designer.html', jobs=jobs, stats=stats)
+            return render_template('dashboard_designer.html', 
+                                jobs=jobs,
+                                stats=stats)
+
+    except Exception as e:
+        logger.error(f"Error en dashboard: {str(e)}")
+        flash('Error al cargar el dashboard', 'error')
+        return redirect(url_for('main.index'))
 
 @bp.route('/manage-users')
 @login_required
@@ -792,7 +798,8 @@ def mark_delivered(job_id):
     flash('Trabajo marcado como entregado', 'success')
     return redirect(url_for('main.completed_jobs'))
 
-@bp.route('/jobs/<int:job_id>/delete', methods=['POST'])
+@bp.route('/jobs/<int:job_id>/delete', methods=['POST```python
+'])
 @login_required
 @admin_required
 def delete_job(job_id):
@@ -811,7 +818,7 @@ def delete_job(job_id):
             break
 
     if not valid_password:
-        flash('Contraseña incorrecta. Se requiere contraseña de administrador.', 'error')
+                flash('Contraseña incorrecta. Se requiere contraseña de administrador.', 'error')
         return redirect(url_for('main.dashboard'))
 
     job = Job.query.get_or_404(job_id)
@@ -1609,7 +1616,7 @@ def pending_photos():
         flash(f'Error al cargar fotos pendientes: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
 
-@bp.route('/jobs/pending/<int:job_id>/approve', methods=['POST'])
+@bp.route('/jobs/pending/<int:job_id>/approve`, methods=['POST'])
 @login_required
 @staff_required
 def approve_pending_job(job_id):

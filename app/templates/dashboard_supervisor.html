@@ -31,14 +31,15 @@
     </div>
   </div>
 
-  <div class="card">
+  <!-- Tabla de Trabajos Activos -->
+  <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
-      <h5 class="mb-0">Trabajos Pendientes</h5>
-      <a href="{{ url_for('main.new_pending_job') }}" class="btn btn-primary">Nuevo Trabajo</a>
+      <h5 class="mb-0">Trabajos Activos</h5>
+      <a href="{{ url_for('main.new_job') }}" class="btn btn-primary">Nuevo Trabajo</a>
     </div>
     <div class="card-body">
       <div class="table-responsive">
-        <table class="table table-striped datatable">
+        <table class="table table-hover datatable">
           <thead>
             <tr>
               <th>ID</th>
@@ -47,31 +48,21 @@
               <th>Diseñador</th>
               <th>Teléfono</th>
               <th>Descripción</th>
-              <th>Fecha</th>
-              <th>Registrado por</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {% for job in pending_jobs %}
+            {% for job in jobs %}
             <tr>
-              <td>
-                <a href="{{ url_for('main.generate_job_pdf', job_id=job.id) }}" class="text-primary">
-                  {{ job.id }}
-                </a>
-              </td>
+              <td>{{ job.id }}</td>
               <td>{{ job.invoice_number }}</td>
               <td>{{ job.client_name }}</td>
               <td>{{ job.designer.name }}</td>
               <td>{{ job.phone_number }}</td>
               <td>{{ job.description }}</td>
-              <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
-              <td>{{ job.registered_by.name }}</td>
               <td>
-                {% if job.status == 'pending' %}
                 <span class="badge bg-warning">Pendiente</span>
-                {% endif %}
               </td>
               <td>
                 <div class="btn-group">
@@ -81,6 +72,61 @@
                   <button class="btn btn-sm btn-success complete-job" data-job-id="{{ job.id }}">
                     <i class="bi bi-check-circle"></i> Completar
                   </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla de Trabajos Pendientes -->
+  <div class="card">
+    <div class="card-header">
+      <h5 class="mb-0">Trabajos Pendientes de Verificación</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover datatable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Factura</th>
+              <th>Cliente</th>
+              <th>Diseñador</th>
+              <th>Descripción</th>
+              <th>Tipo</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for job in pending_jobs %}
+            <tr>
+              <td>{{ job.id }}</td>
+              <td>{{ job.invoice_number }}</td>
+              <td>{{ job.client_name }}</td>
+              <td>{{ job.designer.name }}</td>
+              <td>{{ job.description }}</td>
+              <td>
+                {% if job.pending_type == 'photo_verification' %}
+                <span class="badge bg-info">Verificación de Fotos</span>
+                {% else %}
+                <span class="badge bg-warning">Nuevo Trabajo</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="btn-group">
+                  {% if job.pending_type == 'photo_verification' %}
+                  <a href="{{ url_for('main.pending_photos', job_id=job.id) }}" class="btn btn-sm btn-info">
+                    <i class="bi bi-images"></i> Ver Fotos
+                  </a>
+                  {% else %}
+                  <a href="{{ url_for('main.approve_job', job_id=job.id) }}" class="btn btn-sm btn-success">
+                    <i class="bi bi-check-circle"></i> Aprobar
+                  </a>
+                  {% endif %}
                 </div>
               </td>
             </tr>
@@ -118,15 +164,14 @@
 {% endblock %}
 
 {% block scripts %}
-{{ super() }}
 <script>
-  $(document).ready(function() {
+$(document).ready(function() {
     // Inicializar DataTable
     $('.datatable').DataTable({
-      language: {
-        url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
-      },
-      order: [[0, 'desc']]
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+        },
+        order: [[0, 'desc']]
     });
 
     let currentJobId = null;
@@ -167,6 +212,6 @@
             $('#authPassword').val('');
         });
     });
-  });
+});
 </script>
 {% endblock %}
