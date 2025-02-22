@@ -770,10 +770,10 @@ def mark_delivered(job_id):
     flash('Trabajo marcado como entregado', 'success')
     return redirect(url_for('main.completed_jobs'))
 
-@bp.route('/jobs/<int:job_id>/delete', methods=['POST'])
+@bp.route('/jobs/<int:job_id>/remove', methods=['POST'])
 @login_required
 @admin_required
-def delete_job(job_id):
+def remove_job(job_id):
     password = request.form.get('admin_password')
     if not password:
         flash('Se requiere contraseña para eliminar', 'error')
