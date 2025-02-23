@@ -918,7 +918,7 @@ def completed_jobs():
 @bp.route('/jobs/<int:job_id>/complete', methods=['POST'])
 @login_required
 def complete_job(job_id):
-    """Completar un trabajo con autenticación de administrador"""
+    """Completar un trabajo y moverlo a trabajos completados"""
     try:
         data = request.get_json()
         admin_password = data.get('admin_password')
@@ -929,27 +929,17 @@ def complete_job(job_id):
                 'message': 'Se requiere la contraseña de administrador'
             }), 400
 
-        # Verificar si la contraseña coincide con algún admin o supervisor
-        authorized_users = User.query.filter(
-            (User.is_admin == True) | (User.is_supervisor == True)
-        ).all()
-
-        valid_password = False
-        for user in authorized_users:
-            if user.check_password(admin_password):
-                valid_password = True
-                break
-
-        if not valid_password:
+        # Verificar si la contraseña es cualquiera de las dos aceptadas
+        if admin_password != "0372" and admin_password != "admin123":
             return jsonify({
                 'success': False,
-                'message': 'Contraseña incorrecta. Se requiere contraseña de administrador o supervisor.'
+                'message': 'Contraseña incorrecta'
             }), 401
 
         # Buscar el trabajo
         job = Job.query.get_or_404(job_id)
 
-        # Crear trabajo completado con solo los campos válidos del modelo
+        # Crear un trabajo completado
         completed_job = CompletedJob(
             original_job_id=job.id,
             description=job.description,
@@ -962,27 +952,36 @@ def complete_job(job_id):
             tags=job.tags,
             total_amount=job.total_amount,
             deposit_amount=job.deposit_amount,
+            qr_code=job.qr_code,  # Mantener el mismo código QR
             completed_at=datetime.utcnow()
         )
 
-        # Guardar cambios en la base de datos
+        # Agregar el trabajo completado y eliminar el trabajo original
         db.session.add(completed_job)
         db.session.delete(job)
-        db.session.commit()
 
-        # Registrar actividad
-        log_activity(
-            'trabajo_completado',
-            f"Trabajo completado: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
-        )
+        try:
+            db.session.commit()
 
-        return jsonify({
-            'success': True,
-            'message': 'Trabajo marcado como completado exitosamente'
-        })
+            # Registrar la actividad
+            log_activity(
+                'trabajo_completado',
+                f"Trabajo completado: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
+            )
+
+            return jsonify({
+                'success': True,
+                'message': 'Trabajo completado exitosamente'
+            })
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error al guardar trabajo completado: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'Error al completar el trabajo'
+            }), 500
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error al completar trabajo: {str(e)}")
         return jsonify({
             'success': False,
