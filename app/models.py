@@ -278,6 +278,7 @@ class CompletedJob(db.Model):
     tags = db.Column(db.String(200))
     qr_code = db.Column(db.String(100), unique=True)
     total_amount = db.Column(db.Numeric(10, 2))
+    deposit_amount = db.Column(db.Numeric(10, 2))  # Agregado el campo deposit_amount
 
     designer = db.relationship('User', foreign_keys=[designer_id])
     registered_by = db.relationship('User', foreign_keys=[registered_by_id])
