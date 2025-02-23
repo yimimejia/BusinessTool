@@ -106,18 +106,18 @@
             <h3 class="mb-4">Detalles del Pago</h3>
             <div class="amount-row">
                 <span><strong>Monto Total:</strong></span>
-                <span>RD${{ "%.2f"|format(total_amount) }}</span>
+                <span>RD${{ "%.2f"|format(total_amount|float) }}</span>
             </div>
 
             <div class="amount-row">
                 <span><strong>Abono:</strong></span>
-                <span>RD${{ "%.2f"|format(deposit_amount) }}</span>
+                <span>RD${{ "%.2f"|format(deposit_amount|float) }}</span>
             </div>
 
             <div class="total-amount">
                 <div class="amount-row" style="border-bottom: none;">
                     <span><strong>Restante:</strong></span>
-                    <span>RD${{ "%.2f"|format(remaining_amount) }}</span>
+                    <span>RD${{ "%.2f"|format(remaining_amount|float) }}</span>
                 </div>
             </div>
         </div>
@@ -134,7 +134,8 @@
                 <i class="bi bi-printer"></i> Imprimir
             </button>
             {% if job.phone_number %}
-            <a href="{{ url_for('main.send_whatsapp', job_id=job.id) }}" class="btn btn-success">
+            <a href="https://wa.me/{{ job.phone_number.replace('+', '').replace('-', '') }}?text=Hola {{ job.client_name }}, adjunto la factura de su trabajo" 
+               class="btn btn-success" target="_blank">
                 <i class="bi bi-whatsapp"></i> Enviar por WhatsApp
             </a>
             {% endif %}
