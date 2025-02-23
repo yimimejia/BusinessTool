@@ -411,7 +411,7 @@ def view_public_invoice(qr_code):
 
 @bp.route('/search')
 @login_required
-def search_invoices():
+def search():
     """Buscar facturas por nombre de cliente o número de factura"""
     query = request.args.get('query', '').strip()
     if query:
@@ -456,7 +456,7 @@ def dashboard():
         pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
         pending_verification_count = PendingJob.query.filter_by(pending_type='new_job').count()
         pending_photos_count = PendingJob.query.filter_by(pending_type='photo_verification').count()
-        
+
         stats = {
             'total_jobs': len(jobs),
             'completed_jobs': CompletedJob.query.count(),
