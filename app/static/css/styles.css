@@ -1,15 +1,19 @@
 
 /* Estilos para modales en dispositivos móviles */
 @media (max-width: 768px) {
-    .modal-fullscreen-sm-down {
-        padding: 0;
+    .modal {
+        padding: 0 !important;
     }
     
-    .modal-fullscreen-sm-down .modal-content {
-        border: none;
-        border-radius: 0;
-        min-height: 100vh;
-        height: auto;
+    .modal-dialog {
+        margin: 10px;
+        width: auto;
+    }
+    
+    .modal-content {
+        border-radius: 8px;
+        max-height: 90vh;
+        overflow-y: auto;
     }
 
     .modal-body {
