@@ -7,9 +7,27 @@
         .container { max-width: 800px; margin: 0 auto; padding: 20px; }
         .header { text-align: center; margin-bottom: 30px; }
         .invoice-details { margin-bottom: 20px; }
-        .amount-section { margin: 20px 0; border-top: 1px solid #ddd; padding-top: 20px; }
+        .amount-section { 
+            margin: 20px 0; 
+            border-top: 1px solid #ddd; 
+            padding-top: 20px;
+            font-size: 1.1em;
+        }
         .qr-code { text-align: center; margin-top: 30px; }
         .qr-code img { max-width: 150px; }
+        .amount-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 5px 0;
+        }
+        .total-amount {
+            font-weight: bold;
+            font-size: 1.2em;
+            border-top: 2px solid #000;
+            padding-top: 10px;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -28,12 +46,25 @@
 
         <div class="amount-section">
             <h3>Detalles del Pago</h3>
-            <p><strong>Monto Total:</strong> RD${{ "%.2f"|format(total_amount|float) }}</p>
+            <div class="amount-row">
+                <span><strong>Monto Total:</strong></span>
+                <span>RD${{ "%.2f"|format(total_amount|float) }}</span>
+            </div>
+
             {% if deposit_amount and deposit_amount|float > 0 %}
-            <p><strong>Abono:</strong> RD${{ "%.2f"|format(deposit_amount|float) }}</p>
-            <p><strong>Restante:</strong> RD${{ "%.2f"|format((total_amount|float - deposit_amount|float)) }}</p>
+            <div class="amount-row">
+                <span><strong>Abono:</strong></span>
+                <span>RD${{ "%.2f"|format(deposit_amount|float) }}</span>
+            </div>
+            <div class="amount-row total-amount">
+                <span><strong>Restante:</strong></span>
+                <span>RD${{ "%.2f"|format(remaining_amount|float) }}</span>
+            </div>
             {% else %}
-            <p><strong>Restante:</strong> RD${{ "%.2f"|format(total_amount|float) }}</p>
+            <div class="amount-row total-amount">
+                <span><strong>Restante:</strong></span>
+                <span>RD${{ "%.2f"|format(total_amount|float) }}</span>
+            </div>
             {% endif %}
         </div>
 

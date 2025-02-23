@@ -387,9 +387,20 @@ def generate_invoice_view(job_id=None, qr_code=None):
                     return "Factura no encontrada", 404
 
         # Asegurar que los montos sean números y formatearlos
-        total_amount = float(job.total_amount) if job.total_amount else 0.0
-        deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount else 0.0
-        remaining_amount = total_amount - deposit_amount
+        try:
+            total_amount = float(job.total_amount if job.total_amount else 0.0)
+            deposit_amount = float(job.deposit_amount if hasattr(job, 'deposit_amount') and job.deposit_amount else 0.0)
+
+            # Validar que el abono no sea mayor que el total
+            if deposit_amount > total_amount:
+                deposit_amount = total_amount
+
+            remaining_amount = total_amount - deposit_amount
+        except (ValueError, TypeError) as e:
+            logger.error(f"Error convirtiendo montos: {str(e)}")
+            total_amount = 0.0
+            deposit_amount = 0.0
+            remaining_amount = 0.0
 
         # Generar URL pública para el QR si no existe
         if not job.qr_code:
@@ -416,11 +427,11 @@ def generate_invoice_view(job_id=None, qr_code=None):
 
         # Render invoice template with explicit amount values
         return render_template('invoice_pdf.html',
-                          job=job,
-                          qr_code=qr_code_image,
-                          total_amount="{:.2f}".format(total_amount),
-                          deposit_amount="{:.2f}".format(deposit_amount),
-                          remaining_amount="{:.2f}".format(remaining_amount))
+                            job=job,
+                            qr_code=qr_code_image,
+                            total_amount="{:.2f}".format(total_amount),
+                            deposit_amount="{:.2f}".format(deposit_amount),
+                            remaining_amount="{:.2f}".format(remaining_amount))
 
     except Exception as e:
         logger.error(f"Error generando factura: {str(e)}")
