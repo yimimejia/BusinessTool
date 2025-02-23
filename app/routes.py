@@ -332,7 +332,52 @@ def send_whatsapp(job_id):
 @login_required
 def view_job_invoice(job_id):
     """Ver factura desde lista de trabajos"""
-    return generate_invoice_view(job_id=job_id)
+    try:
+        job = Job.query.get_or_404(job_id)
+
+        # Asegurar que los montos sean números flotantes
+        total_amount = float(job.total_amount if job.total_amount else 0)
+        deposit_amount = float(job.deposit_amount if hasattr(job, 'deposit_amount') and job.deposit_amount else 0)
+        remaining_amount = total_amount - deposit_amount
+
+        # Generar URL pública para el QR si no existe
+        if not job.qr_code:
+            job.generate_qr_code()
+            db.session.commit()
+
+        # Generate QR code
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=5
+        )
+
+        qr_url = url_for('main.view_public_invoice', qr_code=job.qr_code, _external=True)
+        qr.add_data(qr_url)
+        qr.make(fit=True)
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+
+        # Convert QR to base64
+        buffered = io.BytesIO()
+        qr_img.save(buffered, format="PNG")
+        qr_code_image = base64.b64encode(buffered.getvalue()).decode()
+
+        # Log para debugging
+        logger.info(f"Montos de factura - Total: {total_amount}, Abono: {deposit_amount}, Restante: {remaining_amount}")
+
+        # Render invoice template with amount values
+        return render_template('invoice_pdf.html',
+                           job=job,
+                           qr_code=qr_code_image,
+                           total_amount=total_amount,
+                           deposit_amount=deposit_amount,
+                           remaining_amount=remaining_amount)
+
+    except Exception as e:
+        logger.error(f"Error generando factura: {str(e)}")
+        flash('Error al generar la factura. Por favor, inténtelo de nuevo.', 'error')
+        return redirect(url_for('main.dashboard'))
 
 
 def generate_invoice_view(job_id=None, qr_code=None):
@@ -707,36 +752,53 @@ def new_job():
 @login_required
 def show_job_qr(job_id):
     """Muestra la página con el QR del trabajo"""
-    job = Job.query.get_or_404(job_id)
+    try:
+        job = Job.query.get_or_404(job_id)
 
-    # Generar el QR si no existe
-    if not job.qr_code:
-        job.generate_qr_code()
-        db.session.commit()
+        # Asegurar que los montos sean números flotantes
+        total_amount = float(job.total_amount if job.total_amount else 0)
+        deposit_amount = float(job.deposit_amount if job.deposit_amount else 0)
+        remaining_amount = total_amount - deposit_amount
 
-    # Crear QR con mejor calidad y tamaño
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_H,
-        box_size=15,
-        border=4
-    )
+        # Generar el QR si no existe
+        if not job.qr_code:
+            job.generate_qr_code()
+            db.session.commit()
 
-    # Usar solo la URL en el QR para simplicidad
-    qr_data = f"{request.url_root.rstrip('/')}/jobs/public/{job.qr_code}"
-    qr.add_data(qr_data)
-    qr.make(fit=True)
+        # Crear QR con mejor calidad y tamaño
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_H,
+            box_size=15,
+            border=4
+        )
 
-    # Crear imagen con mejor contraste
-    img = qr.make_image(fill_color="black", back_color="white")
+        # Usar solo la URL en el QR para simplicidad
+        qr_data = f"{request.url_root.rstrip('/')}/jobs/public/{job.qr_code}"
+        qr.add_data(qr_data)
+        qr.make(fit=True)
 
-    # Convertir a base64
-    buffered = io.BytesIO()
-    img.save(buffered, format="PNG", quality=100)
-    qr_image = base64.b64encode(buffered.getvalue()).decode()
+        # Crear imagen con mejor contraste
+        img = qr.make_image(fill_color="black", back_color="white")
 
-    return render_template('job_qr.html', job=job, qr_image=qr_image)
+        # Convertir a base64
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG", quality=100)
+        qr_image = base64.b64encode(buffered.getvalue()).decode()
 
+        # Log para debugging
+        logger.info(f"Montos en show_job_qr - Total: {total_amount}, Abono: {deposit_amount}, Restante: {remaining_amount}")
+
+        return render_template('job_qr.html', 
+                            job=job, 
+                            qr_image=qr_image,
+                            total_amount=total_amount,
+                            deposit_amount=deposit_amount,
+                            remaining_amount=remaining_amount)
+    except Exception as e:
+        logger.error(f"Error en show_job_qr: {str(e)}")
+        flash('Error al generar el código QR', 'error')
+        return redirect(url_for('main.dashboard'))
 
 @bp.route('/jobs/<int:job_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -775,7 +837,7 @@ def mark_delivered(job_id):
     job = CompletedJob.query.get_or_404(job_id)
 
     # Crear un nuevo trabajo entregado
-    delivered_job = DeliveredJob(
+    delivered_job= DeliveredJob(
         original_job_id=job.original_job_id,
         completed_job_id=job.id,
         description=job.description,
