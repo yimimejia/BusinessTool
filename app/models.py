@@ -117,7 +117,8 @@ class Job(db.Model):
 
     def generate_qr_code(self):
         if not self.qr_code:
-            unique_id = f"{self.invoice_number}-{int(datetime.utcnow().timestamp())}"
+            # Add fotov prefix and job ID to the QR code
+            unique_id = f"fotov{self.id}-{self.invoice_number}-{int(datetime.utcnow().timestamp())}"
             self.qr_code = base64.urlsafe_b64encode(unique_id.encode()).decode()
         return self.qr_code
 
