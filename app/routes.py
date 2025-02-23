@@ -386,32 +386,10 @@ def generate_invoice_view(job_id=None, qr_code=None):
                 if not job:
                     return "Factura no encontrada", 404
 
-        # Asegurar que los montos sean números y formatearlos
-        try:
-            # Obtener montos con validación adicional
-            total_amount = float(job.total_amount if hasattr(job, 'total_amount') and job.total_amount is not None else 0.0)
-            deposit_amount = float(job.deposit_amount if hasattr(job, 'deposit_amount') and job.deposit_amount is not None else 0.0)
-
-            # Validar que el abono no sea mayor que el total
-            if deposit_amount > total_amount:
-                deposit_amount = total_amount
-
-            remaining_amount = total_amount - deposit_amount
-
-            # Asegurar que no haya valores negativos y formatear con RD$
-            total_amount = max(0, total_amount)
-            deposit_amount = max(0, deposit_amount)
-            remaining_amount = max(0, remaining_amount)
-
-            # Formatear los montos con RD$ y dos decimales
-            total_amount_str = f"RD${total_amount:,.2f}"
-            deposit_amount_str = f"RD${deposit_amount:,.2f}"
-            remaining_amount_str = f"RD${remaining_amount:,.2f}"
-        except (ValueError, TypeError) as e:
-            logger.error(f"Error convirtiendo montos: {str(e)}")
-            total_amount_str = "RD$0.00"
-            deposit_amount_str = "RD$0.00"
-            remaining_amount_str = "RD$0.00"
+        # Cálculo simple de montos
+        total_amount = float(job.total_amount if job.total_amount else 0.0)
+        deposit_amount = float(job.deposit_amount if hasattr(job, 'deposit_amount') and job.deposit_amount else 0.0)
+        remaining_amount = total_amount - deposit_amount
 
         # Generar URL pública para el QR si no existe
         if not job.qr_code:
@@ -436,13 +414,13 @@ def generate_invoice_view(job_id=None, qr_code=None):
         qr_img.save(buffered, format="PNG")
         qr_code_image = base64.b64encode(buffered.getvalue()).decode()
 
-        # Render invoice template with explicit amount values
+        # Render invoice template with amount values
         return render_template('invoice_pdf.html',
                             job=job,
                             qr_code=qr_code_image,
-                            total_amount=total_amount_str,
-                            deposit_amount=deposit_amount_str,
-                            remaining_amount=remaining_amount_str)
+                            total_amount=total_amount,
+                            deposit_amount=deposit_amount,
+                            remaining_amount=remaining_amount)
 
     except Exception as e:
         logger.error(f"Error generando factura: {str(e)}")
