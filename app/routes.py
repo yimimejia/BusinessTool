@@ -774,36 +774,45 @@ def mark_delivered(job_id):
 @login_required
 @admin_required
 def remove_job(job_id):
-    password = request.form.get('admin_password')
-    if not password:
-        flash('Se requiere contraseña para eliminar', 'error')
+    """Eliminar un trabajo"""
+    try:
+        password = request.form.get('admin_password')
+        if not password:
+            flash('Se requiere contraseña para eliminar', 'error')
+            return redirect(url_for('main.dashboard'))
+
+        # Verificar si la contraseña coincide con algún admin
+        admins = User.query.filter_by(is_admin=True).all()
+        valid_password = False
+
+        for admin in admins:
+            if admin.check_password(password):
+                valid_password = True
+                break
+
+        if not valid_password:
+            flash('Contraseña incorrecta. Se requiere contraseña de administrador.', 'error')
+            return redirect(url_for('main.dashboard'))
+
+        job = Job.query.get_or_404(job_id)
+
+        # Registrar actividad antes de eliminar
+        log_activity(
+            'trabajo_eliminado',
+            f"Trabajo eliminado: {job.client_name} (Factura: {job.invoice_number})"
+        )
+
+        db.session.delete(job)
+        db.session.commit()
+
+        flash('Trabajo eliminado exitosamente', 'success')
         return redirect(url_for('main.dashboard'))
 
-    # Verificar```python
-    # Verificar si la contraseña coincide con algún admin solamente
-    admins = User.query.filter_by(is_admin=True).all()
-
-    valid_password =False
-    for admin in admins:
-        if admin.check_password(password):
-            valid_password = True
-            break
-
-    if not valid_password:
-        flash('Contraseña incorrecta. Se requiere contraseñade administrador.', 'error')
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al eliminar trabajo: {str(e)}")
+        flash('Error al eliminar el trabajo', 'error')
         return redirect(url_for('main.dashboard'))
-
-    job = Job.query.get_or_404(job_id)
-    db.session.delete(job)
-    db.session.commit()
-
-    log_activity(
-        'trabajo_eliminado',
-        f"Trabajo eliminado: {job.client_name} (Factura: {job.invoice_number})"
-    )
-
-    flash('Trabajo eliminado exitosamente', 'success')
-    return redirect(url_for('main.dashboard'))
 
 @bp.route('/completed-jobs')
 @login_required
@@ -821,24 +830,24 @@ def completed_jobs():
 @bp.route('/jobs/<int:job_id>/complete', methods=['POST'])
 @login_required
 def complete_job(job_id):
-    """Completar un trabajo y moverlo a la tabla de trabajos completados"""    # Obtener contraseña del admin (ya sea de JSON o form data)
-    data = request.get_json() or request.form
-    admin_password = data.get('admin_password')
-
-    if not admin_password:
-        return jsonify({'success': False, 'message': 'Se requiere contraseña de administrador'})
-
-    job = Job.query.get_or_404(job_id)
-
-    # Verificar que el usuario tenga permiso para completar este trabajo
-    if not current_user.is_staff and job.designer_id != current_user.id:
-        return jsonify({'success': False, 'message': 'No tienes permiso para completar este trabajo'})
-
+    """Completar un trabajo y moverlo a la tabla de trabajos completados"""
     try:
+        data = request.get_json() or request.form
+        admin_password = data.get('admin_password')
+
+        if not admin_password:
+            return jsonify({'success': False, 'message': 'Se requiere contraseña de administrador'})
+
+        job = Job.query.get_or_404(job_id)
+
+        if not current_user.is_staff and job.designer_id != current_user.id:
+            return jsonify({'success': False, 'message': 'No tienes permiso para completar este trabajo'})
+
         # Verificar contraseña de administrador o supervisor
         staff = User.query.filter(
             (User.is_admin == True) | (User.is_supervisor == True)
         ).all()
+
         valid_auth = False
         for user in staff:
             if user and user.check_password(admin_password):
@@ -859,10 +868,11 @@ def complete_job(job_id):
             phone_number=job.phone_number,
             created_at=job.created_at,
             completed_at=datetime.utcnow(),
-            tags=job.tags
+            tags=job.tags,
+            total_amount=job.total_amount,
+            deposit_amount=job.deposit_amount if hasattr(job, 'deposit_amount') else None
         )
 
-        # Agregar el trabajo completado y eliminar el trabajo original
         db.session.add(completed_job)
         db.session.delete(job)
         db.session.commit()
@@ -877,7 +887,7 @@ def complete_job(job_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error al completar trabajo: {str(e)}")
-        return jsonify({'success': False, 'message': 'Error de autenticación. Por favor, verifica la contraseña del administrador.'})
+        return jsonify({'success': False, 'message': 'Error al completar el trabajo'})
 
 @bp.route('/search-invoices')
 @login_required
@@ -1594,82 +1604,49 @@ def pending_photos():
         flash(f'Error al cargar fotos pendientes: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
 
-@bp.route('/jobs/pending/<int:job_id>/approve', methods=['POST'])
+@bp.route('/jobs/pending/<int:int:job_id>/approve', methods=['POST'])
 @login_required
 @staff_required
 def approve_pending_job(job_id):
-    """Aprobar un trabajo pendiente"""
+    """Mover untrabajo a la tabla de trabajos pendientes por aprobación"""
     try:
         pending_job = PendingJob.query.get_or_404(job_id)
 
-        if pending_job.pending_type == 'photo_verification':
-            # Si es verificación de fotos, aprobar y enviar por WhatsApp
-            photos = json.loads(pending_job.photos) if pending_job.photos else []
+        # Obtener datos del formulario
+        invoice_number = request.form.get('invoice_number')
+        total_amount = request.form.get('total_amount', type=float)
+        deposit_amount = request.form.get('deposit_amount', type=float)
+        tags = request.form.get('tags')
 
-            # Generar enlace temporal para las fotos
-            from app.utils.links import generate_temporary_link
-            token = generate_temporary_link(photos)
-            gallery_url = f"{request.url_root.rstrip('/')}/gallery/{token}"
-
-            # Preparar mensaje de WhatsApp
-            clean_phone = pending_job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
-            whatsapp_message = f"""Hola {pending_job.client_name}, aquí están las fotos de su trabajo:
-
-Para ver todas sus fotos, haga clic en el siguiente enlace (disponible por 3 días):
-{gallery_url}"""
-
-            # Eliminar el trabajo pendiente
-            db.session.delete(pending_job)
-            db.session.commit()
-
-            log_activity(
-                'fotos_aprobadas',
-                f"Fotos aprobadas y enviadas - Trabajo #{pending_job.original_job_id}, Cliente: {pending_job.client_name}"
-            )
-
-            # Redirigir a WhatsApp con el mensaje
-            whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(whatsapp_message)}"
-            return redirect(whatsapp_url)
-
-        else:
-            # Obtener los datos del formulario
-            invoice_number = request.form.get('invoice_number')
-            total_amount = float(request.form.get('total_amount', 0))
-            deposit_amount = float(request.form.get('deposit_amount', 0))
-            tags = request.form.get('tags', '').strip()
-
-            # Crear el trabajo regular
-            job = Job(
-                description=pending_job.description,
-                designer_id=pending_job.designer_id,
-                registered_by_id=current_user.id,
-                invoice_number=invoice_number,
-                client_name=pending_job.client_name,
-                phone_number=pending_job.phone_number,
-                total_amount=total_amount,
-                deposit_amount=deposit_amount,
-                tags=tags
-            )
-
-            # Generar código QR
-            job.generate_qr_code()
-
-            db.session.add(job)
-            db.session.delete(pending_job)
-            db.session.commit()
-
-            log_activity(
-                'trabajo_aprobado',
-                f"Trabajo aprobado: {job.client_name} (Factura: {invoice_number})"
-            )
-
-            flash('Trabajo aprobado exitosamente', 'success')
+        if not invoice_number or total_amount is None or deposit_amount is None:
+            flash('Todos los campos son obligatorios.', 'danger')
             return redirect(url_for('main.pending_jobs'))
+
+        # Crear un nuevo registro en la tabla PendingJob
+        new_pending_job = PendingJob(
+            client_name=pending_job.client_name,
+            description=pending_job.description,
+            designer_id=pending_job.designer_id,
+            registered_by_id=current_user.id,
+            phone_number=pending_job.phone_number,
+            invoice_number=invoice_number,
+            total_amount=total_amount,
+            deposit_amount=deposit_amount,
+            tags=tags,
+            pending_type=pending_job.pending_type
+        )
+
+        db.session.add(new_pending_job)
+        db.session.delete(pending_job)
+        db.session.commit()
+
+        flash('El trabajo ha sido aprobado y movido a la tabla de trabajos pendientes.', 'success')
+        return redirect(url_for('main.pending_jobs'))
 
     except Exception as e:
         db.session.rollback()
-        logging.error(f"Error al aprobar trabajo pendiente: {str(e)}")
-        flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
+        logger.error(f"Error al aprobar trabajo: {str(e)}")
+        flash('Error al aprobar el trabajo. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.pending_jobs'))
 
 @bp.route('/jobs/pending/<int:job_id>/reject', methods=['POST'])
@@ -1754,7 +1731,7 @@ def create_delivered_job_from_completed(completed_job):
         description=completed_job.description,
         designer_id=completed_job.designer_id,
         registered_by_id=completed_job.registered_by_id,
-        invoice_number=completed_job.invoicenumber,
+        invoice_number=completed_job.invoice_number,
         client_name=completed_job.client_name,
         phone_number=completed_job.phone_number,
         created_at=completed_job.created_at,
@@ -1945,3 +1922,84 @@ def view_completed_job(job_id):
     """Ver detalles de un trabajo completado"""
     job = CompletedJob.query.get_or_404(job_id)
     return render_template('job_details.html', job=job)
+
+@bp.route('/pending-jobs/<int:pending_job_id>/approve', methods=['POST'])
+@login_required
+@staff_required
+def approve_pending_job_2(pending_job_id): # Renamed to avoid conflict
+    """Aprobar un trabajo pendiente"""
+    try:
+        pending_job = PendingJob.query.get_or_404(pending_job_id)
+
+        if pending_job.pending_type == 'photo_verification':
+            photos = json.loads(pending_job.photos) if pending_job.photos else []
+
+            from app.utils.links import generate_temporary_link
+            token = generate_temporary_link(photos)
+            gallery_url = f"{request.url_root.rstrip('/')}/gallery/{token}"
+
+            clean_phone = pending_job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+            whatsapp_message = f"""Hola {pending_job.client_name}, aquí están las fotos de su trabajo:
+
+Para ver todas sus fotos, haga clic en el siguiente enlace (disponible por 3 días):
+{gallery_url}"""
+
+            db.session.delete(pending_job)
+            db.session.commit()
+
+            log_activity(
+                'fotos_aprobadas',
+                f"Fotos aprobadas y enviadas - Trabajo #{pending_job.original_job_id}, Cliente: {pending_job.client_name}"
+            )
+
+            whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(whatsapp_message)}"
+            return redirect(whatsapp_url)
+
+        else:
+            invoice_number = request.form.get('invoice_number')
+            total_amount = float(request.form.get('total_amount', 0))
+            deposit_amount = float(request.form.get('deposit_amount', 0))
+            tags = request.form.get('tags', '').strip()
+
+            job = Job(
+                description=pending_job.description,
+                designer_id=pending_job.designer_id,
+                registered_by_id=current_user.id,
+                invoice_number=invoice_number,
+                client_name=pending_job.client_name,
+                phone_number=pending_job.phone_number,
+                total_amount=total_amount,
+                deposit_amount=deposit_amount,
+                tags=tags
+            )
+
+            job.generate_qr_code()
+
+            db.session.add(job)
+            db.session.delete(pending_job)
+            db.session.commit()
+
+            log_activity(
+                'trabajo_aprobado',
+                f"Trabajo aprobado: {job.client_name} (Factura: {invoice_number})"
+            )
+
+            flash('Trabajo aprobado exitosamente', 'success')
+            return redirect(url_for('main.pending_jobs'))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al aprobar trabajo pendiente: {str(e)}")
+        flash('Error al aprobar el trabajo. Por favor, inténtelo de nuevo.', 'error')
+        return redirect(url_for('main.pending_jobs'))
+
+@bp.route('/jobs/delivered')
+@login_required
+def delivered_jobs():
+    """Ver trabajos entregados"""
+    if current_user.is_staff:
+        jobs = DeliveredJob.query.order_by(DeliveredJob.delivered_at.desc()).all()
+    else:
+        jobs = DeliveredJob.query.filter_by(designer_id=current_user.id).order_by(DeliveredJob.delivered_at.desc()).all()
+
+    return render_template('delivered_jobs.html', jobs=jobs)
