@@ -80,6 +80,13 @@
                 padding: 0;
             }
         }
+        .debug-info {
+            background-color: #ffebee;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 5px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -102,25 +109,27 @@
             </div>
         </div>
 
+        {% if total_amount is not none %}
         <div class="amount-section">
             <h3 class="mb-4">Detalles del Pago</h3>
             <div class="amount-row">
                 <span><strong>Monto Total:</strong></span>
-                <span>RD${{ "%.2f"|format(total_amount) }}</span>
+                <span>RD${{ "{:,.2f}".format(total_amount) }}</span>
             </div>
 
             <div class="amount-row">
                 <span><strong>Abono:</strong></span>
-                <span>RD${{ "%.2f"|format(deposit_amount) }}</span>
+                <span>RD${{ "{:,.2f}".format(deposit_amount) }}</span>
             </div>
 
             <div class="total-amount">
                 <div class="amount-row" style="border-bottom: none;">
                     <span><strong>Restante:</strong></span>
-                    <span>RD${{ "%.2f"|format(remaining_amount) }}</span>
+                    <span>RD${{ "{:,.2f}".format(remaining_amount) }}</span>
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <div class="qr-code">
             {% if qr_code %}
@@ -139,8 +148,26 @@
             </a>
             {% endif %}
         </div>
+
+        {% if config.DEBUG %}
+        <div class="debug-info">
+            <h4>Debug Information</h4>
+            <pre>
+Total Amount: {{ total_amount }}
+Deposit Amount: {{ deposit_amount }}
+Remaining Amount: {{ remaining_amount }}
+            </pre>
+        </div>
+        {% endif %}
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% if config.DEBUG %}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelector('.debug-info').style.display = 'block';
+    });
+    </script>
+    {% endif %}
 </body>
 </html>
