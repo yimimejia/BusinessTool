@@ -18,7 +18,7 @@
                 </div>
             </form>
 
-            {% if invoices %}
+            {% if jobs %}
             <div class="table-responsive">
                 <table class="table table-striped" id="invoicesTable">
                     <thead>
@@ -32,29 +32,29 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for invoice in invoices %}
+                        {% for job in jobs %}
                         <tr>
                             <td>
-                                <a href="{{ url_for('main.generate_job_pdf', job_id=invoice.id) }}" target="_blank" class="text-decoration-none">
-                                    {{ invoice.id }}
+                                <a href="{{ url_for('main.view_job_invoice', job_id=job.id) }}" target="_blank" class="text-decoration-none">
+                                    {{ job.id }}
                                 </a>
                             </td>
                             <td>
-                                <a href="{{ url_for('main.generate_job_pdf', job_id=invoice.id) }}" target="_blank" class="text-decoration-none">
-                                    {{ invoice.client_name }}
+                                <a href="{{ url_for('main.view_job_invoice', job_id=job.id) }}" target="_blank" class="text-decoration-none">
+                                    {{ job.client_name }}
                                 </a>
                             </td>
-                            <td>{{ invoice.invoice_number }}</td>
-                            <td>{{ invoice.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ job.invoice_number }}</td>
+                            <td>{{ job.created_at.strftime('%Y-%m-%d') }}</td>
                             <td>
-                                {% if invoice.is_completed %}
+                                {% if job.is_completed %}
                                 <span class="badge bg-success">Completado</span>
                                 {% else %}
                                 <span class="badge bg-warning">Pendiente</span>
                                 {% endif %}
                             </td>
                             <td>
-                                <a href="{{ url_for('main.generate_job_pdf', job_id=invoice.id) }}" 
+                                <a href="{{ url_for('main.view_job_invoice', job_id=job.id) }}" 
                                    target="_blank" 
                                    class="btn btn-sm btn-primary">
                                     <i class="bi bi-file-pdf"></i> Ver Factura

@@ -315,7 +315,7 @@ def send_whatsapp(job_id):
         return redirect(url_for('main.dashboard'))
 
     # Generar enlace de factura
-    invoice_url = url_for('main.generate_invoice', job_id=job.id, _external=True)
+    invoice_url = url_for('main.generate_invoice_view', job_id=job.id, _external=True)
 
     # Obtener enlace de WhatsApp con la factura
     whatsapp_link = job.get_whatsapp_link(with_invoice=True, invoice_url=invoice_url)
@@ -328,16 +328,46 @@ def send_whatsapp(job_id):
 
     return redirect(whatsapp_link)
 
-@bp.route('/jobs/<int:job_id>/invoice')
+@bp.route('/jobs/<int:job_id>/view-invoice')
 @login_required
-def generate_invoice(job_id):
-    """Generar factura para un trabajo"""
+def view_job_invoice(job_id):
+    """Ver factura desde lista de trabajos"""
     return generate_invoice_view(job_id=job_id)
+
+
+@bp.route('/search-invoices', methods=['GET'])
+@login_required
+def search_invoices():
+    """Buscar facturas por nombre de cliente o número de factura"""
+    query = request.args.get('query', '').strip()
+    if query:
+        # Buscar en trabajos activos y completados
+        active_jobs = Job.query.filter(
+            or_(
+                Job.client_name.ilike(f'%{query}%'),
+                Job.invoice_number.ilike(f'%{query}%')
+            )
+        ).all()
+
+        completed_jobs = CompletedJob.query.filter(
+            or_(
+                CompletedJob.client_name.ilike(f'%{query}%'),
+                CompletedJob.invoice_number.ilike(f'%{query}%')
+            )
+        ).all()
+
+        jobs = active_jobs + completed_jobs
+    else:
+        jobs = []
+
+    return render_template('search_invoices.html', jobs=jobs, query=query)
+
 
 @bp.route('/public/invoice/<string:qr_code>')
 def view_public_invoice(qr_code):
     """Vista pública de factura accesible por QR"""
     return generate_invoice_view(qr_code=qr_code)
+
 
 def generate_invoice_view(job_id=None, qr_code=None):
     """Función interna para generar la vista de factura"""
@@ -361,7 +391,7 @@ def generate_invoice_view(job_id=None, qr_code=None):
         deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount else 0.0
         remaining_amount = total_amount - deposit_amount
 
-        # Generar URL pública para el QR
+        # Generar URL pública para el QR si no existe
         if not job.qr_code:
             job.generate_qr_code()
             db.session.commit()
@@ -394,9 +424,9 @@ def generate_invoice_view(job_id=None, qr_code=None):
 
     except Exception as e:
         logger.error(f"Error generando factura: {str(e)}")
-        if job_id:  # Solo redirigir si es vista autenticada
+        if job_id:
             flash('Error al generar la factura. Por favor, inténtelo de nuevo.', 'error')
-            return redirect(url_for('main.completed_jobs'))
+            return redirect(url_for('main.dashboard'))
         return "Error al mostrar la factura", 500
 
 @bp.route('/dashboard')
@@ -754,8 +784,7 @@ def mark_delivered(job_id):
         completed_at=job.completed_at,
         called_at=job.called_at,
         delivered_at=datetime.utcnow(),
-        tags=job.tags
-    )
+        tags=job.tags    )
 
     # Agregar el nuevo trabajo entregado y eliminar el trabajo completado
     db.session.add(delivered_job)
@@ -877,67 +906,6 @@ def complete_job(job_id):
         db.session.rollback()
         logger.error(f"Error al completar trabajo: {str(e)}")
         return jsonify({'success': False, 'message': 'Error de autenticación. Por favor, verifica la contraseña del administrador.'})
-
-@bp.route('/search-invoices')
-@login_required
-def search_invoices():
-    """Búsqueda de facturas por nombre de cliente o número de factura"""
-    query = request.args.get('query', '').strip()
-    job = None
-
-    if query:
-        # Buscar primero en trabajos activos
-        job = Job.query.filter(
-            or_(
-                Job.client_name.ilike(f'%{query}%'),
-                Job.invoice_number.ilike(f'%{query}%')
-            )
-        ).first()
-
-        if not job:
-            # Si no está en activos, buscar en completados
-            job = CompletedJob.query.filter(
-                or_(
-                    CompletedJob.client_name.ilike(f'%{query}%'),
-                    CompletedJob.invoice_number.ilike(f'%{query}%')
-                )
-            ).first()
-
-        if job:
-            # Asegurar que los montos sean números
-            total_amount = float(job.total_amount) if job.total_amount else 0.0
-            deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount else 0.0
-            remaining_amount = total_amount - deposit_amount
-
-            # Generar código QR si no existe
-            if not job.qr_code:
-                job.generate_qr_code()
-                db.session.commit()
-
-            # Generate QR code
-            qr = qrcode.QRCode(
-                version=1,
-                error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=10,
-                border=5
-            )
-            qr.add_data(url_for('main.public_job', qr_code=job.qr_code, _external=True))
-            qr.make(fit=True)
-            qr_img = qr.make_image(fill_color="black", back_color="white")
-
-            # Convert QR to base64
-            buffered = io.BytesIO()
-            qr_img.save(buffered, format="PNG")
-            qr_code_image = base64.b64encode(buffered.getvalue()).decode()
-
-            return render_template('invoice_pdf.html',
-                              job=job,
-                              qr_code=qr_code_image,
-                              total_amount="{:.2f}".format(total_amount),
-                              deposit_amount="{:.2f}".format(deposit_amount),
-                              remaining_amount="{:.2f}".format(remaining_amount))
-
-    return render_template('search_invoices.html', job=None)
 
 @bp.route('/clean-database', methods=['POST'])
 @login_required
