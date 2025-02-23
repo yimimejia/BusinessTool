@@ -35,7 +35,7 @@
                         {% for job in jobs %}
                         <tr>
                             <td style="word-wrap: break-word; font-size: 1.2em; padding: 15px">
-                                <a href="{{ url_for('main.view_pending_job_invoice', job_id=job.id) }}" class="text-decoration-none">
+                                <a href="{{ url_for('main.view_job_invoice', job_id=job.id) }}" class="text-decoration-none">
                                     {{ job.client_name }}
                                 </a>
                             </td>
