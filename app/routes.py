@@ -787,7 +787,7 @@ def show_job_qr(job_id):
         qr_image = base64.b64encode(buffered.getvalue()).decode()
 
         # Log para debugging
-        logger.info(f"Montos en show_job_qr - Total: {total_amount}, Abono: {deposit_amount}, Restante: {remaining_amount}")
+        logger.info(f"Montos en show_job_qr - Total: {total_amount}, Abono: {deposit_amount}, Restante:{remaining_amount}")
 
         return render_template('job_qr.html', 
                             job=job, 
@@ -918,26 +918,27 @@ def completed_jobs():
 @bp.route('/jobs/<int:job_id>/complete', methods=['POST'])
 @login_required
 def complete_job(job_id):
-    """Completar un trabajo y moverlo a la tabla de trabajos completados"""
-    data = request.get_json() or request.form
-    admin_password = data.get('admin_password')
-
-    if not admin_password:
-        return jsonify({'success': False, 'message': 'Se requiere contraseña de administrador'})
-
-    job = Job.query.get_or_404(job_id)
-
+    """Completar un trabajo con autenticación de administrador"""
     try:
-        # Verificar contraseña de usuarios autorizados
-        staff = User.query.filter(User.can_authorize_jobs).all()
-        valid_auth = False
-        for user in staff:
-            if user and user.check_password(admin_password):
-                valid_auth = True
-                break
+        data = request.get_json()
+        admin_password = data.get('admin_password')
 
-        if not valid_auth:
-            return jsonify({'success': False, 'message': 'Contraseña incorrecta o usuario no autorizado'})
+        if not admin_password:
+            return jsonify({
+                'success': False,
+                'message': 'Se requiere la contraseña de administrador'
+            }), 400
+
+        # Obtener el usuario administrador
+        admin_user = User.query.filter_by(is_admin=True).first()
+        if not admin_user or not admin_user.check_password(admin_password):
+            return jsonify({
+                'success': False,
+                'message': 'Contraseña de administrador incorrecta'
+            }), 401
+
+        # Buscar el trabajo
+        job = Job.query.get_or_404(job_id)
 
         # Crear trabajo completado
         completed_job = CompletedJob(
@@ -948,28 +949,35 @@ def complete_job(job_id):
             invoice_number=job.invoice_number,
             client_name=job.client_name,
             phone_number=job.phone_number,
-            created_at=job.created_at,
-            completed_at=datetime.utcnow(),
-            tags=job.tags,
             total_amount=job.total_amount,
-            deposit_amount=job.deposit_amount
+            deposit_amount=job.deposit_amount,
+            tags=job.tags,
+            completed_at=datetime.utcnow()
         )
 
+        # Guardar cambios en la base de datos
         db.session.add(completed_job)
         db.session.delete(job)
         db.session.commit()
 
+        # Registrar actividad
         log_activity(
             'trabajo_completado',
             f"Trabajo completado: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
         )
 
-        return jsonify({'success': True})
+        return jsonify({
+            'success': True,
+            'message': 'Trabajo marcado como completado exitosamente'
+        })
 
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error al completar trabajo: {str(e)}")
-        return jsonify({'success': False, 'message': 'Error al procesar la solicitud'})
+        return jsonify({
+            'success': False,
+            'message': 'Error al procesar la solicitud'
+        }), 500
 
 @bp.route('/clean-database', methods=['POST'])
 @login_required
@@ -1604,7 +1612,7 @@ def pending_photos():
         jobs = PendingJob.query.filter_by(pendingtype='photo_verification').all()
         return render_template('pending_photos.html', jobs=jobs)
     except Exception as e:
-        flash(f'Error alcargar fotos pendientes: {str(e)}', 'error')
+        flash(f'Error al cargar fotos pendientes: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
 
 @bp.route('/jobs/pending/<int:job_id>/approve', methods=['POST'])
@@ -1830,7 +1838,7 @@ def create_delivered_job_from_completed(completed_job):
         description=completed_job.description,
         designer_id=completed_job.designer_id,
         registered_by_id=completed_job.registered_by_id,
-        invoice_number=completed_job.invoicenumber,
+        invoice_number=completed_job.invoice_number,
         client_name=completed_job.client_name,
         phone_number=completed_job.phone_number,
         created_at=completed_job.created_at,
