@@ -883,52 +883,61 @@ def complete_job(job_id):
 def search_invoices():
     """Búsqueda de facturas por nombre de cliente o número de factura"""
     query = request.args.get('query', '').strip()
-    invoices = []
+    job = None
 
     if query:
-        # Consulta para trabajos pendientes
-        pending_jobs = (
-            db.session.query(
-                Job.id.label('id'),
-                Job.client_name.label('client_name'),
-                Job.invoice_number.label('invoice_number'),
-                Job.created_at.label('created_at'),
-                Job.description.label('description'),
-                Job.designer_id.label('designer_id'),
-                Job.total_amount.label('total_amount'),
-                literal_column("false").label('is_completed')
-            ).filter(
-                or_(
-                    Job.client_name.ilike(f'%{query}%'),
-                    Job.invoice_number.ilike(f'%{query}%')
-                )
+        # Buscar primero en trabajos activos
+        job = Job.query.filter(
+            or_(
+                Job.client_name.ilike(f'%{query}%'),
+                Job.invoice_number.ilike(f'%{query}%')
             )
-        )
+        ).first()
 
-        # Consulta para trabajos completados
-        completed_jobs = (
-            db.session.query(
-                CompletedJob.id.label('id'),
-                CompletedJob.client_name.label('client_name'),
-                CompletedJob.invoice_number.label('invoice_number'),
-                CompletedJob.created_at.label('created_at'),
-                CompletedJob.description.label('description'),
-                CompletedJob.designer_id.label('designer_id'),
-                CompletedJob.total_amount.label('total_amount'),
-                literal_column("true").label('is_completed')
-            ).filter(
+        if not job:
+            # Si no está en activos, buscar en completados
+            job = CompletedJob.query.filter(
                 or_(
                     CompletedJob.client_name.ilike(f'%{query}%'),
                     CompletedJob.invoice_number.ilike(f'%{query}%')
                 )
+            ).first()
+
+        if job:
+            # Asegurar que los montos sean números
+            total_amount = float(job.total_amount) if job.total_amount else 0.0
+            deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount else 0.0
+            remaining_amount = total_amount - deposit_amount
+
+            # Generar código QR si no existe
+            if not job.qr_code:
+                job.generate_qr_code()
+                db.session.commit()
+
+            # Generate QR code
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=5
             )
-        )
+            qr.add_data(url_for('main.public_job', qr_code=job.qr_code, _external=True))
+            qr.make(fit=True)
+            qr_img = qr.make_image(fill_color="black", back_color="white")
 
-        # Unir las consultas y ordenar por fecha
-        union_query = pending_jobs.union(completed_jobs).subquery()
-        invoices = db.session.query(union_query).order_by(desc(union_query.c.created_at)).all()
+            # Convert QR to base64
+            buffered = io.BytesIO()
+            qr_img.save(buffered, format="PNG")
+            qr_code_image = base64.b64encode(buffered.getvalue()).decode()
 
-    return render_template('search_invoices.html', invoices=invoices)
+            return render_template('invoice_pdf.html',
+                              job=job,
+                              qr_code=qr_code_image,
+                              total_amount="{:.2f}".format(total_amount),
+                              deposit_amount="{:.2f}".format(deposit_amount),
+                              remaining_amount="{:.2f}".format(remaining_amount))
+
+    return render_template('search_invoices.html', job=None)
 
 @bp.route('/clean-database', methods=['POST'])
 @login_required
