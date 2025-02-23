@@ -449,6 +449,7 @@ def view_public_invoice(qr_code):
     return generate_invoice_view(qr_code=qr_code)
 
 
+
 @bp.route('/search-invoices', methods=['GET'])
 @login_required
 def search_invoices():
@@ -787,7 +788,7 @@ def show_job_qr(job_id):
         qr_image = base64.b64encode(buffered.getvalue()).decode()
 
         # Log para debugging
-        logger.info(f"Montos en show_job_qr - Total: {total_amount}, Abono: {deposit_amount}, Restante:{remaining_amount}")
+        logger.info(f"Montos en show_job_qr - Total: {total_amount}, Abono: {deposit_amount}, Restante: {remaining_amount}")
 
         return render_template('job_qr.html', 
                             job=job, 
@@ -929,63 +930,77 @@ def complete_job(job_id):
                 'message': 'Se requiere la contraseña de administrador'
             }), 400
 
-        # Verificar si la contraseña es cualquiera de las dos aceptadas
-        if admin_password != "0372" and admin_password != "admin123":
+        # Verificar si la contraseña coincide con algún admin o supervisor
+        authorized_users = User.query.filter(
+            (User.is_admin == True) | (User.is_supervisor == True)
+        ).all()
+
+        valid_password = False
+        authorized_user = None
+        for user in authorized_users:
+            if user.check_password(admin_password):
+                valid_password = True
+                authorized_user = user
+                break
+
+        if not valid_password:
+            logger.warning(f"Intento de autorización fallido para completar trabajo {job_id}")
             return jsonify({
                 'success': False,
-                'message': 'Contraseña incorrecta'
+                'message': 'Contraseña incorrecta. Se requiere contraseña de administrador o supervisor.'
             }), 401
 
         # Buscar el trabajo
         job = Job.query.get_or_404(job_id)
 
-        # Crear un trabajo completado
-        completed_job = CompletedJob(
-            original_job_id=job.id,
-            description=job.description,
-            designer_id=job.designer_id,
-            registered_by_id=job.registered_by_id,
-            invoice_number=job.invoice_number,
-            client_name=job.client_name,
-            phone_number=job.phone_number,
-            created_at=job.created_at,
-            tags=job.tags,
-            total_amount=job.total_amount,
-            deposit_amount=job.deposit_amount,
-            qr_code=job.qr_code,  # Mantener el mismo código QR
-            completed_at=datetime.utcnow()
-        )
-
-        # Agregar el trabajo completado y eliminar el trabajo original
-        db.session.add(completed_job)
-        db.session.delete(job)
-
         try:
+            # Crear un trabajo completado
+            completed_job = CompletedJob(
+                original_job_id=job.id,
+                description=job.description,
+                designer_id=job.designer_id,
+                registered_by_id=authorized_user.id if authorized_user else current_user.id,
+                invoice_number=job.invoice_number,
+                client_name=job.client_name,
+                phone_number=job.phone_number,
+                created_at=job.created_at,
+                tags=job.tags,
+                total_amount=job.total_amount,
+                deposit_amount=job.deposit_amount,
+                qr_code=job.qr_code,  # Mantener el mismo código QR
+                completed_at=datetime.utcnow()
+            )
+
+            # Agregar el trabajo completado y eliminar el trabajo original
+            db.session.add(completed_job)
+            db.session.delete(job)
             db.session.commit()
 
             # Registrar la actividad
             log_activity(
                 'trabajo_completado',
-                f"Trabajo completado: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
+                f"Trabajo completado por {authorized_user.username if authorized_user else current_user.username}: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
             )
 
             return jsonify({
                 'success': True,
                 'message': 'Trabajo completado exitosamente'
             })
+
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error al guardar trabajo completado: {str(e)}")
+            error_msg = str(e)
+            logger.error(f"Error al guardar trabajo completado {job_id}: {error_msg}")
             return jsonify({
                 'success': False,
-                'message': 'Error al completar el trabajo'
+                'message': f'Error al completar el trabajo: {error_msg}'
             }), 500
 
     except Exception as e:
-        logger.error(f"Error al completar trabajo: {str(e)}")
+        logger.error(f"Error al procesar la solicitud para completar trabajo {job_id}: {str(e)}")
         return jsonify({
             'success': False,
-            'message': 'Error al procesar la solicitud'
+            'message': f'Error al procesar la solicitud: {str(e)}'
         }), 500
 
 @bp.route('/clean-database', methods=['POST'])
