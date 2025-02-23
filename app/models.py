@@ -117,7 +117,7 @@ class Job(db.Model):
 
     def generate_qr_code(self):
         if not self.qr_code:
-            # Add fotov prefix and job ID to the QR code
+            # Agregar prefijo fotov y el ID del trabajo
             unique_id = f"fotov{self.id}-{self.invoice_number}-{int(datetime.utcnow().timestamp())}"
             self.qr_code = base64.urlsafe_b64encode(unique_id.encode()).decode()
         return self.qr_code
@@ -125,9 +125,9 @@ class Job(db.Model):
     def get_whatsapp_link(self, with_invoice=False, invoice_url=None):
         if not self.phone_number:
             return None
-            
+
         phone = re.sub(r'[^\d]', '', self.phone_number)
-        
+
         if with_invoice and invoice_url:
             message = f"""*FOTO VIDEO MOJICA*
 ¡Gracias por su preferencia!
@@ -143,7 +143,7 @@ Para ver su factura digital y código QR, haga clic aquí:
 {invoice_url}"""
         else:
             message = f"Hola {self.client_name}, sus fotos están listas para ser revisadas."
-            
+
         return f"https://wa.me/{phone}?text={urllib.parse.quote(message)}"
 
     @property
