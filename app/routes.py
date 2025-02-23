@@ -352,7 +352,7 @@ def generate_invoice_view(job_id=None, qr_code=None):
                 if not job:
                     return "Factura no encontrada", 404
 
-        # Cálculo de montos
+        # Asegurar que los montos sean números flotantes
         total_amount = float(job.total_amount if job.total_amount else 0)
         deposit_amount = float(job.deposit_amount if hasattr(job, 'deposit_amount') and job.deposit_amount else 0)
         remaining_amount = total_amount - deposit_amount
@@ -379,6 +379,9 @@ def generate_invoice_view(job_id=None, qr_code=None):
         buffered = io.BytesIO()
         qr_img.save(buffered, format="PNG")
         qr_code_image = base64.b64encode(buffered.getvalue()).decode()
+
+        # Log para debugging
+        logger.info(f"Montos de factura - Total: {total_amount}, Abono: {deposit_amount}, Restante: {remaining_amount}")
 
         # Render invoice template with amount values
         return render_template('invoice_pdf.html',
@@ -804,14 +807,14 @@ def mark_delivered(job_id):
 @login_required
 @admin_required
 def remove_job(job_id):
-    password = request.form.get('admin_password')
+    data = request.get_json() or request.form
+    password = data.get('admin_password')
+
     if not password:
-        flash('Se requiere contraseña para eliminar', 'error')
-        return redirect(url_for('main.dashboard'))
+        return jsonify({'success': False, 'message': 'Se requiere contraseña para eliminar'})
 
     # Verificar si la contraseña coincide con algún admin solamente
     admins = User.query.filter_by(is_admin=True).all()
-
     valid_password = False
     for admin in admins:
         if admin.check_password(password):
@@ -819,20 +822,23 @@ def remove_job(job_id):
             break
 
     if not valid_password:
-        flash('Contraseña incorrecta. Se requiere contraseñade administrador.', 'error')
-        return redirect(url_for('main.dashboard'))
+        return jsonify({'success': False, 'message': 'Contraseña incorrecta. Se requiere contraseña de administrador.'})
 
-    job = Job.query.get_or_404(job_id)
-    db.session.delete(job)
-    db.session.commit()
+    try:
+        job = Job.query.get_or_404(job_id)
+        db.session.delete(job)
+        db.session.commit()
 
-    log_activity(
-        'trabajo_eliminado',
-        f"Trabajo eliminado: {job.client_name} (Factura: {job.invoice_number})"
-    )
+        log_activity(
+            'trabajo_eliminado',
+            f"Trabajo eliminado: {job.client_name} (Factura: {job.invoice_number})"
+        )
 
-    flash('Trabajo eliminado exitosamente', 'success')
-    return redirect(url_for('main.dashboard'))
+        return jsonify({'success': True, 'message': 'Trabajo eliminado exitosamente'})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al eliminar trabajo: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error al eliminar el trabajo'})
 
 @bp.route('/completed-jobs')
 @login_required
@@ -1547,73 +1553,28 @@ def approve_pending_job(job_id):
     try:
         pending_job = PendingJob.query.get_or_404(job_id)
 
-        if pending_job.pending_type == 'photo_verification':
-            # Si es verificación de fotos, aprobar y enviar por WhatsApp
-            photos = json.loads(pending_job.photos) if pending_job.photos else []
+        # Crear trabajo regular desde el pendiente
+        job = pending_job.to_job()
 
-            # Generar enlace temporal para las fotos
-            from app.utils.links import generate_temporary_link
-            token = generate_temporary_link(photos)
-            gallery_url = f"{request.url_root.rstrip('/')}/gallery/{token}"
+        # Generar número de factura si no existe
+        if not job.invoice_number:
+            job.invoice_number = generate_invoice_number()
 
-            # Preparar mensaje de WhatsApp
-            clean_phone = pending_job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
-            whatsapp_message = f"""Hola {pending_job.client_name}, aquí están las fotos de su trabajo:
+        # Guardar el trabajo y eliminar el pendiente
+        db.session.add(job)
+        db.session.delete(pending_job)
+        db.session.commit()
 
-Para ver todas sus fotos, haga clic en el siguiente enlace (disponible por 3 días):
-{gallery_url}"""
+        log_activity(
+            'trabajo_aprobado',
+            f"Trabajo aprobado: {job.client_name} (Factura: {job.invoice_number})")
 
-            # Eliminar el trabajo pendiente
-            db.session.delete(pending_job)
-            db.session.commit()
-
-            log_activity(
-                'fotos_aprobadas',
-                f"Fotos aprobadas y enviadas - Trabajo #{pending_job.original_job_id}, Cliente: {pending_job.client_name}"
-            )
-
-            # Redirigir a WhatsApp con el mensaje
-            whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(whatsapp_message)}"
-            return redirect(whatsapp_url)
-
-        else:
-            # Obtener los datos del formulario
-            invoice_number = request.form.get('invoice_number')
-            total_amount = float(request.form.get('total_amount', 0))
-            deposit_amount = float(request.form.get('deposit_amount', 0))
-            tags = request.form.get('tags', '').strip()
-
-            # Crear el trabajo regular
-            job = Job(
-                description=pending_job.description,
-                designer_id=pending_job.designer_id,
-                registered_by_id=current_user.id,
-                invoice_number=invoice_number,
-                client_name=pending_job.client_name,
-                phone_number=pending_job.phone_number,
-                total_amount=total_amount,
-                deposit_amount=deposit_amount,
-                tags=tags
-            )
-
-            # Generar código QR
-            job.generate_qr_code()
-
-            db.session.add(job)
-            db.session.delete(pending_job)
-            db.session.commit()
-
-            log_activity(
-                'trabajo_aprobado',
-                f"Trabajo aprobado: {job.client_name} (Factura: {invoice_number})")
-
-            flash('Trabajo aprobado exitosamente', 'success')
-            return redirect(url_for('main.pending_jobs'))
-
+        flash('Trabajo aprobado exitosamente', 'success')
+        return redirect(url_for('main.pending_jobs'))
     except Exception as e:
         db.session.rollback()
-        logging.error(f"Error al aprobar trabajo pendiente: {str(e)}")
-        flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
+        logger.error(f"Error al aprobar trabajo: {str(e)}")
+        flash('Error al aprobar el trabajo', 'error')
         return redirect(url_for('main.pending_jobs'))
 
 @bp.route('/jobs/<int:job_id>/approve', methods=['POST'])

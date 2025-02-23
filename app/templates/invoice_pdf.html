@@ -51,26 +51,21 @@
                 <span>RD${{ "%.2f"|format(total_amount) }}</span>
             </div>
 
-            {% if deposit_amount > 0 %}
             <div class="amount-row">
                 <span><strong>Abono:</strong></span>
                 <span>RD${{ "%.2f"|format(deposit_amount) }}</span>
             </div>
+
             <div class="amount-row total-amount">
                 <span><strong>Restante:</strong></span>
                 <span>RD${{ "%.2f"|format(remaining_amount) }}</span>
             </div>
-            {% else %}
-            <div class="amount-row total-amount">
-                <span><strong>Restante:</strong></span>
-                <span>RD${{ "%.2f"|format(total_amount) }}</span>
-            </div>
-            {% endif %}
         </div>
 
         <div class="qr-code">
             {% if qr_code %}
             <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code">
+            <p>Escanee este código para verificar su trabajo</p>
             {% endif %}
         </div>
     </div>
