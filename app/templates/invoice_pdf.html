@@ -1,98 +1,64 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Factura Digital</title>
+    <title>Factura</title>
     <style>
-        body { 
-            font-family: Arial, sans-serif;
-            background-color: white;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 40px;
-            background: white;
-        }
-        .header {
-            margin-bottom: 30px;
-        }
-        .header h1 {
-            font-size: 24px;
-            color: #333;
-            margin: 0 0 10px 0;
-        }
-        .invoice-details {
-            margin-bottom: 30px;
-            line-height: 1.6;
-        }
-        .invoice-details p {
-            margin: 8px 0;
-            font-size: 16px;
-        }
-        .amount-section {
-            margin: 30px 0;
+        body { font-family: Arial, sans-serif; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .invoice-details { margin-bottom: 20px; }
+        .amount-section { 
+            margin: 20px 0; 
+            border-top: 1px solid #ddd; 
             padding-top: 20px;
-            font-size: 16px;
+            font-size: 1.1em;
         }
+        .qr-code { text-align: center; margin-top: 30px; }
+        .qr-code img { max-width: 150px; }
         .amount-row {
             display: flex;
             justify-content: space-between;
             margin: 10px 0;
-            padding: 8px 0;
+            padding: 5px 0;
         }
         .total-amount {
             font-weight: bold;
-            font-size: 18px;
+            font-size: 1.2em;
             border-top: 2px solid #000;
-            padding-top: 15px;
-            margin-top: 15px;
-        }
-        .qr-code {
-            text-align: center;
-            margin-top: 40px;
-        }
-        .qr-code img {
-            max-width: 200px;
-            margin-bottom: 15px;
-        }
-        .footer {
-            text-align: center;
-            margin-top: 40px;
-            color: #666;
-            font-size: 14px;
+            padding-top: 10px;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Factura Digital</h1>
+            <h1>FOTO VIDEO MOJICA</h1>
+            <h2>Factura #{{ job.invoice_number }}</h2>
         </div>
 
         <div class="invoice-details">
-            <p><strong>No. Factura:</strong> {{ job.invoice_number }}</p>
             <p><strong>Cliente:</strong> {{ job.client_name }}</p>
+            <p><strong>Fecha:</strong> {{ job.created_at.strftime('%d/%m/%Y') }}</p>
+            <p><strong>Teléfono:</strong> {{ job.phone_number }}</p>
             <p><strong>Descripción:</strong> {{ job.description }}</p>
-            <p><strong>Abono:</strong> ${{ "%.2f"|format(deposit_amount) }}</p>
-            <p><strong>Fecha:</strong> {{ job.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
         </div>
 
         <div class="amount-section">
+            <h3>Detalles del Pago</h3>
             <div class="amount-row">
-                <span><strong>Total:</strong></span>
-                <span>${{ "%.2f"|format(total_amount) }}</span>
+                <span><strong>Monto Total:</strong></span>
+                <span>RD${{ "%.2f"|format(total_amount) }}</span>
             </div>
 
             <div class="amount-row">
                 <span><strong>Abono:</strong></span>
-                <span>${{ "%.2f"|format(deposit_amount) }}</span>
+                <span>RD${{ "%.2f"|format(deposit_amount) }}</span>
             </div>
 
             <div class="amount-row total-amount">
                 <span><strong>Restante:</strong></span>
-                <span>${{ "%.2f"|format(remaining_amount) }}</span>
+                <span>RD${{ "%.2f"|format(remaining_amount) }}</span>
             </div>
         </div>
 
@@ -101,11 +67,6 @@
             <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code">
             <p>Escanee este código para verificar su trabajo</p>
             {% endif %}
-        </div>
-
-        <div class="footer">
-            <p>FOTO VIDEO MOJICA</p>
-            <p>Gracias por su preferencia</p>
         </div>
     </div>
 </body>
