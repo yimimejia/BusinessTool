@@ -335,40 +335,6 @@ def view_job_invoice(job_id):
     return generate_invoice_view(job_id=job_id)
 
 
-@bp.route('/search-invoices', methods=['GET'])
-@login_required
-def search_invoices():
-    """Buscar facturas por nombre de cliente o número de factura"""
-    query = request.args.get('query', '').strip()
-    if query:
-        # Buscar en trabajos activos y completados
-        active_jobs = Job.query.filter(
-            or_(
-                Job.client_name.ilike(f'%{query}%'),
-                Job.invoice_number.ilike(f'%{query}%')
-            )
-        ).all()
-
-        completed_jobs = CompletedJob.query.filter(
-            or_(
-                CompletedJob.client_name.ilike(f'%{query}%'),
-                CompletedJob.invoice_number.ilike(f'%{query}%')
-            )
-        ).all()
-
-        jobs = active_jobs + completed_jobs
-    else:
-        jobs = []
-
-    return render_template('search_invoices.html', jobs=jobs, query=query)
-
-
-@bp.route('/public/invoice/<string:qr_code>')
-def view_public_invoice(qr_code):
-    """Vista pública de factura accesible por QR"""
-    return generate_invoice_view(qr_code=qr_code)
-
-
 def generate_invoice_view(job_id=None, qr_code=None):
     """Función interna para generar la vista de factura"""
     try:
@@ -386,9 +352,9 @@ def generate_invoice_view(job_id=None, qr_code=None):
                 if not job:
                     return "Factura no encontrada", 404
 
-        # Cálculo simple de montos
-        total_amount = float(job.total_amount if job.total_amount else 0.0)
-        deposit_amount = float(job.deposit_amount if hasattr(job, 'deposit_amount') and job.deposit_amount else 0.0)
+        # Cálculo de montos
+        total_amount = float(job.total_amount if job.total_amount else 0)
+        deposit_amount = float(job.deposit_amount if hasattr(job, 'deposit_amount') and job.deposit_amount else 0)
         remaining_amount = total_amount - deposit_amount
 
         # Generar URL pública para el QR si no existe
@@ -428,6 +394,41 @@ def generate_invoice_view(job_id=None, qr_code=None):
             flash('Error al generar la factura. Por favor, inténtelo de nuevo.', 'error')
             return redirect(url_for('main.dashboard'))
         return "Error al mostrar la factura", 500
+
+@bp.route('/public/invoice/<string:qr_code>')
+def view_public_invoice(qr_code):
+    """Vista pública de factura accesible por QR"""
+    return generate_invoice_view(qr_code=qr_code)
+
+
+@bp.route('/search-invoices', methods=['GET'])
+@login_required
+def search_invoices():
+    """Buscar facturas por nombre de cliente o número de factura"""
+    query = request.args.get('query', '').strip()
+    if query:
+        # Buscar en trabajos activos y completados
+        active_jobs = Job.query.filter(
+            or_(
+                Job.client_name.ilike(f'%{query}%'),
+                Job.invoice_number.ilike(f'%{query}%')
+            )
+        ).all()
+
+        completed_jobs = CompletedJob.query.filter(
+            or_(
+                CompletedJob.client_name.ilike(f'%{query}%'),
+                CompletedJob.invoice_number.ilike(f'%{query}%')
+            )
+        ).all()
+
+        jobs = active_jobs + completed_jobs
+    else:
+        jobs = []
+
+    return render_template('search_invoices.html', jobs=jobs, query=query)
+
+
 
 @bp.route('/dashboard')
 @login_required
@@ -859,10 +860,8 @@ def complete_job(job_id):
     job = Job.query.get_or_404(job_id)
 
     try:
-        # Verificar contraseña de administrador o supervisor
-        staff = User.query.filter(
-            (User.is_admin == True) | (User.is_supervisor == True)
-        ).all()
+        # Verificar contraseña de usuarios autorizados
+        staff = User.query.filter(User.can_authorize_jobs).all()
         valid_auth = False
         for user in staff:
             if user and user.check_password(admin_password):
@@ -870,7 +869,7 @@ def complete_job(job_id):
                 break
 
         if not valid_auth:
-            return jsonify({'success': False, 'message': 'Contraseña de administrador o supervisor incorrecta'})
+            return jsonify({'success': False, 'message': 'Contraseña incorrecta o usuario no autorizado'})
 
         # Crear trabajo completado
         completed_job = CompletedJob(
@@ -894,15 +893,15 @@ def complete_job(job_id):
 
         log_activity(
             'trabajo_completado',
-            f"Trabajo completado para {completed_job.client_name} (Factura: {completed_job.invoice_number})"
+            f"Trabajo completado: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
         )
 
-        return jsonify({'success': True, 'message': 'Trabajo completado exitosamente'})
+        return jsonify({'success': True})
 
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error al completar trabajo: {str(e)}")
-        return jsonify({'success': False, 'message': 'Error al completar el trabajo'})
+        return jsonify({'success': False, 'message': 'Error al procesar la solicitud'})
 
 @bp.route('/clean-database', methods=['POST'])
 @login_required
@@ -1606,8 +1605,7 @@ Para ver todas sus fotos, haga clic en el siguiente enlace (disponible por 3 dí
 
             log_activity(
                 'trabajo_aprobado',
-                f"Trabajo aprobado: {job.client_name} (Factura: {invoice_number})"
-            )
+                f"Trabajo aprobado: {job.client_name} (Factura: {invoice_number})")
 
             flash('Trabajo aprobado exitosamente', 'success')
             return redirect(url_for('main.pending_jobs'))
@@ -1617,6 +1615,77 @@ Para ver todas sus fotos, haga clic en el siguiente enlace (disponible por 3 dí
         logging.error(f"Error al aprobar trabajo pendiente: {str(e)}")
         flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.pending_jobs'))
+
+@bp.route('/jobs/<int:job_id>/approve', methods=['POST'])
+@login_required
+def approve_job(job_id):
+    """Aprobar un trabajo pendiente o completar un trabajo activo"""
+    try:
+        # Verificar si es un trabajo pendiente o activo
+        pending_job = PendingJob.query.get(job_id)
+        if pending_job:
+            job = pending_job.to_job()
+        else:
+            job = Job.query.get_or_404(job_id)
+
+        # Verificar si el usuario está autorizado
+        if not current_user.can_authorize_jobs:
+            flash('No tienes permiso para aprobar trabajos', 'error')
+            return jsonify({'success': False, 'message': 'No autorizado'}), 403
+
+        # Verificar la contraseña
+        data = request.get_json() or request.form
+        admin_password = data.get('admin_password')
+        if not admin_password:
+            return jsonify({'success': False, 'message': 'Se requiere contraseña'})
+
+        # Verificar la contraseña con usuarios autorizados
+        staff = User.query.filter(User.can_authorize_jobs).all()
+        valid_auth = False
+        for user in staff:
+            if user and user.check_password(admin_password):
+                valid_auth = True
+                break
+
+        if not valid_auth:
+            return jsonify({'success': False, 'message': 'Contraseña incorrecta o usuario no autorizado'})
+
+        # Crear trabajo completado
+        completed_job = CompletedJob(
+            description=job.description,
+            designer_id=job.designer_id,
+            registered_by_id=job.registered_by_id,
+            invoice_number=job.invoice_number,
+            client_name=job.client_name,
+            phone_number=job.phone_number,
+            created_at=job.created_at,
+            completed_at=datetime.utcnow(),
+            tags=job.tags,
+            total_amount=job.total_amount,
+            deposit_amount=job.deposit_amount
+        )
+
+        db.session.add(completed_job)
+
+        # Eliminar el trabajo original
+        if pending_job:
+            db.session.delete(pending_job)
+        else:
+            db.session.delete(job)
+
+        db.session.commit()
+
+        log_activity(
+            'trabajo_completado',
+            f"Trabajo completado: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
+        )
+
+        return jsonify({'success': True, 'message': 'Trabajo aprobado exitosamente'})
+
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error al aprobar trabajo: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error al procesar la solicitud'})
 
 @bp.route('/jobs/pending/<int:job_id>/reject', methods=['POST'])
 @login_required
@@ -1775,7 +1844,7 @@ def pending_jobs():
 @bp.route('/jobs/<int:job_id>/approve', methods=['GET', 'POST'])
 @login_required
 @staff_required
-def approve_job(job_id):
+def approve_job_form(job_id):
     """Vista para aprobar un trabajo pendiente"""
     try:
         job = PendingJob.query.get_or_404(job_id)

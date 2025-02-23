@@ -76,6 +76,11 @@ class User(UserMixin, db.Model):
     def can_delete_jobs(self):
         return self.is_admin
 
+    @property
+    def can_authorize_jobs(self):
+        """Determina si el usuario puede autorizar trabajos"""
+        return self.is_admin or self.is_supervisor
+
     def get_pending_jobs(self):
         return Job.query.filter_by(designer_id=self.id, status='pending').all()
 
