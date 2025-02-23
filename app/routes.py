@@ -337,7 +337,7 @@ def view_job_invoice(job_id):
 
         # Asegurar que los montos sean números flotantes
         total_amount = float(job.total_amount if job.total_amount else 0)
-        deposit_amount = float(job.deposit_amount if hasattr(job, 'deposit_amount') and job.deposit_amount else 0)
+        deposit_amount = float(job.deposit_amount if job.deposit_amount else 0)
         remaining_amount = total_amount - deposit_amount
 
         # Generar URL pública para el QR si no existe
@@ -792,8 +792,7 @@ def show_job_qr(job_id):
 
         return render_template('job_qr.html', 
                             job=job, 
-                            qr_image=qr_image,
-                            total_amount=total_amount,
+                            qr_image=qr_image,                            total_amount=total_amount,
                             deposit_amount=deposit_amount,
                             remaining_amount=remaining_amount)
     except Exception as e:
@@ -1645,68 +1644,45 @@ def pending_photos():
 def approve_pending_job(job_id):
     """Aprobar un trabajo pendiente"""
     try:
-        # Verificar si el usuario es staff (admin o supervisor)
-        if not current_user.is_staff:
-            return jsonify({
-                'success': False,
-                'message': 'No tienes permiso para aprobar trabajos'
-            }), 403
-
-        # Obtener y verificar la contraseña
-        data = request.get_json() or {}
-        admin_password = data.get('admin_password')
-
-        if not admin_password:
-            return jsonify({
-                'success': False,
-                'message': 'Se requiere contraseña para aprobar'
-            }), 400
-
-        # Verificar la contraseña del usuario actual
-        if not current_user.check_password(admin_password):
-            return jsonify({
-                'success': False,
-                'message': 'Contraseña incorrecta'
-            }), 401
-
-        # Buscar el trabajo pendiente
+        # Obtener el trabajo pendiente
         pending_job = PendingJob.query.get_or_404(job_id)
 
-        # Crear un nuevo trabajo a partir del pendiente
-        new_job = Job(
+        # Crear el trabajo completo
+        completed_job = CompletedJob(
+            original_job_id=pending_job.original_job_id,
             description=pending_job.description,
             designer_id=pending_job.designer_id,
-            registered_by_id=current_user.id,
+            registered_by_id=pending_job.registered_by_id,
             invoice_number=pending_job.invoice_number,
             client_name=pending_job.client_name,
             phone_number=pending_job.phone_number,
+            created_at=pending_job.created_at,
+            tags=pending_job.tags,
             total_amount=pending_job.total_amount,
             deposit_amount=pending_job.deposit_amount,
-            tags=pending_job.tags
+            completed_at=datetime.utcnow()
         )
 
-        # Guardar el nuevo trabajo y eliminar el pendiente
-        db.session.add(new_job)
+        # Agregar y guardar en la base de datos
+        db.session.add(completed_job)
         db.session.delete(pending_job)
         db.session.commit()
 
         # Registrar la actividad
         log_activity(
             'aprobar_trabajo',
-            f"Trabajo aprobado para {new_job.client_name} (Factura: {new_job.invoice_number})"
+            f"Trabajo aprobado: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
         )
 
-        return jsonify({
-            'success': True,
-            'message': 'Trabajo aprobado exitosamente'
-        })
+        flash('Trabajo aprobado exitosamente', 'success')
+        return jsonify({"success": True, "message": "Trabajo aprobado exitosamente"})
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error al aprobar trabajo: {str(e)}")
+        logger.error(f"Error al aprobar trabajo pendiente: {str(e)}")
         return jsonify({
-            'success': False,
-            'message': 'Error al procesar la solicitud'
+            "success": False,
+            "message": f"Error al procesar la solicitud: {str(e)}"
         }), 500
 
 @bp.route('/jobs/<int:job_id>/approve', methods=['POST'])
