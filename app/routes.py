@@ -1601,7 +1601,7 @@ def pending_verification():
 def pending_photos():
     """Vista de fotos pendientes por aprobar"""
     try:
-        jobs = PendingJob.query.filter_by(pending_type='photo_verification').all()
+        jobs = PendingJob.query.filter_by(pendingtype='photo_verification').all()
         return render_template('pending_photos.html', jobs=jobs)
     except Exception as e:
         flash(f'Error alcargar fotos pendientes: {str(e)}', 'error')
@@ -1613,31 +1613,69 @@ def pending_photos():
 def approve_pending_job(job_id):
     """Aprobar un trabajo pendiente"""
     try:
+        # Verificar si el usuario es staff (admin o supervisor)
+        if not current_user.is_staff:
+            return jsonify({
+                'success': False,
+                'message': 'No tienes permiso para aprobar trabajos'
+            }), 403
+
+        # Obtener y verificar la contraseña
+        data = request.get_json() or {}
+        admin_password = data.get('admin_password')
+
+        if not admin_password:
+            return jsonify({
+                'success': False,
+                'message': 'Se requiere contraseña para aprobar'
+            }), 400
+
+        # Verificar la contraseña del usuario actual
+        if not current_user.check_password(admin_password):
+            return jsonify({
+                'success': False,
+                'message': 'Contraseña incorrecta'
+            }), 401
+
+        # Buscar el trabajo pendiente
         pending_job = PendingJob.query.get_or_404(job_id)
 
-        # Crear trabajo regular desde el pendiente
-        job = pending_job.to_job()
+        # Crear un nuevo trabajo a partir del pendiente
+        new_job = Job(
+            description=pending_job.description,
+            designer_id=pending_job.designer_id,
+            registered_by_id=current_user.id,
+            invoice_number=pending_job.invoice_number,
+            client_name=pending_job.client_name,
+            phone_number=pending_job.phone_number,
+            total_amount=pending_job.total_amount,
+            deposit_amount=pending_job.deposit_amount,
+            tags=pending_job.tags
+        )
 
-        # Generar número de factura si no existe
-        if not job.invoice_number:
-            job.invoice_number = generate_invoice_number()
-
-        # Guardar el trabajo y eliminar el pendiente
-        db.session.add(job)
+        # Guardar el nuevo trabajo y eliminar el pendiente
+        db.session.add(new_job)
         db.session.delete(pending_job)
         db.session.commit()
 
+        # Registrar la actividad
         log_activity(
-            'trabajo_aprobado',
-            f"Trabajo aprobado: {job.client_name} (Factura: {job.invoice_number})")
+            'aprobar_trabajo',
+            f"Trabajo aprobado para {new_job.client_name} (Factura: {new_job.invoice_number})"
+        )
 
-        flash('Trabajo aprobado exitosamente', 'success')
-        return redirect(url_for('main.pending_jobs'))
+        return jsonify({
+            'success': True,
+            'message': 'Trabajo aprobado exitosamente'
+        })
+
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error al aprobar trabajo: {str(e)}")
-        flash('Error al aprobar el trabajo', 'error')
-        return redirect(url_for('main.pending_jobs'))
+        return jsonify({
+            'success': False,
+            'message': 'Error al procesar la solicitud'
+        }), 500
 
 @bp.route('/jobs/<int:job_id>/approve', methods=['POST'])
 @login_required

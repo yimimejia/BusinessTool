@@ -44,9 +44,8 @@
                             <td>{{ job.registered_by.name }}</td>
                             <td>{{ job.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                             <td>
-                                <button type="button" class="btn btn-success btn-sm" 
-                                        data-bs-toggle="modal" 
-                                        data-bs-target="#approveModal{{ job.id }}">
+                                <button type="button" class="btn btn-success btn-sm approve-job" 
+                                        data-job-id="{{ job.id }}">
                                     <i class="bi bi-check-circle"></i> Aprobar
                                 </button>
                                 <button type="button" class="btn btn-danger btn-sm" 
@@ -68,12 +67,86 @@
         </div>
     </div>
 </div>
+
+<!-- Modal de Autenticación -->
+<div class="modal fade" id="authModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Autorización Requerida</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="authError" class="alert alert-danger d-none"></div>
+                <form id="authForm">
+                    <div class="mb-3">
+                        <label for="authPassword" class="form-label">Contraseña de Administrador/Supervisor</label>
+                        <input type="password" class="form-control" id="authPassword" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" id="submitAuth">Aprobar</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar DataTable
         initializeDataTable('#pendingJobsTable');
+
+        let currentJobId = null;
+        const authModal = new bootstrap.Modal(document.getElementById('authModal'));
+        const errorDiv = document.getElementById('authError');
+
+        // Click en botón de aprobar
+        document.querySelectorAll('.approve-job').forEach(button => {
+            button.addEventListener('click', function() {
+                currentJobId = this.dataset.jobId;
+                if (errorDiv) {
+                    errorDiv.classList.add('d-none');
+                }
+                authModal.show();
+            });
+        });
+
+        // Click en botón de enviar autorización
+        document.getElementById('submitAuth').addEventListener('click', function() {
+            const password = document.getElementById('authPassword').value;
+
+            fetch(`/jobs/${currentJobId}/approve-pending`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    admin_password: password
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    if (errorDiv) {
+                        errorDiv.textContent = data.message || 'Error al aprobar el trabajo';
+                        errorDiv.classList.remove('d-none');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                if (errorDiv) {
+                    errorDiv.textContent = 'Error al procesar la solicitud';
+                    errorDiv.classList.remove('d-none');
+                }
+            });
+        });
     });
 </script>
 {% endblock %}
