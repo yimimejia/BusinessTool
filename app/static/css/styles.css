@@ -1,61 +1,9 @@
 
 /* Estilos para modales en dispositivos móviles */
 @media (max-width: 768px) {
-    .modal {
-        padding: 0 !important;
-    }
-    
     .modal-dialog {
-        margin: 10px;
-        width: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    input[type="text"],
-    input[type="number"],
-    input[type="email"],
-    input[type="password"],
-    textarea {
-        -webkit-user-select: text !important;
-        -moz-user-select: text !important;
-        -ms-user-select: text !important;
-        user-select: text !important;
-        -webkit-appearance: none;
-        font-size: 16px !important;
-        pointer-events: auto !important;
-    }
-
-    .form-control {
-        pointer-events: auto !important;
-        touch-action: auto !important;
-    }
-    
-    .modal-content {
-        border-radius: 8px;
-        max-height: 90vh;
-        overflow-y: auto;
-    }
-
-    .modal-body {
-        -webkit-overflow-scrolling: touch;
-        padding: 1rem;
-        flex: 1 1 auto;
-        overflow-y: auto;
-    }
-
-    .modal-footer {
-        border-top: 1px solid #dee2e6;
-        padding: 1rem;
-        position: sticky;
-        bottom: 0;
-        background: white;
-    }
-
-    input[type="number"],
-    input[type="text"] {
-        font-size: 16px;
-        padding: 0.5rem;
-        margin-bottom: 0.5rem;
+        margin: 0.5rem;
+        max-width: calc(100% - 1rem);
     }
     
     .modal-content {
