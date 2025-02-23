@@ -871,7 +871,7 @@ def completed_jobs():
 @bp.route('/jobs/<int:job_id>/complete', methods=['POST'])
 @login_required
 def complete_job(job_id):
-    """Completar un trabajo y moverlo a la tabla de trabajos completados"""    # Obtener contraseña del admin (ya sea de JSON o form data)
+    """Completar un trabajo y moverlo a la tabla de trabajos completados"""
     data = request.get_json() or request.form
     admin_password = data.get('admin_password')
 
@@ -879,10 +879,6 @@ def complete_job(job_id):
         return jsonify({'success': False, 'message': 'Se requiere contraseña de administrador'})
 
     job = Job.query.get_or_404(job_id)
-
-    # Verificar que el usuario tenga permiso para completar este trabajo
-    if not current_user.is_staff and job.designer_id != current_user.id:
-        return jsonify({'success': False, 'message': 'No tienes permiso para completar este trabajo'})
 
     try:
         # Verificar contraseña de administrador o supervisor
@@ -910,11 +906,10 @@ def complete_job(job_id):
             created_at=job.created_at,
             completed_at=datetime.utcnow(),
             tags=job.tags,
-            total_amount=job.total_amount,  # Agregar monto total
-            deposit_amount=job.deposit_amount  # Agregar monto de depósito
+            total_amount=job.total_amount,
+            deposit_amount=job.deposit_amount
         )
 
-        # Agregar el trabajo completado y eliminar el trabajo original
         db.session.add(completed_job)
         db.session.delete(job)
         db.session.commit()
@@ -929,7 +924,7 @@ def complete_job(job_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error al completar trabajo: {str(e)}")
-        return jsonify({'success': False, 'message': 'Error de autenticación. Por favor, verifica la contraseña del administrador.'})
+        return jsonify({'success': False, 'message': 'Error al completar el trabajo'})
 
 @bp.route('/clean-database', methods=['POST'])
 @login_required
