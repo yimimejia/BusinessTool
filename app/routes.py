@@ -68,27 +68,18 @@ def get_job_invoice_data(job_id=None, qr_code=None):
                 if not job:
                     return None, None
 
-    # Procesar los montos
+    # Asegurar que los montos sean números flotantes
     try:
-        # Convertir montos a float, asegurando que no sean None
-        total_amount = float(job.total_amount) if job.total_amount is not None else 0.0
-        deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount is not None else 0.0
-        remaining_amount = total_amount - deposit_amount
-
-        # Asignar los montos procesados al objeto job
+        total_amount = float(job.total_amount if job.total_amount else 0)
+        deposit_amount = float(job.deposit_amount if hasattr(job, 'deposit_amount') and job.deposit_amount else 0)
         job.total_amount = total_amount
         job.deposit_amount = deposit_amount
-        job.remaining_amount = remaining_amount
-
-        # Log para debugging
-        logger.info(f"Montos procesados para trabajo {job_id or qr_code}:")
-        logger.info(f"Total: {total_amount}, Abono: {deposit_amount}, Restante: {remaining_amount}")
-
+        job.remaining_amount = total_amount - deposit_amount
     except (ValueError, AttributeError) as e:
-        logger.error(f"Error procesando montos para trabajo {job_id or qr_code}: {str(e)}")
-        job.total_amount = 0.0
-        job.deposit_amount = 0.0
-        job.remaining_amount = 0.0
+        logger.error(f"Error procesando montos: {str(e)}")
+        job.total_amount = 0
+        job.deposit_amount = 0
+        job.remaining_amount = 0
 
     # Generar URL pública para el QR si no existe
     if not job.qr_code:
@@ -112,6 +103,9 @@ def get_job_invoice_data(job_id=None, qr_code=None):
     buffered = io.BytesIO()
     qr_img.save(buffered, format="PNG")
     qr_code_image = base64.b64encode(buffered.getvalue()).decode()
+
+    # Log para debugging
+    logger.info(f"Montos calculados - Total: {job.total_amount}, Abono: {job.deposit_amount}, Restante: {job.remaining_amount}")
 
     return job, qr_code_image
 
@@ -382,8 +376,8 @@ def send_whatsapp(job_id):
         flash('No hay número de teléfono registrado para este cliente', 'error')
         return redirect(url_for('main.dashboard'))
 
-    # Generar enlace de factura usando la ruta view_public_invoice
-    invoice_url = url_for('main.view_public_invoice', qr_code=job.qr_code, _external=True)
+    # Generar enlace de factura
+    invoice_url = url_for('main.generate_invoice_view', job_id=job.id, _external=True)
 
     # Obtener enlace de WhatsApp con la factura
     whatsapp_link = job.get_whatsapp_link(with_invoice=True, invoice_url=invoice_url)
@@ -396,38 +390,6 @@ def send_whatsapp(job_id):
 
     return redirect(whatsapp_link)
 
-
-@bp.route('/jobs/<int:job_id>/view-invoice')
-@login_required
-def view_job_invoice(job_id):
-    """Ver factura desde lista de trabajos"""
-    try:
-        # Buscar en trabajos activos primero
-        job = Job.query.get(job_id)
-        if not job:
-            # Si no está en activos, buscar en completados
-            job = CompletedJob.query.get(job_id)
-        if not job:
-            # Si no está en completados, buscar en pendientes
-            job = PendingJob.query.get_or_404(job_id)
-
-        # Asegurar que los montos sean números flotantes
-        total_amount = float(job.total_amount) if job.total_amount is not None else 0.0
-        deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount is not None else 0.0
-        remaining_amount = total_amount - deposit_amount
-
-        # Log para debugging
-        logger.info(f"Montos de factura - Total: {total_amount}, Abono: {deposit_amount}, Restante: {remaining_amount}")
-
-        return render_template('invoice_pdf.html',
-                           job=job,
-                           total_amount=total_amount,
-                           deposit_amount=deposit_amount,
-                           remaining_amount=remaining_amount)
-    except Exception as e:
-        logger.error(f"Error generando factura: {str(e)}")
-        flash('Error al generar la factura', 'error')
-        return redirect(url_for('main.dashboard'))
 
 @bp.route('/public/invoice/<string:qr_code>')
 def view_public_invoice(qr_code):
@@ -1647,7 +1609,7 @@ def approve_pending_job(job_id):
             client_name=pending_job.client_name,
             phonenumber=pending_job.phone_number,
             created_at=pending_job.created_at,
-            tags=pendingjob.tags,
+            tags=pending_job.tags,
             total_amount=pending_job.total_amount,
             deposit_amount=pending_job.deposit_amount,
             completed_at=datetime.utcnow()
@@ -2073,13 +2035,13 @@ def view_job_invoice(job_id):
             flash('Trabajo no encontrado', 'error')
             return redirect(url_for('main.dashboard'))
 
-        # Los montos ya están procesados en el objeto job
         return render_template('invoice_pdf.html',
                            job=job,
                            qr_code=qr_code_image,
                            total_amount=job.total_amount,
                            deposit_amount=job.deposit_amount,
                            remaining_amount=job.remaining_amount)
+
     except Exception as e:
         logger.error(f"Error generando factura: {str(e)}")
         flash('Error al generar la factura. Por favor, inténtelo de nuevo.', 'error')
@@ -2170,21 +2132,3 @@ def verify_pending_job(job_id):
             'success': False,
             'message': f'Error al procesar la solicitud: {str(e)}'
         }), 500
-
-@bp.route('/public/invoice/<string:qr_code>')
-def generate_invoice_view(qr_code=None, job_id=None):
-    """Vista pública de factura accesible por QR o ID de trabajo"""
-    try:
-        job, qr_code_image = get_job_invoice_data(qr_code=qr_code, job_id=job_id)
-        if not job:
-            return "Factura no encontrada", 404
-
-        return render_template('invoice_pdf.html',
-                               job=job,
-                               qr_code=qr_code_image,
-                               total_amount=job.total_amount,
-                               deposit_amount=job.deposit_amount,
-                               remaining_amount=job.remaining_amount)
-    except Exception as e:
-        logger.error(f"Error generando vista de factura: {str(e)}")
-        return "Error al generar la factura", 500
