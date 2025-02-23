@@ -904,7 +904,9 @@ def complete_job(job_id):
             phone_number=job.phone_number,
             created_at=job.created_at,
             completed_at=datetime.utcnow(),
-            tags=job.tags
+            tags=job.tags,
+            total_amount=job.total_amount,  # Agregar monto total
+            deposit_amount=job.deposit_amount  # Agregar monto de depósito
         )
 
         # Agregar el trabajo completado y eliminar el trabajo original
@@ -1878,7 +1880,9 @@ def api_complete_job():
             phone_number=job.phone_number,
             created_at=job.created_at,
             completed_at=datetime.utcnow(),
-            tags=job.tags
+            tags=job.tags,
+            total_amount=job.total_amount,
+            deposit_amount=job.deposit_amount
         )
 
         db.session.add(completed_job)
