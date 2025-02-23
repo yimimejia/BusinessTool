@@ -1,4 +1,37 @@
 
+/* Estilos para modales en dispositivos móviles */
+@media (max-width: 768px) {
+    .modal-dialog {
+        margin: 0.5rem;
+        max-width: calc(100% - 1rem);
+    }
+    
+    .modal-content {
+        border-radius: 0.5rem;
+    }
+    
+    .modal-body {
+        padding: 1rem;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .modal-footer {
+        padding: 0.75rem;
+    }
+    
+    input[type="number"],
+    input[type="text"] {
+        font-size: 16px !important; /* Previene zoom en iOS */
+    }
+}
+
+/* Prevenir scroll del body cuando el modal está abierto */
+body.modal-open {
+    position: fixed;
+    width: 100%;
+}
+
+
 .dashboard-stats {
     display: flex;
     flex-direction: column;
