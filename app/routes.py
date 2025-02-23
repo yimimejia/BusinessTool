@@ -1604,7 +1604,7 @@ def pending_photos():
         jobs = PendingJob.query.filter_by(pending_type='photo_verification').all()
         return render_template('pending_photos.html', jobs=jobs)
     except Exception as e:
-        flash(f'Error al cargar fotos pendientes: {str(e)}', 'error')
+        flash(f'Error alcargar fotos pendientes: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
 
 @bp.route('/jobs/pending/<int:job_id>/approve', methods=['POST'])
@@ -1974,3 +1974,54 @@ def api_complete_job():
 @bp.route('/public/invoice/<string:qr_code>')
 def public_invoice(qr_code):
     return generate_invoice_view(qr_code=qr_code)
+
+@bp.route('/pending-jobs/<int:job_id>/view-invoice')
+@login_required
+def view_pending_job_invoice(job_id):
+    """Ver factura desde lista de trabajos pendientes"""
+    try:
+        job = PendingJob.query.get_or_404(job_id)
+
+        # Asegurar que los montos sean números flotantes
+        total_amount = float(job.total_amount if job.total_amount else 0)
+        deposit_amount = float(job.deposit_amount if job.deposit_amount else 0)
+        remaining_amount = total_amount - deposit_amount
+
+        # Generar URL pública para el QR si no existe
+        if not job.qr_code:
+            job.generate_qr_code()
+            db.session.commit()
+
+        # Generate QR code
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=5
+        )
+
+        qr_url = url_for('main.view_public_invoice', qr_code=job.qr_code, _external=True)
+        qr.add_data(qr_url)
+        qr.make(fit=True)
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+
+        # Convert QR to base64
+        buffered = io.BytesIO()
+        qr_img.save(buffered, format="PNG")
+        qr_code_image = base64.b64encode(buffered.getvalue()).decode()
+
+        # Log para debugging
+        logger.info(f"Montos de factura pendiente - Total: {total_amount}, Abono: {deposit_amount}, Restante: {remaining_amount}")
+
+        # Render invoice template with amount values
+        return render_template('invoice_pdf.html',
+                          job=job,
+                          qr_code=qr_code_image,
+                          total_amount=total_amount,
+                          deposit_amount=deposit_amount,
+                          remaining_amount=remaining_amount)
+
+    except Exception as e:
+        logger.error(f"Error generando factura pendiente: {str(e)}")
+        flash('Error al generar la factura. Por favor, inténtelo de nuevo.', 'error')
+        return redirect(url_for('main.pending_jobs'))

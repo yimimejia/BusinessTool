@@ -29,7 +29,7 @@
             {% for job in jobs %}
             <tr>
               <td>
-                <a href="{{ url_for('main.show_job_qr', job_id=job.id) }}" class="text-primary">
+                <a href="{{ url_for('main.view_pending_job_invoice', job_id=job.id) }}" class="text-primary">
                   {{ job.id }}
                 </a>
               </td>
@@ -91,7 +91,6 @@
 {{ super() }}
 <script>
 $(document).ready(function() {
-  // Inicializar DataTable
   $('#jobsTable').DataTable({
     language: {
       url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
@@ -103,7 +102,6 @@ $(document).ready(function() {
   const authModal = new bootstrap.Modal(document.getElementById('authModal'));
   const errorDiv = document.getElementById('authError');
 
-  // Configurar botones de completar
   $('.complete-job').click(function() {
     currentJobId = $(this).data('job-id');
     if (errorDiv) {
@@ -112,7 +110,6 @@ $(document).ready(function() {
     authModal.show();
   });
 
-  // Manejar el envío del formulario de autenticación
   $('#submitAuth').click(function() {
     const password = $('#authPassword').val();
 
