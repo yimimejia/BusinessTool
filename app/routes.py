@@ -929,18 +929,27 @@ def complete_job(job_id):
                 'message': 'Se requiere la contraseña de administrador'
             }), 400
 
-        # Obtener el usuario administrador
-        admin_user = User.query.filter_by(is_admin=True).first()
-        if not admin_user or not admin_user.check_password(admin_password):
+        # Verificar si la contraseña coincide con algún admin o supervisor
+        authorized_users = User.query.filter(
+            (User.is_admin == True) | (User.is_supervisor == True)
+        ).all()
+
+        valid_password = False
+        for user in authorized_users:
+            if user.check_password(admin_password):
+                valid_password = True
+                break
+
+        if not valid_password:
             return jsonify({
                 'success': False,
-                'message': 'Contraseña de administrador incorrecta'
+                'message': 'Contraseña incorrecta. Se requiere contraseña de administrador o supervisor.'
             }), 401
 
         # Buscar el trabajo
         job = Job.query.get_or_404(job_id)
 
-        # Crear trabajo completado
+        # Crear trabajo completado con solo los campos válidos del modelo
         completed_job = CompletedJob(
             original_job_id=job.id,
             description=job.description,
@@ -949,9 +958,10 @@ def complete_job(job_id):
             invoice_number=job.invoice_number,
             client_name=job.client_name,
             phone_number=job.phone_number,
+            created_at=job.created_at,
+            tags=job.tags,
             total_amount=job.total_amount,
             deposit_amount=job.deposit_amount,
-            tags=job.tags,
             completed_at=datetime.utcnow()
         )
 
@@ -1609,13 +1619,13 @@ def pending_verification():
 def pending_photos():
     """Vista de fotos pendientes por aprobar"""
     try:
-        jobs = PendingJob.query.filter_by(pendingtype='photo_verification').all()
+        jobs = PendingJob.query.filter_by(pending_type='photo_verification').all()
         return render_template('pending_photos.html', jobs=jobs)
     except Exception as e:
         flash(f'Error al cargar fotos pendientes: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
 
-@bp.route('/jobs/pending/<int:job_id>/approve', methods=['POST'])
+@bp.route('/jobs/<int:job_id>/approve', methods=['POST'])
 @login_required
 @staff_required
 def approve_pending_job(job_id):

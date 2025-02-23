@@ -277,7 +277,7 @@ class CompletedJob(db.Model):
     is_called = db.Column(db.Boolean, default=False)
     tags = db.Column(db.String(200))
     qr_code = db.Column(db.String(100), unique=True)
-    total_amount = db.Column(db.Numeric(10, 2))  
+    total_amount = db.Column(db.Numeric(10, 2))
 
     designer = db.relationship('User', foreign_keys=[designer_id])
     registered_by = db.relationship('User', foreign_keys=[registered_by_id])
