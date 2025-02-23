@@ -106,18 +106,18 @@
             <h3 class="mb-4">Detalles del Pago</h3>
             <div class="amount-row">
                 <span><strong>Monto Total:</strong></span>
-                <span>RD${{ "%.2f"|format(total_amount|float) }}</span>
+                <span>RD${{ "%.2f"|format(total_amount|default(0)|float) }}</span>
             </div>
 
             <div class="amount-row">
                 <span><strong>Abono:</strong></span>
-                <span>RD${{ "%.2f"|format(deposit_amount|float) }}</span>
+                <span>RD${{ "%.2f"|format(deposit_amount|default(0)|float) }}</span>
             </div>
 
             <div class="total-amount">
                 <div class="amount-row" style="border-bottom: none;">
                     <span><strong>Restante:</strong></span>
-                    <span>RD${{ "%.2f"|format(remaining_amount|float) }}</span>
+                    <span>RD${{ "%.2f"|format((total_amount|default(0)|float - deposit_amount|default(0)|float)) }}</span>
                 </div>
             </div>
         </div>
