@@ -966,7 +966,7 @@ def complete_job(job_id):
                 created_at=job.created_at,
                 tags=job.tags,
                 total_amount=job.total_amount,
-                deposit_amount=job.deposit_amount,
+                deposit_amount=job.deposit_amount if hasattr(job, 'deposit_amount') else None,
                 qr_code=job.qr_code,  # Mantener el mismo código QR
                 completed_at=datetime.utcnow()
             )
@@ -1605,7 +1605,7 @@ def new_pending_job():
             db.session.commit()
 
             flash('Trabajo pendiente creado exitosamente', 'success')
-            # Redireccionar a la factura después de crear el trabajo
+                        # Redireccionar a la factura después de crear el trabajo
             return redirect(url_for('main.generate_job_pdf', job_id=pending_job.id))
 
         except Exception as e:
