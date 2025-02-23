@@ -388,14 +388,20 @@ def generate_invoice_view(job_id=None, qr_code=None):
 
         # Asegurar que los montos sean números y formatearlos
         try:
-            total_amount = float(job.total_amount if job.total_amount else 0.0)
-            deposit_amount = float(job.deposit_amount if hasattr(job, 'deposit_amount') and job.deposit_amount else 0.0)
+            # Obtener montos con validación adicional
+            total_amount = float(job.total_amount if hasattr(job, 'total_amount') and job.total_amount is not None else 0.0)
+            deposit_amount = float(job.deposit_amount if hasattr(job, 'deposit_amount') and job.deposit_amount is not None else 0.0)
 
             # Validar que el abono no sea mayor que el total
             if deposit_amount > total_amount:
                 deposit_amount = total_amount
 
             remaining_amount = total_amount - deposit_amount
+
+            # Asegurar que no haya valores negativos
+            total_amount = max(0, total_amount)
+            deposit_amount = max(0, deposit_amount)
+            remaining_amount = max(0, remaining_amount)
         except (ValueError, TypeError) as e:
             logger.error(f"Error convirtiendo montos: {str(e)}")
             total_amount = 0.0
