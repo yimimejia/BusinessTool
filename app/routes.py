@@ -391,7 +391,7 @@ def send_whatsapp(job_id):
     return redirect(whatsapp_link)
 
 
-@bp.route('/public/invoice/<string:qr_code>')
+@bp.route('/jobs/public/<string:qr_code>')
 def view_public_invoice(qr_code):
     """Vista pública de factura accesible por QR"""
     try:
@@ -399,12 +399,16 @@ def view_public_invoice(qr_code):
         if not job:
             return "Factura no encontrada", 404
 
+        total_amount = float(job.total_amount if job.total_amount else 0)
+        deposit_amount = float(job.deposit_amount if hasattr(job, 'deposit_amount') and job.deposit_amount else 0)
+        remaining_amount = total_amount - deposit_amount
+
         return render_template('invoice_pdf.html',
                            job=job,
                            qr_code=qr_code_image,
-                           total_amount=job.total_amount,
-                           deposit_amount=job.deposit_amount,
-                           remaining_amount=job.remaining_amount)
+                           total_amount=total_amount,
+                           deposit_amount=deposit_amount,
+                           remaining_amount=remaining_amount)
     except Exception as e:
         logger.error(f"Error mostrando factura pública: {str(e)}")
         return "Error al mostrar la factura", 500
@@ -816,6 +820,51 @@ def pending_verification():
         flash(f'Error al cargar trabajos pendientes: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
 
+@bp.route('/jobs/pending/<int:job_id>/approve', methods=['POST'])
+@login_required
+@staff_required
+def process_pending_job(job_id):
+    """Aprobar un trabajo pendiente"""
+    try:
+        pending_job = PendingJob.query.get_or_404(job_id)
+
+        # Asegurar que los montos sean float
+        total_amount = float(request.form.get('total_amount', 0))
+        deposit_amount = float(request.form.get('deposit_amount', 0))
+
+        # Crear el trabajo completado
+        completed_job = CompletedJob(
+            original_job_id=pending_job.original_job_id,
+            description=pending_job.description,
+            designer_id=pending_job.designer_id,
+            registered_by_id=pending_job.registered_by_id,
+            invoice_number=request.form.get('invoice_number'),
+            client_name=pending_job.client_name,
+            phone_number=pending_job.phone_number,  # Corregido: phone_number en lugar de phonenumber
+            total_amount=total_amount,
+            deposit_amount=deposit_amount,
+            completed_at=datetime.utcnow(),
+            tags=request.form.get('tags', '')
+        )
+
+        # Eliminar el trabajo pendiente y agregar el completado
+        db.session.delete(pending_job)
+        db.session.add(completed_job)
+        db.session.commit()
+
+        log_activity(
+            'trabajo_aprobado',
+            f"Trabajo aprobado: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
+        )
+
+        flash('Trabajo aprobado exitosamente', 'success')
+        return redirect(url_for('main.pending_verification'))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al aprobar trabajo pendiente: {str(e)}")
+        flash('Error al aprobar el trabajo. Por favor, inténtelo de nuevo.', 'error')
+        return redirect(url_for('main.pending_verification'))
 
 @bp.route('/jobs/<int:job_id>/remove', methods=['POST'])
 @login_required
@@ -866,6 +915,35 @@ def completed_jobs():
         jobs = CompletedJob.query.filter_by(designer_id=current_user.id).order_by(CompletedJob.completed_at.desc()).all()
 
     return render_template('completed_jobs.html', jobs=jobs)
+
+@bp.route('/jobs/<int:job_id>/invoice')
+@login_required
+def display_job_invoice(job_id):
+    """Ver factura de un trabajo"""
+    try:
+        job, qr_code_image = get_job_invoice_data(job_id=job_id)
+        if not job:
+            flash('Factura no encontrada', 'error')
+            return redirect(url_for('main.dashboard'))
+
+        # Asegurar que los montos sean float y estén formateados correctamente
+        total_amount = float(job.total_amount if job.total_amount else 0)
+        deposit_amount = float(job.deposit_amount if hasattr(job, 'deposit_amount') and job.deposit_amount else 0)
+        remaining_amount = total_amount - deposit_amount
+
+        logger.info(f"Montos de factura - Total: {total_amount}, Abono: {deposit_amount}, Restante: {remaining_amount}")
+
+        return render_template('invoice_pdf.html',
+                           job=job,
+                           qr_code=qr_code_image,
+                           total_amount=total_amount,
+                           deposit_amount=deposit_amount,
+                           remaining_amount=remaining_amount)
+    except Exception as e:
+        logger.error(f"Error mostrando factura: {str(e)}")
+        flash('Error al mostrar la factura', 'error')
+        return redirect(url_for('main.dashboard'))
+
 
 @bp.route('/jobs/<int:job_id>/complete', methods=['POST'])
 @login_required
@@ -1596,10 +1674,9 @@ def pending_photos():
 def approve_pending_job(job_id):
     """Aprobar un trabajo pendiente"""
     try:
-        # Obtener el trabajo pendiente
         pending_job = PendingJob.query.get_or_404(job_id)
 
-        # Crear el trabajo completo
+        # Crear el trabajo completado
         completed_job = CompletedJob(
             original_job_id=pending_job.original_job_id,
             description=pending_job.description,
@@ -1607,35 +1684,31 @@ def approve_pending_job(job_id):
             registered_by_id=pending_job.registered_by_id,
             invoice_number=pending_job.invoice_number,
             client_name=pending_job.client_name,
-            phonenumber=pending_job.phone_number,
-            created_at=pending_job.created_at,
-            tags=pending_job.tags,
-            total_amount=pending_job.total_amount,
-            deposit_amount=pending_job.deposit_amount,
-            completed_at=datetime.utcnow()
+            phone_number=pending_job.phone_number,  # Fixed: changed from phonenumber to phone_number
+            total_amount=float(pending_job.total_amount or 0),
+            deposit_amount=float(pending_job.deposit_amount or 0),
+            completed_at=datetime.utcnow(),
+            tags=pending_job.tags
         )
 
-        # Agregar y guardar en la base de datos
-        db.session.add(completed_job)
+        # Eliminar el trabajo pendiente y agregar el completado
         db.session.delete(pending_job)
+        db.session.add(completed_job)
         db.session.commit()
 
-        # Registrar la actividad
         log_activity(
-            'aprobar_trabajo',
+            'trabajo_aprobado',
             f"Trabajo aprobado: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
         )
 
         flash('Trabajo aprobado exitosamente', 'success')
-        return jsonify({"success": True, "message": "Trabajo aprobado exitosamente"})
+        return redirect(url_for('main.pending_verification'))
 
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error al aprobar trabajo pendiente: {str(e)}")
-        return jsonify({
-            "success": False,
-            "message": f"Error al procesar la solicitud: {str(e)}"
-        }), 500
+        flash('Error al aprobar el trabajo. Por favor, inténtelo de nuevo.', 'error')
+        return redirect(url_for('main.pending_verification'))
 
 @bp.route('/jobs/<int:job_id>/approve', methods=['POST'])
 @login_required
@@ -2024,10 +2097,10 @@ def view_pending_job_invoice(job_id):
         flash('Error al generar la factura. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.pending_jobs'))
 
-#This route has been updated to address the duplicated route issue
+# Route updated to use new display_job_invoice function name
 @bp.route('/jobs/<int:job_id>/view-invoice')
 @login_required
-def view_job_invoice(job_id):
+def get_job_invoice(job_id):
     """Ver factura desde lista de trabajos"""
     try:
         job, qr_code_image = get_job_invoice_data(job_id=job_id)
@@ -2132,3 +2205,41 @@ def verify_pending_job(job_id):
             'success': False,
             'message': f'Error al procesar la solicitud: {str(e)}'
         }), 500
+
+@bp.route('/public/invoice/<string:qr_code>')
+def generate_invoice_view(qr_code=None):
+    try:
+        job, qr_code_image = get_job_invoice_data(qr_code=qr_code)
+        if not job:
+            return "Factura no encontrada", 404
+
+        return render_template('invoice_pdf.html', job=job, qr_code=qr_code_image,
+                               total_amount=job.total_amount, deposit_amount=job.deposit_amount,
+                               remaining_amount=job.remaining_amount)
+    except Exception as e:
+        logger.error(f"Error generando vista de factura: {str(e)}")
+        return "Error al generar la vista de factura", 500
+
+@bp.route('/jobs/<int:job_id>/invoice')
+@login_required
+def view_job_invoice(job_id):
+    """Ver factura de un trabajo"""
+    try:
+        job, qr_code_image = get_job_invoice_data(job_id=job_id)
+        if not job:
+            return "Factura no encontrada", 404
+
+        # Ensure amounts are properly formatted as floats
+        total_amount = float(job.total_amount if job.total_amount else 0)
+        deposit_amount = float(job.deposit_amount if hasattr(job, 'deposit_amount') and job.deposit_amount else 0)
+        remaining_amount = total_amount - deposit_amount
+
+        return render_template('invoice_pdf.html',
+                           job=job,
+                           qr_code=qr_code_image,
+                           total_amount=total_amount,
+                           deposit_amount=deposit_amount,
+                           remaining_amount=remaining_amount)
+    except Exception as e:
+        logger.error(f"Error mostrando factura: {str(e)}")
+        return "Error al mostrar la factura", 500
