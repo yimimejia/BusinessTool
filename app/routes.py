@@ -374,11 +374,11 @@ def view_job_invoice(job_id):
         try:
             # Intentar renderizar la plantilla
             return render_template('invoice_pdf.html',
-                               job=job,
-                               qr_code=qr_code_image,
-                               total_amount=total_amount,
-                               deposit_amount=deposit_amount,
-                               remaining_amount=remaining_amount)
+                                   job=job,
+                                   qr_code=qr_code_image,
+                                   total_amount=total_amount,
+                                   deposit_amount=deposit_amount,
+                                   remaining_amount=remaining_amount)
         except Exception as template_error:
             logger.error(f"Error al renderizar la plantilla: {str(template_error)}")
             raise
@@ -439,11 +439,11 @@ def generate_invoice_view(job_id=None, qr_code=None):
 
         # Render invoice template with amount values
         return render_template('invoice_pdf.html',
-                            job=job,
-                            qr_code=qr_code_image,
-                            total_amount=total_amount,
-                            deposit_amount=deposit_amount,
-                            remaining_amount=remaining_amount)
+                               job=job,
+                               qr_code=qr_code_image,
+                               total_amount=total_amount,
+                               deposit_amount=deposit_amount,
+                               remaining_amount=remaining_amount)
 
     except Exception as e:
         logger.error(f"Error generando factura: {str(e)}")
@@ -456,7 +456,6 @@ def generate_invoice_view(job_id=None, qr_code=None):
 def view_public_invoice(qr_code):
     """Vista pública de factura accesible por QR"""
     return generate_invoice_view(qr_code=qr_code)
-
 
 
 def search_invoices():
@@ -500,9 +499,9 @@ def dashboard():
             'designers_count': User.query.filter_by(is_designer=True).count()
         }
         return render_template('dashboard_admin.html', 
-                             jobs=jobs,
-                             pending_jobs=pending_jobs,
-                             stats=stats)
+                                 jobs=jobs,
+                                 pending_jobs=pending_jobs,
+                                 stats=stats)
     elif current_user.is_supervisor:
         # Vista de supervisor - mostrar trabajos regulares
         jobs = Job.query.order_by(Job.created_at.desc()).all()
@@ -513,8 +512,8 @@ def dashboard():
             'designers_count': User.query.filter_by(is_designer=True).count()
         }
         return render_template('dashboard_supervisor.html',
-                             jobs=jobs,
-                             stats=stats)
+                                 jobs=jobs,
+                                 stats=stats)
         # Vista de supervisor
         jobs = Job.query.order_by(Job.created_at.desc()).all()
         stats = {
@@ -542,9 +541,9 @@ def dashboard():
         jobs = Job.query.order_by(Job.created_at.desc()).all()
         pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
         return render_template('dashboard_admin.html', 
-                             jobs=jobs, 
-                             pending_jobs=pending_jobs,
-                             stats=stats)
+                                 jobs=jobs, 
+                                 pending_jobs=pending_jobs,
+                                 stats=stats)
 
     elif current_user.is_supervisor:
         # Vista de supervisor - solo mostrar trabajos aprobados
@@ -554,11 +553,11 @@ def dashboard():
         pending_photos_count = PendingJob.query.filter_by(pending_type='photo_verification').count()
 
         return render_template('dashboard_supervisor.html',
-                             jobs=approved_jobs,
-                             pending_jobs=pending_jobs,
-                             pending_verification_count=pending_verification_count,
-                             pending_photos_count=pending_photos_count,
-                             stats=stats)
+                                 jobs=approved_jobs,
+                                 pending_jobs=pending_jobs,
+                                 pending_verification_count=pending_verification_count,
+                                 pending_photos_count=pending_photos_count,
+                                 stats=stats)
 
     else:
         # Vista de diseñador
@@ -791,16 +790,18 @@ def show_job_qr(job_id):
         # Convertir a base64
         buffered = io.BytesIO()
         img.save(buffered, format="PNG", quality=100)
-        qr_image =base64.b64encode(buffered.getvalue()).decode()
+        qr_image = base64.b64encode(buffered.getvalue()).decode()
 
         # Log para debugging
         logger.info(f"Montos en show_job_qr - Total: {total_amount}, Abono:{deposit_amount}, Restante: {remaining_amount}")
 
         return render_template('job_qr.html', 
-                            job=job, 
-                            qr_image=qr_image,                            total_amount=total_amount,
-                            deposit_amount=deposit_amount,
-                            remaining_amount=remaining_amount)
+                             job=job, 
+                             qr_image=qr_image,
+                             total_amount=total_amount,
+                             deposit_amount=deposit_amount,
+                             remaining_amount=remaining_amount)
+
     except Exception as e:
         logger.error(f"Error en show_job_qr: {str(e)}")
         flash('Error al generar el código QR', 'error')
@@ -1172,8 +1173,9 @@ def export_jobs(format):
         output.seek(0)
 
         return Response(
-                        output,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',            headers={'Content-Disposition': f'attachment;filename=trabajos_{datetime.now().strftime("%Y%m%d")}.xlsx'}
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            headers={'Content-Disposition': f'attachment;filename=trabajos_{datetime.now().strftime("%Y%m%d")}.xlsx'}
         )
 
     else:  # PDF
@@ -1489,11 +1491,11 @@ def generate_job_pdf(job_id):
 
         # Render invoice template with explicit amount values
         return render_template('invoice_pdf.html',
-                          job=job,
-                          qr_code=qr_code_image,
-                          total_amount="{:.2f}".format(total_amount),
-                          deposit_amount="{:.2f}".format(deposit_amount),
-                          remaining_amount="{:.2f}".format(remaining_amount))
+                              job=job,
+                              qr_code=qr_code_image,
+                              total_amount="{:.2f}".format(total_amount),
+                              deposit_amount="{:.2f}".format(deposit_amount),
+                              remaining_amount="{:.2f}".format(remaining_amount))
 
     except Exception as e:
         logger.error(f"Error generando PDF del trabajo: {str(e)}")
@@ -1578,11 +1580,11 @@ def public_job(qr_code):
         qr_code_image = base64.b64encode(buffered.getvalue()).decode()
 
         return render_template('invoice_pdf.html',
-                          job=job,
-                          qr_code=qr_code_image,
-                          total_amount="{:.2f}".format(total_amount),
-                          deposit_amount="{:.2f}".format(deposit_amount),
-                          remaining_amount="{:.2f}".format(remaining_amount))
+                              job=job,
+                              qr_code=qr_code_image,
+                              total_amount="{:.2f}".format(total_amount),
+                              deposit_amount="{:.2f}".format(deposit_amount),
+                              remaining_amount="{:.2f}".format(remaining_amount))
 
     except Exception as e:
         logger.error(f"Error mostrando trabajo público: {str(e)}")
@@ -2066,13 +2068,39 @@ def view_pending_job_invoice(job_id):
 
         # Render invoice template with amount values
         return render_template('invoice_pdf.html',
-                          job=job,
-                          qr_code=qr_code_image,
-                          total_amount=total_amount,
-                          deposit_amount=deposit_amount,
-                          remaining_amount=remaining_amount)
+                              job=job,
+                              qr_code=qr_code_image,
+                              total_amount=total_amount,
+                              deposit_amount=deposit_amount,
+                              remaining_amount=remaining_amount)
 
     except Exception as e:
         logger.error(f"Error generando factura pendiente: {str(e)}")
         flash('Error al generar la factura. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.pending_jobs'))
+@bp.route('/search-invoices', methods=['GET'])
+@login_required
+def search_invoices():
+    """Buscar facturas por nombre de cliente o número de factura"""
+    query = request.args.get('query', '').strip()
+    if query:
+        # Buscar en trabajos activos y completados
+        active_jobs = Job.query.filter(
+            or_(
+                Job.client_name.ilike(f'%{query}%'),
+                Job.invoice_number.ilike(f'%{query}%')
+            )
+        ).all()
+
+        completed_jobs = CompletedJob.query.filter(
+            or_(
+                CompletedJob.client_name.ilike(f'%{query}%'),
+                CompletedJob.invoice_number.ilike(f'%{query}%')
+            )
+        ).all()
+
+        jobs = active_jobs + completed_jobs
+    else:
+        jobs = []
+
+    return render_template('search_invoices.html', jobs=jobs, query=query)
