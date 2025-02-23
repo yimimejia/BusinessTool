@@ -333,7 +333,11 @@ def send_whatsapp(job_id):
 def view_job_invoice(job_id):
     """Ver factura desde lista de trabajos"""
     try:
-        job = Job.query.get_or_404(job_id)
+        # Buscar en trabajos activos primero
+        job = Job.query.get(job_id)
+        if not job:
+            # Si no está en activos, buscar en completados
+            job = CompletedJob.query.get_or_404(job_id)
 
         # Asegurar que los montos sean números flotantes
         total_amount = float(job.total_amount if job.total_amount else 0)
@@ -365,14 +369,19 @@ def view_job_invoice(job_id):
 
         # Log para debugging
         logger.info(f"Montos de factura - Total: {total_amount}, Abono: {deposit_amount}, Restante: {remaining_amount}")
+        logger.info(f"Renderizando plantilla invoice_pdf.html para trabajo {job_id}")
 
-        # Render invoice template with amount values
-        return render_template('invoice_pdf.html',
-                           job=job,
-                           qr_code=qr_code_image,
-                           total_amount=total_amount,
-                           deposit_amount=deposit_amount,
-                           remaining_amount=remaining_amount)
+        try:
+            # Intentar renderizar la plantilla
+            return render_template('invoice_pdf.html',
+                               job=job,
+                               qr_code=qr_code_image,
+                               total_amount=total_amount,
+                               deposit_amount=deposit_amount,
+                               remaining_amount=remaining_amount)
+        except Exception as template_error:
+            logger.error(f"Error al renderizar la plantilla: {str(template_error)}")
+            raise
 
     except Exception as e:
         logger.error(f"Error generando factura: {str(e)}")
@@ -450,8 +459,6 @@ def view_public_invoice(qr_code):
 
 
 
-@bp.route('/search-invoices', methods=['GET'])
-@login_required
 def search_invoices():
     """Buscar facturas por nombre de cliente o número de factura"""
     query = request.args.get('query', '').strip()
@@ -476,7 +483,6 @@ def search_invoices():
         jobs = []
 
     return render_template('search_invoices.html', jobs=jobs, query=query)
-
 
 
 @bp.route('/dashboard')
@@ -785,10 +791,10 @@ def show_job_qr(job_id):
         # Convertir a base64
         buffered = io.BytesIO()
         img.save(buffered, format="PNG", quality=100)
-        qr_image = base64.b64encode(buffered.getvalue()).decode()
+        qr_image =base64.b64encode(buffered.getvalue()).decode()
 
         # Log para debugging
-        logger.info(f"Montos en show_job_qr - Total: {total_amount}, Abono: {deposit_amount}, Restante: {remaining_amount}")
+        logger.info(f"Montos en show_job_qr - Total: {total_amount}, Abono:{deposit_amount}, Restante: {remaining_amount}")
 
         return render_template('job_qr.html', 
                             job=job, 
@@ -1597,8 +1603,7 @@ def new_pending_job():
                 registered_by_id=current_user.id,
                 invoice_number=request.form.get('invoice_number'),
                 client_name=request.form.get('client_name'),
-                phone_number=phone_number
-            )
+                phone_number=phone_number)
 
             db.session.add(pending_job)
             db.session.commit()
