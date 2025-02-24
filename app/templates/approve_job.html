@@ -57,25 +57,6 @@
                            value="{{ job.tags if job.tags else '' }}">
                 </div>
 
-                <div class="mb-3">
-                    <label for="client_name" class="form-label">Nombre del Cliente</label>
-                    <input type="text" 
-                           class="form-control mobile-input" 
-                           id="client_name" 
-                           name="client_name" 
-                           required 
-                           value="{{ job.client_name }}">
-                </div>
-
-                <div class="mb-3">
-                    <label for="description" class="form-label">Descripción del Trabajo</label>
-                    <textarea class="form-control mobile-input" 
-                              id="description" 
-                              name="description" 
-                              rows="3" 
-                              required>{{ job.description }}</textarea>
-                </div>
-
                 <div class="d-grid gap-2">
                     <button type="submit" class="btn btn-success btn-lg">
                         <i class="bi bi-check-circle"></i> Aprobar Trabajo

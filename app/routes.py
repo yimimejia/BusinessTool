@@ -877,40 +877,42 @@ def process_pending_job(job_id):
 
         # Crear el trabajo completado
         completed_job = CompletedJob(
-            original_job_id=pending_job.original_job_id,
+            original_job_id=pending_job.id,
             description=pending_job.description,
             designer_id=pending_job.designer_id,
-            registered_by_id=pending_job.registered_by_id,
+            registered_by_id=current_user.id,
             invoice_number=request.form.get('invoice_number'),
             client_name=pending_job.client_name,
+            total_amount=total_amount,
+            deposit_amount=deposit_amount,
+            tags=request.form.get('tags'),
             phone_number=pending_job.phone_number,
             created_at=pending_job.created_at,
-            completed_at=datetime.utcnow(),
-            tags=request.form.get('tags', ''),
-            total_amount=total_amount,
-            deposit_amount=deposit_amount
+            completed_at=datetime.utcnow()
         )
 
-        # Crear la factura para el trabajo completado
+        # Generar QR code
+        completed_job.generate_qr_code()
+
+        # Crear factura
         invoice = Invoice(
             job_id=completed_job.id,
             job_type='completed_job',
-            invoice_number=completed_job.invoice_number,
+            invoice_number=request.form.get('invoice_number'),
             total_amount=total_amount,
             deposit_amount=deposit_amount,
-            created_at=completed_job.created_at,
+            created_at=pending_job.created_at,
             issued_at=datetime.utcnow()
         )
 
-        # Eliminar el trabajo pendiente y agregar el completado y la factura
-        db.session.delete(pending_job)
         db.session.add(completed_job)
         db.session.add(invoice)
+        db.session.delete(pending_job)
         db.session.commit()
 
         log_activity(
-            'trabajo_aprobado',
-            f"Trabajo aprobado y factura creada: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
+            'aprobar_trabajo',
+            f"Trabajo aprobado: {completed_job.client_name} - {completed_job.invoice_number}"
         )
 
         flash('Trabajo aprobado exitosamente', 'success')
@@ -919,7 +921,7 @@ def process_pending_job(job_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error al aprobar trabajo pendiente: {str(e)}")
-        flash('Error al aprobar el trabajo. Por favor, inténtelo de nuevo.', 'error')
+        flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.pending_verification'))
 
 @bp.route('/jobs/<int:job_id>/edit', methods=['GET', 'POST'])
