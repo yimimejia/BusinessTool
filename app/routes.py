@@ -8,7 +8,8 @@ from app import db
 from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, PendingJob, Message, Invoice
 from app.utils.notifications import send_notification
 from flask_sse import sse
-from datetime import datetime
+from datetime import datetime, timedelta
+import secrets
 import json
 import logging
 import os
@@ -287,30 +288,66 @@ def approve_photos(message_id):
     job_id = int(job_id_match.group(1))
     job = CompletedJob.query.get_or_404(job_id)
 
-    # Preparar enlace de WhatsApp con las fotos
-    clean_phone = job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
-    photos = json.loads(message.photos)
-    photo_urls = [
-        f"{request.url_root.rstrip('/')}/static/{photo}"
-        for photo in photos
-    ]
+    try:
+        # Generar token único para el enlace temporal
+        expiry_date = datetime.utcnow() + timedelta(days=2)
+        token = secrets.token_urlsafe(32)
+        
+        # Guardar token y fecha de expiración en el mensaje
+        message.token = token
+        message.token_expiry = expiry_date
+        message.is_approved = True
+        
+        # Crear enlace para ver las fotos
+        photos_url = url_for('main.view_approved_photos', 
+                           token=token, 
+                           _external=True)
 
-    # Crear mensaje de WhatsApp con los enlaces de las fotos
-    whatsapp_message = f"Hola {job.client_name}, aquí están las fotos de su trabajo:\n\n"
-    whatsapp_message += "\n".join(photo_urls)
+        # Preparar mensaje de WhatsApp
+        clean_phone = job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+        whatsapp_message = f"""*FOTO VIDEO MOJICA*
+¡Sus fotos están listas!
 
-    # Marcar mensaje como aprobado
-    message.is_approved = True
-    db.session.commit()
+Cliente: {job.client_name}
+Factura: {job.invoice_number}
 
-    log_activity(
-        'fotos_aprobadas',
-        f"Fotos aprobadas y enviadas - Trabajo #{job.id}, Cliente: {job.client_name}"
-    )
+Para ver y descargar sus fotos, use este enlace (válido por 48 horas):
+{photos_url}
 
-    # Redirigir a WhatsApp con el mensaje
-    whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(whatsapp_message)}"
-    return redirect(whatsapp_url)
+¡Gracias por su preferencia!"""
+
+        db.session.commit()
+
+        log_activity(
+            'fotos_aprobadas',
+            f"Fotos aprobadas y enlace enviado - Trabajo #{job.id}, Cliente: {job.client_name}"
+        )
+
+        # Redirigir a WhatsApp con el mensaje
+        whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(whatsapp_message)}"
+        return redirect(whatsapp_url)
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al aprobar fotos: {str(e)}")
+        flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
+        return redirect(url_for('main.completed_jobs'))
+
+@bp.route('/photos/view/<token>')
+def view_approved_photos(token):
+    """Vista pública para ver fotos aprobadas con token temporal"""
+    message = Message.query.filter_by(token=token).first_or_404()
+    
+    # Verificar si el token ha expirado
+    if datetime.utcnow() > message.token_expiry:
+        return "Este enlace ha expirado", 410
+        
+    # Obtener las fotos del mensaje
+    photos = json.loads(message.photos) if message.photos else []
+    
+    return render_template('photos_gallery.html', 
+                         photos=photos,
+                         expiry_date=message.token_expiry)
 
 @bp.route('/stream')
 def stream():

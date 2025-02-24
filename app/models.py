@@ -232,7 +232,9 @@ class Message(db.Model):
     is_read = db.Column(db.Boolean, default=False)
     is_approved = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    photos = db.Column(db.Text)  
+    photos = db.Column(db.Text)
+    token = db.Column(db.String(100), unique=True)  # Para enlaces temporales
+    token_expiry = db.Column(db.DateTime)  # Fecha de expiración del token
 
     sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
     recipient = db.relationship('User', foreign_keys=[recipient_id], backref='received_messages')
