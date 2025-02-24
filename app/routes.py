@@ -1,6 +1,4 @@
-from app import bp
-from app.models import PendingJob, CompletedJob
-from flask import render_template, flash, redirect, url_for, current_app, request
+from flask import Blueprint, render_template, flash, redirect, url_for, current_app, request
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
@@ -11,12 +9,33 @@ import re
 import urllib.parse
 from app import db, logger
 from app.helpers import staff_required, log_activity
+from app.models import PendingJob, CompletedJob
+
+# Crear el Blueprint
+bp = Blueprint('main', __name__)
 
 # Crear directorio job_photos si no existe
 photos_dir = os.path.join(current_app.static_folder, 'job_photos')
 os.makedirs(photos_dir, exist_ok=True)
 logger.info(f"Directorio principal de fotos verificado: {photos_dir}")
 
+@bp.route('/')
+def index():
+    """Página principal"""
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+    return render_template('login.html')
+
+@bp.route('/dashboard')
+@login_required
+def dashboard():
+    """Dashboard principal"""
+    if current_user.is_admin:
+        return render_template('dashboard_admin.html')
+    elif current_user.is_staff:
+        return render_template('dashboard_supervisor.html')
+    else:
+        return render_template('dashboard_designer.html')
 
 @bp.route('/messages/<int:message_id>/approve-photos', methods=['POST'])
 @login_required
@@ -184,6 +203,7 @@ def view_approved_photos(token):
                           photos=[],
                           expired=True, 
                           error="Error al cargar las fotos")
+
 
 
 @bp.route('/jobs/<int:job_id>/send-photos', methods=['POST'])
