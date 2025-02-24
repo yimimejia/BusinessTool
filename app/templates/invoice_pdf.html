@@ -41,6 +41,7 @@
             margin: 0.5rem 0;
             padding: 0.5rem;
             border-bottom: 1px solid #dee2e6;
+            font-size: 1.1em;
         }
         .total-amount {
             font-weight: bold;
@@ -122,14 +123,14 @@
             </div>
         </div>
 
-        <div class="qr-code">
+        <div class="qr-code text-center mt-4">
             {% if qr_code %}
-            <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code" class="img-fluid">
+            <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code" class="img-fluid" style="max-width: 150px;">
             <p class="text-muted">Escanee este código para verificar su trabajo</p>
             {% endif %}
         </div>
 
-        <div class="action-buttons no-print">
+        <div class="action-buttons no-print text-center mt-4">
             <button onclick="window.print()" class="btn btn-primary">
                 <i class="bi bi-printer"></i> Imprimir
             </button>

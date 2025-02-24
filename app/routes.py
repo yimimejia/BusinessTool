@@ -69,21 +69,22 @@ def get_job_invoice_data(job_id=None, qr_code=None):
                     if not job:
                         return None, None, 0, 0, 0
 
-        # Asegurar que los montos sean números flotantes
+        # Asegurar que los montos sean números flotantes y nunca sean None
         try:
-            total_amount = float(job.total_amount if job.total_amount is not None else 0)
-            deposit_amount = float(job.deposit_amount if hasattr(job, 'deposit_amount') and job.deposit_amount is not None else 0)
+            # Obtener total_amount directamente de la base de datos
+            total_amount = float(job.total_amount) if job.total_amount is not None else 0.0
+            
+            # Obtener deposit_amount si existe, sino usar 0
+            deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount is not None else 0.0
+            
+            # Calcular el monto restante
             remaining_amount = total_amount - deposit_amount
-
-            # Agregar logs para debug
-            logger.info(f"Procesando factura para trabajo ID: {job.id}")
-            logger.info(f"Montos procesados - Total: {total_amount}, Abono: {deposit_amount}, Restante: {remaining_amount}")
 
         except (ValueError, AttributeError) as e:
             logger.error(f"Error procesando montos: {str(e)}")
-            total_amount = 0
-            deposit_amount = 0
-            remaining_amount = 0
+            total_amount = 0.0
+            deposit_amount = 0.0
+            remaining_amount = 0.0
 
         # Generar URL pública para el QR si no existe
         if not job.qr_code:
@@ -108,10 +109,8 @@ def get_job_invoice_data(job_id=None, qr_code=None):
         qr_img.save(buffered, format="PNG")
         qr_code_image = base64.b64encode(buffered.getvalue()).decode()
 
-        # Log para debugging
-        logger.info(f"Montos finales para factura - Total: {total_amount}, Abono: {deposit_amount}, Restante: {remaining_amount}")
-
         return job, qr_code_image, total_amount, deposit_amount, remaining_amount
+
     except Exception as e:
         logger.error(f"Error en get_job_invoice_data: {str(e)}")
         return None, None, 0, 0, 0
@@ -786,6 +785,83 @@ def show_job_qr(job_id):
         flash('Error al generar el código QR', 'error')
         return redirect(url_for('main.dashboard'))
 
+@bp.route('/jobs/pending/<int:job_id>/approve', methods=['POST'])
+@login_required
+@staff_required
+def process_pending_job(job_id):
+    """Aprobar un trabajo pendiente"""
+    try:
+        pending_job = PendingJob.query.get_or_404(job_id)
+        
+        # Log de los datos del formulario
+        logger.info(f"Datos del formulario recibidos:")
+        logger.info(f"total_amount (raw): {request.form.get('total_amount')}")
+        logger.info(f"deposit_amount (raw): {request.form.get('deposit_amount')}")
+
+        # Obtener y validar los montos del formulario
+        try:
+            total_amount = float(request.form.get('total_amount', 0))
+            deposit_amount = float(request.form.get('deposit_amount', 0))
+            
+            if total_amount < 0 or deposit_amount < 0:
+                raise ValueError("Los montos no pueden ser negativos")
+            
+            if deposit_amount > total_amount:
+                raise ValueError("El abono no puede ser mayor que el monto total")
+            
+            logger.info(f"Montos convertidos a float - Total: {total_amount}, Abono: {deposit_amount}")
+            
+        except ValueError as e:
+            logger.error(f"Error procesando montos: {str(e)}")
+            flash('Error en los montos ingresados. Por favor, verifique los valores.', 'error')
+            return redirect(url_for('main.pending_verification'))
+
+        # Crear el trabajo completado
+        completed_job = CompletedJob(
+            original_job_id=pending_job.original_job_id,
+            description=pending_job.description,
+            designer_id=pending_job.designer_id,
+            registered_by_id=pending_job.registered_by_id,
+            invoice_number=request.form.get('invoice_number'),
+            client_name=pending_job.client_name,
+            phone_number=pending_job.phone_number,
+            created_at=pending_job.created_at,
+            completed_at=datetime.utcnow(),
+            tags=request.form.get('tags', ''),
+            total_amount=total_amount,
+            deposit_amount=deposit_amount
+        )
+
+        # Log antes de guardar
+        logger.info(f"Objeto CompletedJob creado:")
+        logger.info(f"total_amount antes de guardar: {completed_job.total_amount}")
+        logger.info(f"deposit_amount antes de guardar: {completed_job.deposit_amount}")
+
+        # Eliminar el trabajo pendiente y agregar el completado
+        db.session.delete(pending_job)
+        db.session.add(completed_job)
+        db.session.commit()
+
+        # Verificar que los montos se guardaron correctamente
+        job_verificacion = CompletedJob.query.get(completed_job.id)
+        logger.info(f"Montos verificados después de guardar:")
+        logger.info(f"total_amount en DB: {job_verificacion.total_amount}")
+        logger.info(f"deposit_amount en DB: {job_verificacion.deposit_amount}")
+
+        log_activity(
+            'trabajo_aprobado',
+            f"Trabajo aprobado: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
+        )
+
+        flash('Trabajo aprobado exitosamente', 'success')
+        return redirect(url_for('main.pending_verification'))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al aprobar trabajo pendiente: {str(e)}")
+        flash('Error al aprobar el trabajo. Por favor, inténtelo de nuevo.', 'error')
+        return redirect(url_for('main.pending_verification'))
+
 @bp.route('/jobs/<int:job_id>/edit', methods=['GET', 'POST'])
 @login_required
 @staff_required
@@ -863,69 +939,6 @@ def pending_verification():
         flash(f'Error al cargar trabajos pendientes: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
 
-@bp.route('/jobs/pending/<int:job_id>/approve', methods=['POST'])
-@login_required
-@staff_required
-def process_pending_job(job_id):
-    """Aprobar un trabajo pendiente"""
-    try:
-        pending_job = PendingJob.query.get_or_404(job_id)
-
-        # Obtener y validar los montos del formulario
-        try:
-            total_amount = float(request.form.get('total_amount', 0))
-            deposit_amount = float(request.form.get('deposit_amount', 0))
-            
-            if total_amount < 0 or deposit_amount < 0:
-                raise ValueError("Los montos no pueden ser negativos")
-            
-            if deposit_amount > total_amount:
-                raise ValueError("El abono no puede ser mayor que el monto total")
-            
-            logger.info(f"Montos recibidos del formulario - Total: {total_amount}, Abono: {deposit_amount}")
-            
-        except ValueError as e:
-            logger.error(f"Error procesando montos: {str(e)}")
-            flash('Error en los montos ingresados. Por favor, verifique los valores.', 'error')
-            return redirect(url_for('main.pending_verification'))
-
-        # Crear el trabajo completado
-        completed_job = CompletedJob(
-            original_job_id=pending_job.original_job_id,
-            description=pending_job.description,
-            designer_id=pending_job.designer_id,
-            registered_by_id=pending_job.registered_by_id,
-            invoice_number=request.form.get('invoice_number'),
-            client_name=pending_job.client_name,
-            phone_number=pending_job.phone_number,
-            total_amount=total_amount,  # Asignamos el monto total
-            deposit_amount=deposit_amount,  # Asignamos el abono
-            completed_at=datetime.utcnow(),
-            tags=request.form.get('tags', '')
-        )
-
-        # Eliminar el trabajo pendiente y agregar el completado
-        db.session.delete(pending_job)
-        db.session.add(completed_job)
-        db.session.commit()
-
-        # Verificar que los montos se guardaron correctamente
-        job_verificacion = CompletedJob.query.get(completed_job.id)
-        logger.info(f"Montos verificados después de guardar - Total: {job_verificacion.total_amount}, Abono: {job_verificacion.deposit_amount}")
-
-        log_activity(
-            'trabajo_aprobado',
-            f"Trabajo aprobado: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
-        )
-
-        flash('Trabajo aprobado exitosamente', 'success')
-        return redirect(url_for('main.pending_verification'))
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error al aprobar trabajo pendiente: {str(e)}")
-        flash('Error al aprobar el trabajo. Por favor, inténtelo de nuevo.', 'error')
-        return redirect(url_for('main.pending_verification'))
 
 @bp.route('/jobs/<int:job_id>/remove', methods=['POST'])
 @login_required
