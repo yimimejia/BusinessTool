@@ -320,16 +320,32 @@ Factura: {job.invoice_number}
 def process_pending_job(job_id):
     """Procesar trabajo pendiente"""
     try:
+        # Iniciar transacción explícita
+        db.session.begin_nested()
+        
+        # Obtener el trabajo pendiente
         pending_job = PendingJob.query.get_or_404(job_id)
         
-        # Validar montos
+        if pending_job.pending_type != 'new_job':
+            db.session.rollback()
+            flash('Tipo de trabajo pendiente incorrecto', 'error')
+            return redirect(url_for('main.pending_verification'))
+
+        # Validar y convertir montos
         try:
             total_amount = float(request.form.get('total_amount', 0))
             deposit_amount = float(request.form.get('deposit_amount', 0))
+            invoice_number = request.form.get('invoice_number')
+            
+            if not invoice_number:
+                raise ValueError('Número de factura es requerido')
             if total_amount < 0 or deposit_amount < 0:
                 raise ValueError('Los montos no pueden ser negativos')
-        except ValueError:
-            flash('Error en los montos ingresados. Por favor, verifique los valores.', 'error')
+            if deposit_amount > total_amount:
+                raise ValueError('El abono no puede ser mayor al monto total')
+        except ValueError as e:
+            db.session.rollback()
+            flash(f'Error en los datos ingresados: {str(e)}', 'error')
             return redirect(url_for('main.pending_verification'))
 
         # Crear el trabajo activo
@@ -337,36 +353,41 @@ def process_pending_job(job_id):
             description=pending_job.description,
             designer_id=pending_job.designer_id,
             registered_by_id=current_user.id,
-            invoice_number=request.form.get('invoice_number'),
+            invoice_number=invoice_number,
             client_name=pending_job.client_name,
+            phone_number=pending_job.phone_number,
             total_amount=total_amount,
             deposit_amount=deposit_amount,
             tags=request.form.get('tags'),
-            phone_number=pending_job.phone_number,
             created_at=pending_job.created_at,
-            status='pending'  # Asegurarnos que el estado sea pendiente
+            status='pending'
         )
 
-        # Generar QR code y obtener ID 
+        # Generar QR code
         active_job.generate_qr_code()
         db.session.add(active_job)
-        db.session.flush()  # Esto asigna un ID al trabajo
+        db.session.flush()  # Obtener el ID del trabajo
 
-        # Crear factura con el ID del trabajo
+        # Crear factura
         invoice = Invoice(
             job_id=active_job.id,
             job_type='job',
-            invoice_number=request.form.get('invoice_number'),
+            invoice_number=invoice_number,
             total_amount=total_amount,
             deposit_amount=deposit_amount,
             created_at=pending_job.created_at,
             issued_at=datetime.utcnow()
         )
-
+        
         db.session.add(invoice)
+        
+        # Eliminar el trabajo pendiente original
         db.session.delete(pending_job)
+        
+        # Confirmar todos los cambios
         db.session.commit()
 
+        # Registrar la actividad
         log_activity(
             'aprobar_trabajo',
             f"Trabajo movido a pendientes: {active_job.client_name} - {active_job.invoice_number}"
@@ -375,9 +396,14 @@ def process_pending_job(job_id):
         flash('Trabajo aprobado exitosamente', 'success')
         return redirect(url_for('main.pending_jobs'))
 
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        logger.error(f"Error de base de datos al aprobar trabajo: {str(e)}")
+        flash('Error al procesar el trabajo. Por favor, inténtelo de nuevo.', 'error')
+        return redirect(url_for('main.pending_verification'))
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error al aprobar trabajo pendiente: {str(e)}")
+        logger.error(f"Error al procesar trabajo pendiente: {str(e)}")
         flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.pending_verification'))
 
