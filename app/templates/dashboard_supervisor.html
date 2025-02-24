@@ -31,12 +31,16 @@
           {% for job in jobs %}
           <tr>
             <td>
-              <a href="{{ url_for('main.show_job_qr', job_id=job.id) }}" class="text-primary">
+              <a href="{{ url_for('main.show_job_qr', job_id=job.id) }}" class="text-primary" target="_blank">
                 {{ job.id }}
               </a>
             </td>
             <td>{{ job.invoice_number }}</td>
-            <td>{{ job.client_name }}</td>
+            <td>
+              <a href="{{ url_for('main.show_job_qr', job_id=job.id) }}" class="text-primary" target="_blank">
+                {{ job.client_name }}
+              </a>
+            </td>
             <td>{{ job.phone_number }}</td>
             <td>{{ job.description }}</td>
             <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
