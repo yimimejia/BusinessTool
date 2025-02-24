@@ -7,6 +7,9 @@ import re
 import base64
 import json
 import random
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Invoice(db.Model):
     __tablename__ = 'invoices'
@@ -84,10 +87,23 @@ class User(UserMixin, db.Model):
     webauthn_credentials = db.relationship('WebAuthnCredential', backref='user')
 
     def set_password(self, password):
+        if not password:
+            logger.error(f"Intento de establecer contraseña vacía para usuario: {self.username}")
+            raise ValueError("La contraseña no puede estar vacía")
         self.password_hash = generate_password_hash(password)
+        logger.info(f"Contraseña establecida exitosamente para usuario: {self.username}")
 
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        if not self.password_hash:
+            logger.error(f"Usuario {self.username} no tiene hash de contraseña")
+            return False
+        if not password:
+            logger.error(f"Intento de verificar contraseña vacía para usuario: {self.username}")
+            return False
+        result = check_password_hash(self.password_hash, password)
+        if not result:
+            logger.warning(f"Verificación de contraseña fallida para usuario: {self.username}")
+        return result
 
     @property
     def is_staff(self):

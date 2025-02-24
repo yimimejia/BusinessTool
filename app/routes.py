@@ -716,17 +716,35 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-
-        user = User.query.filter_by(username=username).first()
-        if user and user.check_password(password):
-            # Si es diseñador, establecer sesión permanente
-            if not user.is_admin and not user.is_supervisor:
-                user.permanent_session = True
-                session.permanent = True
-            login_user(user, remember=user.permanent_session)
-            log_activity('login', f'Inicio de sesión exitoso - Usuario: {user.username}')
-            flash('¡Bienvenido!', 'success')
-            return redirect(url_for('main.dashboard'))
+        
+        # Logs detallados para debugging
+        logger.info(f"Intento de inicio de sesión para usuario: {username}")
+        logger.info(f"Longitud de la contraseña recibida: {len(password) if password else 0}")
+        
+        if not username or not password:
+            logger.warning("Intento de inicio de sesión con campos vacíos")
+            flash('Por favor complete todos los campos', 'error')
+            return render_template('login.html')
+        
+        user = User.query.filter_by(username=username.strip()).first()
+        if user:
+            logger.info(f"Usuario encontrado: {user.username}")
+            logger.info(f"Tiene hash de contraseña: {bool(user.password_hash)}")
+            logger.info(f"Longitud del hash: {len(user.password_hash) if user.password_hash else 0}")
+            
+            if user.check_password(password):
+                logger.info(f"Contraseña verificada correctamente para {user.username}")
+                # Si es diseñador, establecer sesión permanente
+                if not user.is_admin and not user.is_supervisor:
+                    session.permanent = True
+                login_user(user)
+                log_activity('login', f'Inicio de sesión exitoso - Usuario: {user.username}')
+                flash('¡Bienvenido!', 'success')
+                return redirect(url_for('main.dashboard'))
+            else:
+                logger.warning(f"Contraseña incorrecta para usuario: {username}")
+        else:
+            logger.warning(f"Usuario no encontrado: {username}")
 
         flash('Usuario o contraseña incorrectos', 'error')
         log_activity('login_failed', f'Intento de inicio de sesión fallido - Usuario: {username}')
