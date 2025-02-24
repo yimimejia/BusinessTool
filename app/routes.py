@@ -51,89 +51,56 @@ def admin_required(f):
 def get_job_invoice_data(job_id=None, qr_code=None):
     """Función interna para obtener datos de factura"""
     try:
-        # Primero intentar encontrar la factura
-        invoice = None
-        if job_id:
-            invoice = Invoice.query.filter_by(job_id=job_id).first()
-        elif qr_code:
-            invoice = Invoice.query.filter_by(qr_code=qr_code).first()
-
-        if invoice:
-            # Si encontramos la factura, usar sus datos directamente
-            job = invoice.get_job()
-            if not job:
-                return None, None, 0, 0, 0
-
-            total_amount = float(invoice.total_amount)
-            deposit_amount = float(invoice.deposit_amount)
-            remaining_amount = float(invoice.remaining_amount)
-
-            # Generar QR si no existe
-            if not invoice.qr_code:
-                invoice.generate_qr_code()
-                db.session.commit()
-
-            qr = qrcode.QRCode(
-                version=1,
-                error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=10,
-                border=5
-            )
-
-            qr_url = url_for('main.view_public_invoice', qr_code=invoice.qr_code, _external=True)
-            qr.add_data(qr_url)
-            qr.make(fit=True)
-            qr_img = qr.make_image(fill_color="black", back_color="white")
-
-            # Convert QR to base64
-            buffered = io.BytesIO()
-            qr_img.save(buffered, format="PNG")
-            qr_code_image = base64.b64encode(buffered.getvalue()).decode()
-
-            return job, qr_code_image, total_amount, deposit_amount, remaining_amount
-
-        # Si no encontramos la factura, buscar el trabajo
+        # Primero buscar el trabajo
         job = None
         if job_id:
-            # Buscar primero en completados
-            job = CompletedJob.query.get(job_id)
+            # Buscar en trabajos activos
+            job = Job.query.get(job_id)
             if not job:
-                active_job = Job.query.get(job_id)
-                if active_job:
-                    # Buscar versión completada del trabajo activo
-                    job = CompletedJob.query.filter_by(original_job_id=active_job.id).first()
-                    if not job:
-                        job = active_job
+                # Si no está en trabajos activos, buscar en completados
+                job = CompletedJob.query.get(job_id)
         elif qr_code:
             # Buscar por QR code
-            job = CompletedJob.query.filter_by(qr_code=qr_code).first()
+            job = Job.query.filter_by(qr_code=qr_code).first()
             if not job:
-                active_job = Job.query.filter_by(qr_code=qr_code).first()
-                if active_job:
-                    job = CompletedJob.query.filter_by(original_job_id=active_job.id).first()
-                    if not job:
-                        job = active_job
+                job = CompletedJob.query.filter_by(qr_code=qr_code).first()
 
         if not job:
             return None, None, 0, 0, 0
 
-        # Crear nueva factura
-        invoice = Invoice(
+        # Buscar o crear factura
+        invoice = Invoice.query.filter_by(
             job_id=job.id,
-            job_type='completed_job' if isinstance(job, CompletedJob) else 'job',
-            invoice_number=job.invoice_number,
-            total_amount=float(job.total_amount or 0),
-            deposit_amount=float(getattr(job, 'deposit_amount', 0) or 0),
-            created_at=job.created_at
-        )
-        db.session.add(invoice)
-        db.session.commit()
+            job_type='completed_job' if isinstance(job, CompletedJob) else 'job'
+        ).first()
 
-        # Generar QR code
-        if not job.qr_code:
-            job.generate_qr_code()
+        if not invoice:
+            # Crear nueva factura
+            invoice = Invoice(
+                job_id=job.id,
+                job_type='completed_job' if isinstance(job, CompletedJob) else 'job',
+                invoice_number=job.invoice_number,
+                total_amount=float(job.total_amount or 0),
+                deposit_amount=float(getattr(job, 'deposit_amount', 0) or 0),
+                created_at=job.created_at
+            )
+            try:
+                db.session.add(invoice)
+                db.session.commit()
+            except Exception as e:
+                logger.error(f"Error al crear factura: {str(e)}")
+                db.session.rollback()
+                # Si falla la creación, intentar obtener la factura existente
+                invoice = Invoice.query.filter_by(invoice_number=job.invoice_number).first()
+                if not invoice:
+                    return None, None, 0, 0, 0
+
+        # Generar QR si no existe
+        if not invoice.qr_code:
+            invoice.generate_qr_code()
             db.session.commit()
 
+        # Generar QR code para la vista
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -141,7 +108,7 @@ def get_job_invoice_data(job_id=None, qr_code=None):
             border=5
         )
 
-        qr_url = url_for('main.view_public_invoice', qr_code=job.qr_code, _external=True)
+        qr_url = url_for('main.view_public_invoice', qr_code=invoice.qr_code, _external=True)
         qr.add_data(qr_url)
         qr.make(fit=True)
         qr_img = qr.make_image(fill_color="black", back_color="white")
@@ -814,9 +781,12 @@ def search_invoices():
         query = request.args.get('query', '')
         if query:
             # Buscar facturas que coincidan con el criterio de búsqueda
+            # y obtener también los datos del trabajo relacionado
             invoices = Invoice.query.filter(
                 or_(
-                    Invoice.invoice_number.ilike(f'%{query}%')
+                    Invoice.invoice_number.ilike(f'%{query}%'),
+                    Job.client_name.ilike(f'%{query}%'),
+                    CompletedJob.client_name.ilike(f'%{query}%')
                 )
             ).order_by(Invoice.created_at.desc()).all()
 
@@ -824,15 +794,16 @@ def search_invoices():
             for invoice in invoices:
                 job = invoice.get_job()
                 if job:
+                    # Asegurarnos de obtener todos los datos necesarios
                     results.append({
-                        'id': invoice.job_id,
+                        'id': job.id,  # ID del trabajo para el enlace
                         'invoice_number': invoice.invoice_number,
-                        'client_name': job.client_name if hasattr(job, 'client_name') else '',
-                        'description': job.description if hasattr(job, 'description') else '',
+                        'client_name': job.client_name,
+                        'description': job.description,
                         'created_at': invoice.created_at,
                         'total_amount': float(invoice.total_amount or 0),
                         'deposit_amount': float(invoice.deposit_amount or 0),
-                        'is_completed': invoice.job_type == 'completed_job'
+                        'is_completed': isinstance(job, CompletedJob)
                     })
         else:
             results = []
