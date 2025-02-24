@@ -1,34 +1,43 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container mt-4">
-    <h1 class="text-center mb-4">Fotos de su trabajo</h1>
-    {% if expired %}
-    <div class="alert alert-warning">
-        Este enlace ha expirado.
-    </div>
-    {% else %}
     <div class="text-center mb-4">
-        <button class="btn btn-primary" onclick="downloadAllPhotos()">
+        <h1>FOTO VIDEO MOJICA</h1>
+        {% if expired %}
+        <div class="alert alert-warning">
+            Este enlace ha expirado.
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <p>¡Bienvenido! Aquí están sus fotos.</p>
+            <p>Haga clic en el botón "Descargar todas las fotos" para obtener sus imágenes.</p>
+            <p>Este enlace estará disponible por 48 horas.</p>
+        </div>
+        <button class="btn btn-primary btn-lg mb-4" onclick="downloadAllPhotos()">
             <i class="bi bi-download"></i> Descargar todas las fotos
         </button>
+        {% endif %}
     </div>
+
+    {% if not expired and photos %}
     <div class="row">
         {% for photo in photos %}
         <div class="col-md-4 mb-4">
             <div class="card">
-                <img src="{{ url_for('static', filename=photo) }}" class="card-img-top img-fluid" alt="Foto del trabajo">
-                <div class="card-body">
-                    <a href="{{ url_for('static', filename=photo) }}" 
-                       class="btn btn-sm btn-outline-primary" 
-                       download>
-                        <i class="bi bi-download"></i> Descargar
-                    </a>
-                </div>
+                <img src="{{ url_for('static', filename=photo) }}" class="card-img-top img-fluid" alt="Foto">
             </div>
         </div>
         {% endfor %}
     </div>
     {% endif %}
+
+    <div class="text-center mt-4">
+        <a href="https://www.instagram.com/fotovideomojicaoficial/?hl=es" 
+           target="_blank" 
+           class="btn btn-outline-primary">
+            <i class="bi bi-instagram"></i> Síguenos en Instagram
+        </a>
+    </div>
 </div>
 {% endblock %}
 

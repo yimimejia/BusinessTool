@@ -150,6 +150,7 @@
     <!-- Container para notificaciones toast -->
     <div class="toast-container"></div>
 
+    {% if request.endpoint != 'main.view_approved_photos' %}
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
         <div class="container">
             <a class="navbar-brand text-white" href="{{ url_for('main.index') }}">
@@ -275,6 +276,7 @@
             {% endif %}
         </div>
     </nav>
+    {% endif %}
 
     <main class="container my-4">
         {% with messages = get_flashed_messages(with_categories=true) %}
