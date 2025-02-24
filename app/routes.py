@@ -290,6 +290,7 @@ def send_whatsapp_invoice(job_id):
     try:
         # Obtener el trabajo completado
         job = CompletedJob.query.get_or_404(job_id)
+        logger.info(f"Procesando factura para trabajo {job_id}")
         
         if not job.phone_number:
             flash('No hay número de teléfono registrado para este cliente', 'error')
@@ -307,43 +308,66 @@ def send_whatsapp_invoice(job_id):
         # Generar el PDF de la factura
         job, qr_code_image, total_amount, deposit_amount, remaining_amount = get_job_invoice_data(job_id)
         if not job:
+            logger.error("No se pudo obtener los datos de la factura")
             flash('Error al generar la factura', 'error')
             return redirect(url_for('main.completed_jobs'))
 
         # Crear directorio temporal si no existe
         temp_dir = os.path.join(current_app.static_folder, 'temp')
-        os.makedirs(temp_dir, exist_ok=True)
+        try:
+            os.makedirs(temp_dir, exist_ok=True)
+            logger.info(f"Directorio temporal creado/verificado: {temp_dir}")
+        except Exception as e:
+            logger.error(f"Error creando directorio temporal: {str(e)}")
+            flash('Error al crear directorio temporal', 'error')
+            return redirect(url_for('main.completed_jobs'))
 
-        # Generar nombre único para el archivo
+        # Generar nombres únicos para los archivos
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         pdf_filename = f"factura_{job.invoice_number}_{timestamp}.pdf"
         jpg_filename = f"factura_{job.invoice_number}_{timestamp}.jpg"
         pdf_path = os.path.join(temp_dir, pdf_filename)
         jpg_path = os.path.join(temp_dir, jpg_filename)
+        
+        logger.info(f"Generando PDF en: {pdf_path}")
 
-        # Generar PDF
-        from weasyprint import HTML
-        html_content = render_template(
-            'invoice_pdf.html',
-            job=job,
-            qr_code=qr_code_image,
-            total_amount=total_amount,
-            deposit_amount=deposit_amount,
-            remaining_amount=remaining_amount
-        )
-        HTML(string=html_content).write_pdf(pdf_path)
+        try:
+            # Generar PDF
+            html_content = render_template(
+                'invoice_pdf.html',
+                job=job,
+                qr_code=qr_code_image,
+                total_amount=total_amount,
+                deposit_amount=deposit_amount,
+                remaining_amount=remaining_amount
+            )
+            HTML(string=html_content).write_pdf(pdf_path)
+            logger.info("PDF generado exitosamente")
 
-        # Convertir PDF a JPG usando Pillow
-        from pdf2image import convert_from_path
-        from PIL import Image
+            # Verificar que el PDF se creó
+            if not os.path.exists(pdf_path):
+                raise Exception("El archivo PDF no se creó correctamente")
 
-        # Convertir primera página del PDF a imagen
-        pages = convert_from_path(pdf_path, 500)
-        pages[0].save(jpg_path, 'JPEG', quality=95)
+            logger.info("Convirtiendo PDF a JPG")
+            # Convertir PDF a JPG
+            pages = convert_from_path(pdf_path, 500)
+            pages[0].save(jpg_path, 'JPEG', quality=95)
+            logger.info("JPG generado exitosamente")
 
-        # Generar URLs públicas temporales para los archivos
+            # Verificar que el JPG se creó
+            if not os.path.exists(jpg_path):
+                raise Exception("El archivo JPG no se creó correctamente")
+
+        except Exception as e:
+            logger.error(f"Error generando archivos: {str(e)}")
+            flash('Error al generar los archivos de la factura', 'error')
+            return redirect(url_for('main.completed_jobs'))
+
+        # Generar URLs públicas para los archivos
         pdf_url = url_for('static', filename=f'temp/{pdf_filename}', _external=True)
         jpg_url = url_for('static', filename=f'temp/{jpg_filename}', _external=True)
+        
+        logger.info(f"URLs generadas - PDF: {pdf_url}, JPG: {jpg_url}")
         
         # Mensaje profesional con enlaces a los archivos
         message = f"""*FOTO VIDEO MOJICA*
@@ -399,6 +423,7 @@ def cleanup_temp_files(*file_paths):
         try:
             if os.path.exists(file_path):
                 os.remove(file_path)
+                logger.info(f"Archivo temporal eliminado: {file_path}")
         except Exception as e:
             logger.error(f"Error eliminando archivo temporal {file_path}: {str(e)}")
 
