@@ -891,12 +891,14 @@ def process_pending_job(job_id):
             completed_at=datetime.utcnow()
         )
 
-        # Generar QR code
+        # Generar QR code y obtener ID 
         completed_job.generate_qr_code()
+        db.session.add(completed_job)
+        db.session.flush()  # Esto asigna un ID al trabajo completado
 
-        # Crear factura
+        # Crear factura con el ID del trabajo
         invoice = Invoice(
-            job_id=completed_job.id,
+            job_id=completed_job.id,  # Ahora tenemos un ID válido
             job_type='completed_job',
             invoice_number=request.form.get('invoice_number'),
             total_amount=total_amount,
@@ -905,7 +907,6 @@ def process_pending_job(job_id):
             issued_at=datetime.utcnow()
         )
 
-        db.session.add(completed_job)
         db.session.add(invoice)
         db.session.delete(pending_job)
         db.session.commit()
