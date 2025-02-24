@@ -1,27 +1,43 @@
-
 /* Estilos para modales en dispositivos móviles */
 @media (max-width: 768px) {
     .modal-dialog {
         margin: 0.5rem;
         max-width: calc(100% - 1rem);
     }
-    
+
     .modal-content {
         border-radius: 0.5rem;
     }
-    
+
     .modal-body {
         padding: 1rem;
         -webkit-overflow-scrolling: touch;
     }
-    
+
     .modal-footer {
         padding: 0.75rem;
     }
-    
-    input[type="number"],
-    input[type="text"] {
+
+    /* Asegurar que los inputs sean interactivos en móviles */
+    .mobile-input {
+        background-color: #1a1e24 !important;
+        color: #fff !important;
+        border: 1px solid #2d3846 !important;
+        opacity: 1 !important;
+        -webkit-text-fill-color: #fff !important;
         font-size: 16px !important; /* Previene zoom en iOS */
+    }
+
+    .mobile-input:focus {
+        background-color: #2a2f35 !important;
+        border-color: #3d4856 !important;
+        box-shadow: 0 0 0 0.2rem rgba(124, 77, 255, 0.25) !important;
+    }
+
+    .input-group-text {
+        background-color: #2a2f35 !important;
+        border-color: #2d3846 !important;
+        color: #fff !important;
     }
 }
 
@@ -31,7 +47,7 @@ body.modal-open {
     width: 100%;
 }
 
-
+/* Resto de los estilos permanecen igual */
 .dashboard-stats {
     display: flex;
     flex-direction: column;

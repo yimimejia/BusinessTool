@@ -59,23 +59,22 @@
                                             <div class="mb-3">
                                                 <label for="invoice_number_{{ job.id }}" class="form-label">No. Factura</label>
                                                 <input type="text" 
-                                                       class="form-control" 
+                                                       class="form-control mobile-input" 
                                                        id="invoice_number_{{ job.id }}" 
                                                        name="invoice_number" 
                                                        required 
-                                                       value="{{ job.invoice_number if job.invoice_number else '' }}" 
-                                                       autocomplete="off">
+                                                       value="{{ job.invoice_number if job.invoice_number else '' }}">
                                             </div>
                                             <div class="mb-3">
                                                 <label for="total_amount_{{ job.id }}" class="form-label">Monto Total</label>
                                                 <div class="input-group">
                                                     <span class="input-group-text">RD$</span>
-                                                    <input type="text" 
-                                                           class="form-control" 
+                                                    <input type="tel" 
+                                                           class="form-control mobile-input" 
                                                            id="total_amount_{{ job.id }}" 
                                                            name="total_amount" 
                                                            required 
-                                                           inputmode="decimal"
+                                                           inputmode="numeric"
                                                            value="{{ '%.2f'|format(job.total_amount|float) if job.total_amount is not none else '0.00' }}">
                                                 </div>
                                             </div>
@@ -83,19 +82,19 @@
                                                 <label for="deposit_amount_{{ job.id }}" class="form-label">Abono</label>
                                                 <div class="input-group">
                                                     <span class="input-group-text">RD$</span>
-                                                    <input type="text" 
-                                                           class="form-control" 
+                                                    <input type="tel" 
+                                                           class="form-control mobile-input" 
                                                            id="deposit_amount_{{ job.id }}" 
                                                            name="deposit_amount" 
                                                            required 
-                                                           inputmode="decimal"
+                                                           inputmode="numeric"
                                                            value="{{ '%.2f'|format(job.deposit_amount|float) if job.deposit_amount is not none else '0.00' }}">
                                                 </div>
                                             </div>
                                             <div class="mb-3">
                                                 <label for="tags_{{ job.id }}" class="form-label">Etiquetas</label>
                                                 <input type="text" 
-                                                       class="form-control" 
+                                                       class="form-control mobile-input" 
                                                        id="tags_{{ job.id }}" 
                                                        name="tags" 
                                                        placeholder="Separadas por coma"
