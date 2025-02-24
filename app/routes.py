@@ -818,10 +818,19 @@ def search_invoices():
     """Búsqueda de facturas"""
     try:
         query = request.args.get('query', '')
+        logger.info(f"Búsqueda de facturas con query: {query}")
+        
         if query:
             # Buscar facturas que coincidan con el criterio de búsqueda
-            # y obtener también los datos del trabajo relacionado
-            invoices = Invoice.query.filter(
+            invoices = db.session.query(Invoice).join(
+                Job,
+                (Invoice.job_id == Job.id) & (Invoice.job_type == 'job'),
+                isouter=True
+            ).join(
+                CompletedJob,
+                (Invoice.job_id == CompletedJob.id) & (Invoice.job_type == 'completed_job'),
+                isouter=True
+            ).filter(
                 or_(
                     Invoice.invoice_number.ilike(f'%{query}%'),
                     Job.client_name.ilike(f'%{query}%'),
@@ -829,29 +838,44 @@ def search_invoices():
                 )
             ).order_by(Invoice.created_at.desc()).all()
 
+            logger.info(f"Encontradas {len(invoices)} facturas")
+            
             results = []
             for invoice in invoices:
-                job = invoice.get_job()
-                if job:
-                    # Asegurarnos de obtener todos los datos necesarios
-                    results.append({
-                        'id': job.id,  # ID del trabajo para el enlace
-                        'invoice_number': invoice.invoice_number,
-                        'client_name': job.client_name,
-                        'description': job.description,
-                        'created_at': invoice.created_at,
-                        'total_amount': float(invoice.total_amount or 0),
-                        'deposit_amount': float(invoice.deposit_amount or 0),
-                        'is_completed': isinstance(job, CompletedJob)
-                    })
-        else:
-            results = []
+                try:
+                    job = invoice.get_job()
+                    if job:
+                        result = {
+                            'id': invoice.id,
+                            'invoice_number': invoice.invoice_number,
+                            'client_name': job.client_name,
+                            'created_at': invoice.created_at,
+                            'total_amount': float(invoice.total_amount or 0),
+                            'deposit_amount': float(invoice.deposit_amount or 0),
+                            'remaining_amount': float((invoice.total_amount or 0) - (invoice.deposit_amount or 0)),
+                            'status': 'completado' if isinstance(job, CompletedJob) else job.status if hasattr(job, 'status') else 'pendiente'
+                        }
+                        results.append(result)
+                except Exception as e:
+                    logger.error(f"Error procesando factura {invoice.id}: {str(e)}")
+                    continue
 
-        return render_template('search_invoices.html', invoices=results)
+            logger.info(f"Procesados {len(results)} resultados")
+            return render_template('search_invoices.html', 
+                                results=results, 
+                                query=query)
+        
+        return render_template('search_invoices.html', 
+                             results=None, 
+                             query=None)
+
     except Exception as e:
         logger.error(f"Error en búsqueda de facturas: {str(e)}")
-        flash('Error al buscar facturas', 'error')
-        return render_template('search_invoices.html', invoices=[])
+        flash('Error al realizar la búsqueda', 'error')
+        return render_template('search_invoices.html', 
+                             results=None, 
+                             query=query, 
+                             error=True)
 
 @bp.route('/logout')
 @login_required
