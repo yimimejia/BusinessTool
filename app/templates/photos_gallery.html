@@ -44,10 +44,8 @@
 {% block scripts %}
 <script>
 async function downloadAllPhotos() {
-    const photos = {{ photos|tojson|safe }};
-    console.log("Fotos disponibles para descargar:", photos);
-
-    if (!photos || photos.length === 0) {
+    const photos = {{ photos|tojson|safe if photos else '[]' }};
+    if (photos.length === 0) {
         alert('No hay fotos disponibles para descargar.');
         return;
     }
@@ -60,7 +58,6 @@ async function downloadAllPhotos() {
     try {
         for (const photo of photos) {
             const link = document.createElement('a');
-            console.log("Intentando descargar:", photo);
             const response = await fetch("{{ url_for('static', filename='') }}" + photo);
             const blob = await response.blob();
             link.href = window.URL.createObjectURL(blob);
