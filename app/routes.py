@@ -549,6 +549,24 @@ def unread_messages_count():
     count = current_user.get_unread_messages_count()
     return jsonify({'count': count})
 
+@bp.route('/jobs/pending/photos')
+@login_required
+@staff_required
+def jobs_pending_photos():
+    """Ver trabajos pendientes de aprobación de fotos"""
+    try:
+        # Obtener todos los trabajos pendientes de tipo photo_verification
+        jobs = PendingJob.query.filter_by(pending_type='photo_verification').order_by(PendingJob.created_at.desc()).all()
+        
+        # Log para debugging
+        logger.info(f"Obtenidos {len(jobs)} trabajos pendientes de aprobación de fotos")
+        
+        return render_template('pending_photos.html', jobs=jobs)
+    except Exception as e:
+        logger.error(f"Error al obtener trabajos pendientes de fotos: {str(e)}")
+        flash('Error al cargar los trabajos pendientes', 'error')
+        return redirect(url_for('main.dashboard'))
+
 @bp.route('/logout')
 @login_required
 def logout():
