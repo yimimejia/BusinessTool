@@ -443,10 +443,10 @@ def approve_photos(message_id):
         expiry_date = datetime.utcnow() + timedelta(days=2)
         token = secrets.token_urlsafe(32)
         
-        # Guardar token y fecha de expiración en el trabajo pendiente
-        pending_job.token = token
-        pending_job.token_expiry = expiry_date
-        pending_job.is_approved = True
+        # Copiar fotos y token al trabajo completado
+        job.photos = pending_job.photos
+        job.temp_token = token
+        job.token_expiry = expiry_date
         
         # Crear enlace para ver las fotos
         photos_url = url_for('main.view_approved_photos', 
@@ -495,18 +495,29 @@ Para ver y descargar sus fotos, use este enlace (válido por 48 horas):
 @bp.route('/photos/view/<token>')
 def view_approved_photos(token):
     """Vista pública para ver fotos aprobadas con token temporal"""
-    message = Message.query.filter_by(token=token).first_or_404()
-    
-    # Verificar si el token ha expirado
-    if datetime.utcnow() > message.token_expiry:
-        return "Este enlace ha expirado", 410
+    try:
+        # Buscar en la tabla de trabajos pendientes
+        pending_job = PendingJob.query.filter_by(token=token).first()
         
-    # Obtener las fotos del mensaje
-    photos = json.loads(message.photos) if message.photos else []
-    
-    return render_template('photos_gallery.html', 
-                         photos=photos,
-                         expiry_date=message.token_expiry)
+        if pending_job and datetime.utcnow() <= pending_job.token_expiry:
+            # Si encontramos el trabajo pendiente y el token no ha expirado
+            photos = json.loads(pending_job.photos) if pending_job.photos else []
+            return render_template('photos_gallery.html', 
+                                photos=photos,
+                                expiry_date=pending_job.token_expiry)
+        
+        # Si no encontramos en pendientes, buscar en trabajos completados
+        completed_job = CompletedJob.query.filter_by(temp_token=token).first()
+        if completed_job and datetime.utcnow() <= completed_job.token_expiry:
+            photos = json.loads(completed_job.photos) if completed_job.photos else []
+            return render_template('photos_gallery.html', 
+                                photos=photos,
+                                expiry_date=completed_job.token_expiry)
+        
+        return "Este enlace ha expirado o no es válido", 410
+    except Exception as e:
+        logger.error(f"Error al mostrar fotos aprobadas: {str(e)}")
+        return "Error al cargar las fotos", 500
 
 @bp.route('/stream')
 def stream():
