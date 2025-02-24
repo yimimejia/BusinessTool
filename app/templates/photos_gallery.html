@@ -35,7 +35,7 @@
 {% block scripts %}
 <script>
 async function downloadAllPhotos() {
-    const photos = {{ photos|tojson|safe }};
+    const photos = {{ photos|tojson|safe if photos else '[]' }};
     for (const photo of photos) {
         const link = document.createElement('a');
         const response = await fetch("{{ url_for('static', filename='') }}" + photo);

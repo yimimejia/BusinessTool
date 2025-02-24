@@ -477,19 +477,23 @@ def view_approved_photos(token):
         job = CompletedJob.query.filter_by(temp_token=token).first()
         
         if not job or not job.temp_token or job.temp_token != token:
-            return render_template('photos_gallery.html', expired=True)
+            return render_template('photos_gallery.html', photos=[], expired=True)
             
         if datetime.utcnow() > job.token_expiry:
-            return render_template('photos_gallery.html', expired=True)
+            return render_template('photos_gallery.html', photos=[], expired=True)
             
         # Verificar y cargar las fotos
         photos = []
         if job.photos:
-            saved_photos = json.loads(job.photos)
-            for photo_path in saved_photos:
-                full_path = os.path.join(current_app.static_folder, photo_path)
-                if os.path.exists(full_path):
-                    photos.append(photo_path)
+            try:
+                saved_photos = json.loads(job.photos)
+                for photo_path in saved_photos:
+                    full_path = os.path.join(current_app.static_folder, photo_path)
+                    if os.path.exists(full_path):
+                        photos.append(photo_path)
+            except json.JSONDecodeError:
+                logger.error(f"Error decodificando JSON de fotos para trabajo {job.id}")
+                photos = []
 
         return render_template('photos_gallery.html', 
                            photos=photos,
@@ -499,6 +503,7 @@ def view_approved_photos(token):
     except Exception as e:
         logger.error(f"Error al mostrar fotos aprobadas: {str(e)}")
         return render_template('photos_gallery.html', 
+                           photos=[],
                            expired=True, 
                            error="Error al cargar las fotos")
 
