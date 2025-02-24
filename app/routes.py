@@ -500,12 +500,29 @@ def view_approved_photos(token):
         job = CompletedJob.query.filter_by(temp_token=token).first()
         
         if job and datetime.utcnow() <= job.token_expiry:
+            # Verificar que el token corresponda
+            if job.temp_token != token:
+                return "Enlace no válido", 403
+                
+            # Cargar fotos
             photos = json.loads(job.photos) if job.photos else []
+            
+            # Verificar que cada foto existe
+            valid_photos = []
+            for photo in photos:
+                photo_path = os.path.join(current_app.static_folder, photo)
+                if os.path.exists(photo_path):
+                    valid_photos.append(photo)
+                else:
+                    logger.warning(f"Foto no encontrada: {photo}")
+            
             return render_template('photos_gallery.html', 
-                                photos=photos,
-                                expiry_date=job.token_expiry)
+                              photos=valid_photos,
+                              expired=False)
         
-        return "Este enlace ha expirado o no es válido", 410
+        return render_template('photos_gallery.html', 
+                           expired=True)
+                           
     except Exception as e:
         logger.error(f"Error al mostrar fotos aprobadas: {str(e)}")
         return "Error al cargar las fotos", 500
@@ -539,15 +556,15 @@ def approve_job_with_pin(job_id):
             total_amount=float(pending_job.total_amount or 0),
             deposit_amount=float(pending_job.deposit_amount or 0),
             created_at=pending_job.created_at,
-            status='listo'  # Cambiado de 'pending' a 'listo'
+            status='pending'  # Cambiado a 'pending' para que vaya a trabajos pendientes
         )
 
         # Generar QR code
         active_job.generate_qr_code()
         db.session.add(active_job)
-        db.session.flush()
+        db.session.flush()  # Esto asigna un ID al trabajo
 
-        # Crear factura
+        # Crear factura con el ID del trabajo
         invoice = Invoice(
             job_id=active_job.id,
             job_type='job',
@@ -559,34 +576,16 @@ def approve_job_with_pin(job_id):
         )
 
         db.session.add(invoice)
-        
-        # Mover a trabajos completados
-        completed_job = CompletedJob(
-            original_job_id=active_job.id,
-            description=pending_job.description,
-            designer_id=pending_job.designer_id,
-            registered_by_id=current_user.id,
-            invoice_number=pending_job.invoice_number,
-            client_name=pending_job.client_name,
-            phone_number=pending_job.phone_number,
-            total_amount=float(pending_job.total_amount or 0),
-            deposit_amount=float(pending_job.deposit_amount or 0),
-            created_at=pending_job.created_at,
-            completed_at=datetime.utcnow(),
-            status='listo'
-        )
-        
-        db.session.add(completed_job)
         db.session.delete(pending_job)
         db.session.commit()
 
         log_activity(
             'aprobar_trabajo_pin',
-            f"Trabajo aprobado con PIN: {active_job.client_name} - {active_job.invoice_number}"
+            f"Trabajo movido a pendientes: {active_job.client_name} - {active_job.invoice_number}"
         )
 
-        flash('Trabajo aprobado y movido a completados exitosamente', 'success')
-        return redirect(url_for('main.completed_jobs'))
+        flash('Trabajo aprobado exitosamente', 'success')
+        return redirect(url_for('main.pending_jobs'))
 
     except Exception as e:
         db.session.rollback()
