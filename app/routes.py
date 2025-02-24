@@ -202,7 +202,6 @@ def send_job_photos(job_id):
                 photo_paths.append(photo_path)
 
         # Crear un PendingJob para la verificación de fotos
-        # Asegurarnos de copiar los montos del trabajo original
         pending_job = PendingJob(
             original_job_id=job.id,
             description=f"Verificación de fotos - Trabajo #{job.id}",
@@ -214,8 +213,8 @@ def send_job_photos(job_id):
             photos=json.dumps(photo_paths),
             pending_type='photo_verification',
             message=request.form.get('message', ''),
-            total_amount=float(job.total_amount or 0),  # Asegurar que sea float
-            deposit_amount=float(job.deposit_amount or 0)  # Asegurar que sea float
+            total_amount=float(job.total_amount or 0),
+            deposit_amount=float(job.deposit_amount or 0)
         )
 
         db.session.add(pending_job)
