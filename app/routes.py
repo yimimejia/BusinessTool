@@ -844,6 +844,14 @@ def show_job_qr(job_id):
         flash('Error al generar el código QR', 'error')
         return redirect(url_for('main.dashboard'))
 
+@bp.route('/jobs/pending/<int:job_id>/approve-form')
+@login_required
+@staff_required
+def approve_job_form(job_id):
+    """Mostrar formulario de aprobación en página completa"""
+    job = PendingJob.query.get_or_404(job_id)
+    return render_template('approve_job.html', job=job)
+
 @bp.route('/jobs/pending/<int:job_id>/approve', methods=['POST'])
 @login_required
 @staff_required
