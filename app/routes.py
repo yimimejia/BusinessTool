@@ -793,11 +793,6 @@ def process_pending_job(job_id):
     try:
         pending_job = PendingJob.query.get_or_404(job_id)
         
-        # Log de los datos del formulario
-        logger.info(f"Datos del formulario recibidos:")
-        logger.info(f"total_amount (raw): {request.form.get('total_amount')}")
-        logger.info(f"deposit_amount (raw): {request.form.get('deposit_amount')}")
-
         # Obtener y validar los montos del formulario
         try:
             total_amount = float(request.form.get('total_amount', 0))
@@ -809,10 +804,7 @@ def process_pending_job(job_id):
             if deposit_amount > total_amount:
                 raise ValueError("El abono no puede ser mayor que el monto total")
             
-            logger.info(f"Montos convertidos a float - Total: {total_amount}, Abono: {deposit_amount}")
-            
         except ValueError as e:
-            logger.error(f"Error procesando montos: {str(e)}")
             flash('Error en los montos ingresados. Por favor, verifique los valores.', 'error')
             return redirect(url_for('main.pending_verification'))
 
@@ -832,21 +824,10 @@ def process_pending_job(job_id):
             deposit_amount=deposit_amount
         )
 
-        # Log antes de guardar
-        logger.info(f"Objeto CompletedJob creado:")
-        logger.info(f"total_amount antes de guardar: {completed_job.total_amount}")
-        logger.info(f"deposit_amount antes de guardar: {completed_job.deposit_amount}")
-
         # Eliminar el trabajo pendiente y agregar el completado
         db.session.delete(pending_job)
         db.session.add(completed_job)
         db.session.commit()
-
-        # Verificar que los montos se guardaron correctamente
-        job_verificacion = CompletedJob.query.get(completed_job.id)
-        logger.info(f"Montos verificados después de guardar:")
-        logger.info(f"total_amount en DB: {job_verificacion.total_amount}")
-        logger.info(f"deposit_amount en DB: {job_verificacion.deposit_amount}")
 
         log_activity(
             'trabajo_aprobado',
@@ -858,7 +839,6 @@ def process_pending_job(job_id):
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error al aprobar trabajo pendiente: {str(e)}")
         flash('Error al aprobar el trabajo. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.pending_verification'))
 
