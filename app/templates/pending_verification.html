@@ -35,8 +35,8 @@
                             <td>
                                 <button type="button" class="btn btn-success btn-sm" 
                                         data-bs-toggle="modal" 
-                                        data-bs-target="#pinModal{{ job.id }}">
-                                    <i class="bi bi-check-circle"></i> Aprobar con PIN
+                                        data-bs-target="#approveModal{{ job.id }}">
+                                    <i class="bi bi-check-circle"></i> Aprobar
                                 </button>
                                 <button type="button" class="btn btn-danger btn-sm" 
                                         data-bs-toggle="modal" 
@@ -46,25 +46,37 @@
                             </td>
                         </tr>
 
-                        <!-- Modal de PIN -->
-                        <div class="modal fade" id="pinModal{{ job.id }}" tabindex="-1">
+                        <!-- Modal de Aprobación -->
+                        <div class="modal fade" id="approveModal{{ job.id }}" tabindex="-1">
                             <div class="modal-dialog">
                                 <div class="modal-content">
                                     <div class="modal-header">
-                                        <h5 class="modal-title">Aprobar con PIN</h5>
+                                        <h5 class="modal-title">Aprobar Trabajo</h5>
                                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                     </div>
-                                    <form action="{{ url_for('main.approve_job_with_pin', job_id=job.id) }}" method="POST">
+                                    <form action="{{ url_for('main.process_pending_job', job_id=job.id) }}" method="POST">
                                         <div class="modal-body">
                                             <div class="mb-3">
-                                                <label for="pin{{ job.id }}" class="form-label">Ingrese el PIN de verificación</label>
-                                                <input type="password" class="form-control" id="pin{{ job.id }}" name="pin" required maxlength="4" pattern="\d{4}">
+                                                <label for="invoice_number{{ job.id }}" class="form-label">Número de Factura</label>
+                                                <input type="text" class="form-control" id="invoice_number{{ job.id }}" name="invoice_number" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="total_amount{{ job.id }}" class="form-label">Monto Total</label>
+                                                <input type="number" step="0.01" class="form-control" id="total_amount{{ job.id }}" name="total_amount" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="deposit_amount{{ job.id }}" class="form-label">Abono</label>
+                                                <input type="number" step="0.01" class="form-control" id="deposit_amount{{ job.id }}" name="deposit_amount" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="tags{{ job.id }}" class="form-label">Etiquetas</label>
+                                                <input type="text" class="form-control" id="tags{{ job.id }}" name="tags">
                                             </div>
                                         </div>
                                         <div class="modal-footer">
                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                                             <button type="submit" class="btn btn-success">
-                                                <i class="bi bi-check-circle"></i> Verificar y Aprobar
+                                                <i class="bi bi-check-circle"></i> Aprobar Trabajo
                                             </button>
                                         </div>
                                     </form>
