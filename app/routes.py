@@ -32,7 +32,7 @@ def staff_required(f):
     """Decorator para requerir que el usuario sea admin o supervisor"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_staff:
+        if not current_user.is_authenticated or not (current_user.is_admin or current_user.is_supervisor):
             flash('No tienes permiso para acceder a esta página', 'error')
             return redirect(url_for('main.dashboard'))
         return f(*args, **kwargs)
@@ -42,7 +42,7 @@ def admin_required(f):
     """Decorator para requerir que el usuario sea admin"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.can_manage_users:
+        if not current_user.is_authenticated or not current_user.is_admin:
             flash('No tienes permiso para acceder a esta página', 'error')
             return redirect(url_for('main.dashboard'))
         return f(*args, **kwargs)
@@ -748,8 +748,8 @@ def search():
 @login_required
 def dashboard():
     """Vista del dashboard con estadísticas por rol"""
-    if current_user.is_admin:
-        # Vista de administrador
+    if current_user.is_admin or current_user.is_supervisor:
+        # Vista de administrador y supervisor
         jobs = Job.query.order_by(Job.created_at.desc()).all()
         pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
         pending_verification_count = PendingJob.query.filter_by(pending_type='new_job').count()
@@ -763,32 +763,12 @@ def dashboard():
             'pending_verification_count': pending_verification_count,
             'pending_photos_count': pending_photos_count
         }
-        return render_template('dashboard_admin.html', 
-                             jobs=jobs,
-                             pending_jobs=pending_jobs,
-                             stats=stats)
-
-    elif current_user.is_supervisor:
-        # Vista de supervisor - solo mostrar trabajos aprobados
-        approved_jobs = Job.query.filter(Job.status != 'pending').order_by(Job.created_at.desc()).all()
-        pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
-        pending_verification_count = PendingJob.query.filter_by(pending_type='new_job').count()
-        pending_photos_count = PendingJob.query.filter_by(pending_type='photo_verification').count()
-
-        stats = {
-            'total_jobs': len(approved_jobs),
-            'completed_jobs': CompletedJob.query.count(),
-            'pending_jobs': len(pending_jobs),
-            'designers_count': User.query.filter_by(is_designer=True).count(),
-            'pending_verification_count': pending_verification_count,
-            'pending_photos_count': pending_photos_count
-        }
-
-        return render_template('dashboard_supervisor.html',
-                             jobs=approved_jobs,
-                             pending_jobs=pending_jobs,
-                             stats=stats)
-
+        
+        template = 'dashboard_admin.html' if current_user.is_admin else 'dashboard_supervisor.html'
+        return render_template(template, 
+                          jobs=jobs,
+                          pending_jobs=pending_jobs,
+                          stats=stats)
     else:
         # Vista de diseñador
         jobs = Job.query.filter_by(designer_id=current_user.id).order_by(Job.created_at.desc()).all()
