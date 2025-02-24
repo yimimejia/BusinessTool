@@ -5,7 +5,7 @@ from functools import wraps
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy import or_, desc, literal_column
 from app import db
-from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, PendingJob, Message
+from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, PendingJob, Message, Invoice
 from app.utils.notifications import send_notification
 from flask_sse import sse
 from datetime import datetime
@@ -50,72 +50,85 @@ def admin_required(f):
 def get_job_invoice_data(job_id=None, qr_code=None):
     """Función interna para obtener datos de factura"""
     try:
+        # Primero intentar encontrar la factura
+        invoice = None
+        if job_id:
+            invoice = Invoice.query.filter_by(job_id=job_id).first()
+        elif qr_code:
+            invoice = Invoice.query.filter_by(qr_code=qr_code).first()
+
+        if invoice:
+            # Si encontramos la factura, usar sus datos directamente
+            job = invoice.get_job()
+            if not job:
+                return None, None, 0, 0, 0
+
+            total_amount = float(invoice.total_amount)
+            deposit_amount = float(invoice.deposit_amount)
+            remaining_amount = float(invoice.remaining_amount)
+
+            # Generar QR si no existe
+            if not invoice.qr_code:
+                invoice.generate_qr_code()
+                db.session.commit()
+
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=5
+            )
+
+            qr_url = url_for('main.view_public_invoice', qr_code=invoice.qr_code, _external=True)
+            qr.add_data(qr_url)
+            qr.make(fit=True)
+            qr_img = qr.make_image(fill_color="black", back_color="white")
+
+            # Convert QR to base64
+            buffered = io.BytesIO()
+            qr_img.save(buffered, format="PNG")
+            qr_code_image = base64.b64encode(buffered.getvalue()).decode()
+
+            return job, qr_code_image, total_amount, deposit_amount, remaining_amount
+
+        # Si no encontramos la factura, buscar el trabajo
         job = None
         if job_id:
             # Buscar primero en completados
             job = CompletedJob.query.get(job_id)
             if not job:
-                # Si no está en completados, buscar versión completada del trabajo activo
                 active_job = Job.query.get(job_id)
                 if active_job:
+                    # Buscar versión completada del trabajo activo
                     job = CompletedJob.query.filter_by(original_job_id=active_job.id).first()
                     if not job:
                         job = active_job
-                else:
-                    # Si no está en activos, buscar en pendientes
-                    pending_job = PendingJob.query.get(job_id)
-                    if pending_job:
-                        job = CompletedJob.query.filter_by(original_job_id=pending_job.id).first()
-                        if not job:
-                            job = pending_job
-        else:
-            # Buscar por QR code, primero en completados
+        elif qr_code:
+            # Buscar por QR code
             job = CompletedJob.query.filter_by(qr_code=qr_code).first()
             if not job:
-                # Si no está en completados, buscar en activos y su versión completada
                 active_job = Job.query.filter_by(qr_code=qr_code).first()
                 if active_job:
                     job = CompletedJob.query.filter_by(original_job_id=active_job.id).first()
                     if not job:
                         job = active_job
-                else:
-                    # Si no está en activos, buscar en pendientes
-                    pending_job = PendingJob.query.filter_by(qr_code=qr_code).first()
-                    if pending_job:
-                        job = CompletedJob.query.filter_by(original_job_id=pending_job.id).first()
-                        if not job:
-                            job = pending_job
 
         if not job:
             return None, None, 0, 0, 0
 
-        # Procesar los montos
-        try:
-            # Si el trabajo está en CompletedJob, usar sus montos directamente
-            if isinstance(job, CompletedJob):
-                total_amount = float(job.total_amount or 0)
-                deposit_amount = float(job.deposit_amount or 0)
-            else:
-                # Para otros tipos de trabajo, intentar encontrar su versión completada
-                completed_version = CompletedJob.query.filter_by(original_job_id=job.id).first()
-                if completed_version:
-                    job = completed_version  # Usar la versión completada
-                    total_amount = float(completed_version.total_amount or 0)
-                    deposit_amount = float(completed_version.deposit_amount or 0)
-                else:
-                    # Si no hay versión completada, usar los montos del trabajo actual
-                    total_amount = float(job.total_amount or 0)
-                    deposit_amount = float(getattr(job, 'deposit_amount', 0) or 0)
-            
-            remaining_amount = total_amount - deposit_amount
+        # Crear nueva factura
+        invoice = Invoice(
+            job_id=job.id,
+            job_type='completed_job' if isinstance(job, CompletedJob) else 'job',
+            invoice_number=job.invoice_number,
+            total_amount=float(job.total_amount or 0),
+            deposit_amount=float(getattr(job, 'deposit_amount', 0) or 0),
+            created_at=job.created_at
+        )
+        db.session.add(invoice)
+        db.session.commit()
 
-        except (ValueError, AttributeError) as e:
-            logger.error(f"Error procesando montos: {str(e)}")
-            total_amount = 0
-            deposit_amount = 0
-            remaining_amount = 0
-
-        # Generar QR code si no existe
+        # Generar QR code
         if not job.qr_code:
             job.generate_qr_code()
             db.session.commit()
@@ -137,7 +150,7 @@ def get_job_invoice_data(job_id=None, qr_code=None):
         qr_img.save(buffered, format="PNG")
         qr_code_image = base64.b64encode(buffered.getvalue()).decode()
 
-        return job, qr_code_image, total_amount, deposit_amount, remaining_amount
+        return job, qr_code_image, float(invoice.total_amount), float(invoice.deposit_amount), float(invoice.remaining_amount)
 
     except Exception as e:
         logger.error(f"Error en get_job_invoice_data: {str(e)}")
