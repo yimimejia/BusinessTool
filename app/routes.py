@@ -69,29 +69,30 @@ def get_job_invoice_data(job_id=None, qr_code=None):
                     if not job:
                         return None, None, 0, 0, 0
 
-        # Asegurar que los montos sean números flotantes y nunca sean None
+        # Procesar los montos
         try:
-            # Obtener total_amount directamente de la base de datos
-            total_amount = float(job.total_amount) if job.total_amount is not None else 0.0
+            # Si el trabajo está en CompletedJob, usar sus montos directamente
+            if isinstance(job, CompletedJob):
+                total_amount = float(job.total_amount or 0)
+                deposit_amount = float(job.deposit_amount or 0)
+            else:
+                # Para otros tipos de trabajo, usar el total_amount si existe
+                total_amount = float(job.total_amount or 0)
+                deposit_amount = float(getattr(job, 'deposit_amount', 0) or 0)
             
-            # Obtener deposit_amount si existe, sino usar 0
-            deposit_amount = float(job.deposit_amount) if hasattr(job, 'deposit_amount') and job.deposit_amount is not None else 0.0
-            
-            # Calcular el monto restante
             remaining_amount = total_amount - deposit_amount
 
         except (ValueError, AttributeError) as e:
             logger.error(f"Error procesando montos: {str(e)}")
-            total_amount = 0.0
-            deposit_amount = 0.0
-            remaining_amount = 0.0
+            total_amount = 0
+            deposit_amount = 0
+            remaining_amount = 0
 
-        # Generar URL pública para el QR si no existe
+        # Generar QR code
         if not job.qr_code:
             job.generate_qr_code()
             db.session.commit()
 
-        # Generate QR code
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_L,
