@@ -280,6 +280,59 @@ Factura: {job.invoice_number}
         flash('Error al procesar la solicitud', 'error')
         return redirect(url_for('main.completed_jobs'))
 
+@bp.route('/jobs/<int:job_id>/send-whatsapp-invoice', methods=['GET'])
+@login_required
+def send_whatsapp_invoice(job_id):
+    """Enviar factura por WhatsApp"""
+    try:
+        # Obtener el trabajo completado
+        job = CompletedJob.query.get_or_404(job_id)
+        
+        if not job.phone_number:
+            flash('No hay número de teléfono registrado para este cliente', 'error')
+            return redirect(url_for('main.completed_jobs'))
+
+        # Limpiar número de teléfono
+        clean_phone = re.sub(r'[^\d+]', '', job.phone_number)
+        if not clean_phone.startswith('+'):
+            if clean_phone.startswith('1'):
+                clean_phone = '+' + clean_phone
+            else:
+                clean_phone = '+1' + clean_phone
+        whatsapp_phone = clean_phone.replace('+', '')
+        
+        # Generar enlace de la factura
+        invoice_url = url_for('main.view_job_invoice', 
+                            job_id=job.id,
+                            _external=True)
+        
+        # Mensaje básico con enlace a la factura
+        message = f"""*FOTO VIDEO MOJICA*
+¡Hola {job.client_name}!
+
+Sus fotos están listas para ser revisadas.
+Factura: {job.invoice_number}
+
+Para ver su factura, use este enlace:
+{invoice_url}
+
+¡Gracias por su preferencia!"""
+
+        # Crear enlace de WhatsApp con el mensaje
+        whatsapp_url = f"https://wa.me/{whatsapp_phone}?text={urllib.parse.quote(message)}"
+        
+        log_activity(
+            'enviar_whatsapp_factura',
+            f"Factura enviada por WhatsApp a {job.client_name} (Factura: {job.invoice_number})"
+        )
+
+        return redirect(whatsapp_url)
+
+    except Exception as e:
+        logger.error(f"Error al enviar factura por WhatsApp: {str(e)}")
+        flash('Error al procesar la solicitud', 'error')
+        return redirect(url_for('main.completed_jobs'))
+
 @bp.route('/jobs/<int:job_id>/approve', methods=['GET'])
 @login_required
 @staff_required
@@ -823,48 +876,40 @@ def search_invoices():
         if not query:
             return render_template('search_invoices.html', results=[], query=None)
 
-        # Buscar facturas que coincidan con el criterio de búsqueda
-        base_query = db.session.query(Invoice, Job, CompletedJob).outerjoin(
-            Job, (Invoice.job_id == Job.id) & (Invoice.job_type == 'job')
-        ).outerjoin(
-            CompletedJob, (Invoice.job_id == CompletedJob.id) & (Invoice.job_type == 'completed_job')
-        )
+        # Buscar primero en la tabla de facturas
+        invoices = Invoice.query.filter(
+            Invoice.invoice_number.ilike(f'%{query}%')
+        ).order_by(Invoice.created_at.desc()).all()
 
-        # Aplicar filtros de búsqueda
-        search_query = base_query.filter(
-            or_(
-                Invoice.invoice_number.ilike(f'%{query}%'),
-                Job.client_name.ilike(f'%{query}%'),
-                CompletedJob.client_name.ilike(f'%{query}%')
-            )
-        ).order_by(Invoice.created_at.desc())
-
-        logger.info("Ejecutando consulta de búsqueda...")
-        query_results = search_query.all()
-        logger.info(f"Consulta devolvió {len(query_results)} resultados")
-
+        logger.info(f"Encontradas {len(invoices)} facturas")
+        
         results = []
-        for invoice, job, completed_job in query_results:
-            # Determinar qué trabajo usar
-            work = completed_job if invoice.job_type == 'completed_job' else job
-            if work:
-                # Calcular el monto restante
-                total = float(invoice.total_amount or 0)
-                deposit = float(invoice.deposit_amount or 0)
-                remaining = total - deposit
-                result = {
-                    'id': invoice.id,
-                    'invoice_number': invoice.invoice_number,
-                    'client_name': work.client_name,
-                    'description': work.description if hasattr(work, 'description') else '',
-                    'created_at': invoice.created_at,
-                    'total_amount': total,
-                    'deposit_amount': deposit,
-                    'remaining_amount': remaining,
-                    'status': 'Completado' if invoice.job_type == 'completed_job' else getattr(work, 'status', 'Desconocido')
-                }
-                results.append(result)
-                logger.info(f"Procesada factura {invoice.invoice_number} para cliente {work.client_name}")
+        for invoice in invoices:
+            try:
+                # Obtener el trabajo relacionado
+                work = invoice.get_job()
+                if work:
+                    # Calcular montos
+                    total = float(invoice.total_amount or 0)
+                    deposit = float(invoice.deposit_amount or 0)
+                    remaining = total - deposit
+                    
+                    result = {
+                        'id': work.id,  # ID del trabajo para el enlace de la factura
+                        'invoice_number': invoice.invoice_number,
+                        'client_name': work.client_name,
+                        'description': work.description if hasattr(work, 'description') else '',
+                        'created_at': invoice.created_at,
+                        'total_amount': total,
+                        'deposit_amount': deposit,
+                        'remaining_amount': remaining,
+                        'status': 'Completado' if isinstance(work, CompletedJob) else 'Pendiente'
+                    }
+                    results.append(result)
+                    logger.info(f"Procesada factura {invoice.invoice_number} para cliente {work.client_name}")
+            except Exception as e:
+                logger.error(f"Error procesando factura {invoice.id}: {str(e)}")
+                continue
 
         logger.info(f"Total de resultados procesados: {len(results)}")
         return render_template('search_invoices.html', results=results, query=query)

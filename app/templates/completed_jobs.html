@@ -86,6 +86,12 @@
                                    class="btn btn-sm btn-success" target="_blank">
                                     <i class="bi bi-whatsapp"></i> WhatsApp
                                 </a>
+                                {% if job.phone_number %}
+                                <a href="{{ url_for('main.send_whatsapp_invoice', job_id=job.id) }}" 
+                                   class="btn btn-sm btn-success" target="_blank">
+                                    <i class="bi bi-whatsapp"></i> Enviar Factura
+                                </a>
+                                {% endif %}
                                 {% endif %}
                                 {% else %}
                                 <form action="{{ url_for('main.mark_delivered', job_id=job.id) }}" method="POST" class="d-inline">
