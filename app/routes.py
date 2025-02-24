@@ -26,7 +26,7 @@ from weasyprint import HTML
 from pdf2image import convert_from_path
 
 # Configurar logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 bp = Blueprint('main', __name__)
@@ -427,6 +427,151 @@ def cleanup_temp_files(*file_paths):
         except Exception as e:
             logger.error(f"Error eliminando archivo temporal {file_path}: {str(e)}")
 
+@bp.route('/invoice/public/<qr_code>')
+def view_public_invoice(qr_code):
+    """Vista pública de factura mediante código QR"""
+    try:
+        logger.info(f"Accediendo a factura con QR: {qr_code}")
+        
+        # Buscar factura por QR code
+        invoice = Invoice.query.filter_by(qr_code=qr_code).first()
+        if not invoice:
+            logger.error(f"No se encontró factura con QR: {qr_code}")
+            return render_template('error.html', message="Factura no encontrada"), 404
+
+        # Obtener el trabajo relacionado
+        if invoice.job_type == 'completed_job':
+            job = CompletedJob.query.get(invoice.job_id)
+        else:
+            job = Job.query.get(invoice.job_id)
+
+        if not job:
+            logger.error(f"No se encontró trabajo para factura con QR: {qr_code}")
+            return render_template('error.html', message="Trabajo no encontrado"), 404
+
+        # Calcular montos
+        total_amount = float(invoice.total_amount or 0)
+        deposit_amount = float(invoice.deposit_amount or 0)
+        remaining_amount = total_amount - deposit_amount
+
+        logger.info(f"Renderizando factura - Total: {total_amount}, Abono: {deposit_amount}, Restante: {remaining_amount}")
+        
+        # Generar QR para la vista actual (asegurarse de que sea una URL absoluta)
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4
+        )
+        
+        # Usar URL absoluta para el QR
+        qr_url = url_for('main.view_public_invoice', qr_code=qr_code, _external=True)
+        qr.add_data(qr_url)
+        qr.make(fit=True)
+        
+        # Generar imagen QR
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+        buffered = io.BytesIO()
+        qr_img.save(buffered, format="PNG")
+        qr_code_image = base64.b64encode(buffered.getvalue()).decode()
+
+        return render_template('invoice_public.html',
+                           job=job,
+                           invoice=invoice,
+                           qr_code=qr_code_image,
+                           total_amount=total_amount,
+                           deposit_amount=deposit_amount,
+                           remaining_amount=remaining_amount)
+
+    except Exception as e:
+        logger.error(f"Error mostrando factura pública: {str(e)}")
+        return render_template('error.html', message="Error al cargar la factura"), 500
+
+@bp.route('/search-invoices')
+@login_required
+def search_invoices():
+    """Búsqueda de facturas"""
+    try:
+        query = request.args.get('query', '').strip()
+        logger.info(f"Iniciando búsqueda de facturas con query: '{query}'")
+        
+        if not query:
+            return render_template('search_invoices.html', results=[], query=None)
+
+        # Buscar facturas que coincidan con el criterio de búsqueda
+        results = []
+        
+        # Buscar en trabajos activos
+        active_jobs = Job.query.filter(
+            or_(
+                Job.client_name.ilike(f'%{query}%'),
+                Job.invoice_number.ilike(f'%{query}%')
+            )
+        ).all()
+        
+        # Buscar en trabajos completados
+        completed_jobs = CompletedJob.query.filter(
+            or_(
+                CompletedJob.client_name.ilike(f'%{query}%'),
+                CompletedJob.invoice_number.ilike(f'%{query}%')
+            )
+        ).all()
+        
+        logger.info(f"Encontrados {len(active_jobs)} trabajos activos y {len(completed_jobs)} trabajos completados")
+
+        # Procesar trabajos activos
+        for job in active_jobs:
+            try:
+                result = {
+                    'id': job.id,
+                    'invoice_number': job.invoice_number,
+                    'client_name': job.client_name,
+                    'description': job.description,
+                    'created_at': job.created_at,
+                    'total_amount': float(job.total_amount or 0),
+                    'deposit_amount': float(job.deposit_amount or 0),
+                    'remaining_amount': float((job.total_amount or 0) - (job.deposit_amount or 0)),
+                    'status': 'Pendiente'
+                }
+                results.append(result)
+                logger.info(f"Agregado trabajo activo: {job.invoice_number} - {job.client_name}")
+            except Exception as e:
+                logger.error(f"Error procesando trabajo activo {job.id}: {str(e)}")
+                continue
+
+        # Procesar trabajos completados
+        for job in completed_jobs:
+            try:
+                result = {
+                    'id': job.id,
+                    'invoice_number': job.invoice_number,
+                    'client_name': job.client_name,
+                    'description': job.description,
+                    'created_at': job.created_at,
+                    'total_amount': float(job.total_amount or 0),
+                    'deposit_amount': float(job.deposit_amount or 0),
+                    'remaining_amount': float((job.total_amount or 0) - (job.deposit_amount or 0)),
+                    'status': 'Completado'
+                }
+                results.append(result)
+                logger.info(f"Agregado trabajo completado: {job.invoice_number} - {job.client_name}")
+            except Exception as e:
+                logger.error(f"Error procesando trabajo completado {job.id}: {str(e)}")
+                continue
+
+        # Ordenar resultados por fecha, más recientes primero
+        results.sort(key=lambda x: x['created_at'], reverse=True)
+        
+        logger.info(f"Total de resultados encontrados: {len(results)}")
+        return render_template('search_invoices.html', results=results, query=query)
+
+    except Exception as e:
+        logger.error(f"Error en búsqueda de facturas: {str(e)}")
+        flash('Error al realizar la búsqueda', 'error')
+        return render_template('search_invoices.html', results=[], query=query, error=True)
+
+
+
 @bp.route('/jobs/<int:job_id>/approve', methods=['GET'])
 @login_required
 @staff_required
@@ -772,35 +917,6 @@ def approve_photos_for_job(message_id):
         token = secrets.token_urlsafe(32)
         expiry_date = datetime.utcnow() + timedelta(days=2)
         
-        # Asegurarse de que las fotos sean un JSON válido
-        try:
-            photos = json.loads(pending_job.photos) if pending_job.photos else []
-            # Verificar que las fotos existen físicamente
-            verified_photos = []
-            for photo_path in photos:
-                full_path = os.path.join(current_app.static_folder, photo_path)
-                if os.path.exists(full_path):
-                    verified_photos.append(photo_path)
-                else:
-                    logger.warning(f"Foto no encontrada: {full_path}")
-            
-            # Actualizar el trabajo completado con las fotos verificadas
-            job.photos = json.dumps(verified_photos)
-            job.temp_token = token
-            job.token_expiry = expiry_date
-            
-            logger.info(f"Configurando trabajo {job.id} con {len(verified_photos)} fotos verificadas")
-            logger.info(f"Token: {token}")
-            logger.info(f"Expira en: {expiry_date}")
-            
-            db.session.commit()
-            logger.info(f"Token y fotos guardados correctamente para trabajo {job.id}")
-            
-        except json.JSONDecodeError as e:
-            logger.error(f"Error decodificando JSON de fotos: {str(e)}")
-            flash('Error al procesar las fotos', 'error')
-            return redirect(url_for('main.jobs_pending_photos'))
-        
         # Crear enlace para ver las fotos
         photos_url = url_for('main.view_approved_photos', 
                         token=token, 
@@ -844,6 +960,9 @@ Para ver y descargar sus fotos, use este enlace (válido por 48 horas):
         logger.error(f"Error al aprobar fotos: {str(e)}")
         flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.jobs_pending_photos'))
+
+
+
 
 @bp.route('/stream')
 def stream():
@@ -959,59 +1078,7 @@ def jobs_pending_photos():
         flash('Error al cargar los trabajos pendientes', 'error')
         return redirect(url_for('main.dashboard'))
 
-@bp.route('/search/invoices')
-@login_required
-def search_invoices():
-    """Búsqueda de facturas"""
-    try:
-        query = request.args.get('query', '')
-        logger.info(f"Iniciando búsqueda de facturas con query: '{query}'")
-        
-        if not query:
-            return render_template('search_invoices.html', results=[], query=None)
 
-        # Buscar primero en la tabla de facturas
-        invoices = Invoice.query.filter(
-            Invoice.invoice_number.ilike(f'%{query}%')
-        ).order_by(Invoice.created_at.desc()).all()
-
-        logger.info(f"Encontradas {len(invoices)} facturas")
-        
-        results = []
-        for invoice in invoices:
-            try:
-                # Obtener el trabajo relacionado
-                work = invoice.get_job()
-                if work:
-                    # Calcular montos
-                    total = float(invoice.total_amount or 0)
-                    deposit = float(invoice.deposit_amount or 0)
-                    remaining = total - deposit
-                    
-                    result = {
-                        'id': work.id,  # ID del trabajo para el enlace de la factura
-                        'invoice_number': invoice.invoice_number,
-                        'client_name': work.client_name,
-                        'description': work.description if hasattr(work, 'description') else '',
-                        'created_at': invoice.created_at,
-                        'total_amount': total,
-                        'deposit_amount': deposit,
-                        'remaining_amount': remaining,
-                        'status': 'Completado' if isinstance(work, CompletedJob) else 'Pendiente'
-                    }
-                    results.append(result)
-                    logger.info(f"Procesada factura {invoice.invoice_number} para cliente {work.client_name}")
-            except Exception as e:
-                logger.error(f"Error procesando factura {invoice.id}: {str(e)}")
-                continue
-
-        logger.info(f"Total de resultados procesados: {len(results)}")
-        return render_template('search_invoices.html', results=results, query=query)
-
-    except Exception as e:
-        logger.error(f"Error en búsqueda de facturas: {str(e)}")
-        flash('Error al realizar la búsqueda', 'error')
-        return render_template('search_invoices.html', results=[], query=query, error=True)
 
 @bp.route('/logout')
 @login_required
@@ -1118,41 +1185,7 @@ def pending_verification():
 
 
 
-@bp.route('/search')
-@login_required
-def search():
-    """Buscar facturas por nombre de cliente o número de factura"""
-    query = request.args.get('query', '').strip()
-    if query:
-        # Buscar en trabajos activos, completados y pendientes
-        active_jobs = Job.query.filter(
-            or_(
-                Job.client_name.ilike(f'%{query}%'),
-                Job.invoice_number.ilike(f'%{query}%')
-            )
-        ).all()
 
-        completed_jobs = CompletedJob.query.filter(
-            or_(
-                CompletedJob.client_name.ilike(f'%{query}%'),
-                CompletedJob.invoice_number.ilike(f'%{query}%')
-            )
-        ).all()
-
-        pending_jobs = PendingJob.query.filter(
-            or_(
-                PendingJob.client_name.ilike(f'%{query}%'),
-                PendingJob.invoice_number.ilike(f'%{query}%')
-            )
-        ).all()
-
-        # Combinar y ordenar todos los trabajos por fecha
-        all_jobs = active_jobs + completed_jobs + pending_jobs
-        jobs = sorted(all_jobs, key=lambda x: x.created_at, reverse=True)
-    else:
-        jobs = []
-
-    return render_template('search_invoices.html', jobs=jobs, query=query)
 
 
 @bp.route('/dashboard')
