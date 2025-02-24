@@ -280,7 +280,7 @@ def send_whatsapp_photos(job_id):
             return redirect(url_for('main.completed_jobs'))
 
         # Limpiar número de teléfono
-        clean_phone = job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+        clean_phone = re.sub(r'[^\d]', '', job.phone_number)
         
         # Mensaje básico
         message = f"""*FOTO VIDEO MOJICA*
