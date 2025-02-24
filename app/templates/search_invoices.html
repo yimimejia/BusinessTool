@@ -11,50 +11,55 @@
         <div class="card-body">
             <form method="GET" class="mb-4">
                 <div class="input-group">
-                    <input type="text" name="query" class="form-control" placeholder="Buscar por nombre de cliente o número de factura..." value="{{ request.args.get('query', '') }}">
+                    <input type="text" name="query" class="form-control" 
+                           placeholder="Buscar por nombre de cliente o número de factura..." 
+                           value="{{ request.args.get('query', '') }}">
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-search"></i> Buscar
                     </button>
                 </div>
             </form>
 
-            {% if jobs %}
+            {% if invoices %}
             <div class="table-responsive">
                 <table class="table table-striped" id="invoicesTable">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Cliente</th>
                             <th>Factura</th>
+                            <th>Cliente</th>
+                            <th>Descripción</th>
+                            <th>Total</th>
+                            <th>Abono</th>
+                            <th>Restante</th>
                             <th>Fecha</th>
                             <th>Estado</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for job in jobs %}
+                        {% for invoice in invoices %}
                         <tr>
+                            <td>{{ invoice.invoice_number }}</td>
                             <td>
-                                <a href="{{ url_for('main.display_job_invoice', job_id=job.id) }}" target="_blank" class="text-decoration-none">
-                                    {{ job.id }}
+                                <a href="{{ url_for('main.display_job_invoice', job_id=invoice.id) }}" 
+                                   target="_blank" class="text-decoration-none">
+                                    {{ invoice.client_name }}
                                 </a>
                             </td>
+                            <td>{{ invoice.description }}</td>
+                            <td>${{ "%.2f"|format(invoice.total_amount) }}</td>
+                            <td>${{ "%.2f"|format(invoice.deposit_amount) }}</td>
+                            <td>${{ "%.2f"|format(invoice.total_amount - invoice.deposit_amount) }}</td>
+                            <td>{{ invoice.created_at.strftime('%Y-%m-%d') }}</td>
                             <td>
-                                <a href="{{ url_for('main.display_job_invoice', job_id=job.id) }}" target="_blank" class="text-decoration-none">
-                                    {{ job.client_name }}
-                                </a>
-                            </td>
-                            <td>{{ job.invoice_number }}</td>
-                            <td>{{ job.created_at.strftime('%Y-%m-%d') }}</td>
-                            <td>
-                                {% if job.is_completed %}
+                                {% if invoice.is_completed %}
                                 <span class="badge bg-success">Completado</span>
                                 {% else %}
                                 <span class="badge bg-warning">Pendiente</span>
                                 {% endif %}
                             </td>
                             <td>
-                                <a href="{{ url_for('main.display_job_invoice', job_id=job.id) }}" 
+                                <a href="{{ url_for('main.display_job_invoice', job_id=invoice.id) }}" 
                                    target="_blank" 
                                    class="btn btn-sm btn-primary">
                                     <i class="bi bi-file-pdf"></i> Ver Factura
@@ -82,7 +87,7 @@ $(document).ready(function() {
         language: {
             url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
         },
-        order: [[3, 'desc']],
+        order: [[6, 'desc']],  // Ordenar por fecha descendente
         responsive: true
     });
 });

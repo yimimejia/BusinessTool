@@ -806,6 +806,52 @@ def jobs_pending_photos():
         flash('Error al cargar los trabajos pendientes', 'error')
         return redirect(url_for('main.dashboard'))
 
+@bp.route('/search/invoices')
+@login_required
+def search_invoices():
+    """Búsqueda de facturas"""
+    try:
+        query = request.args.get('query', '')
+        if query:
+            # Buscar en la tabla de facturas y unir con los trabajos
+            invoices = Invoice.query.join(
+                Job,
+                ((Invoice.job_id == Job.id) & (Invoice.job_type == 'job'))
+            ).join(
+                CompletedJob,
+                ((Invoice.job_id == CompletedJob.id) & (Invoice.job_type == 'completed_job')),
+                isouter=True
+            ).filter(
+                or_(
+                    Invoice.invoice_number.ilike(f'%{query}%'),
+                    Job.client_name.ilike(f'%{query}%'),
+                    CompletedJob.client_name.ilike(f'%{query}%')
+                )
+            ).order_by(Invoice.created_at.desc()).all()
+
+            results = []
+            for invoice in invoices:
+                job = invoice.get_job()
+                if job:
+                    results.append({
+                        'id': job.id,
+                        'invoice_number': invoice.invoice_number,
+                        'client_name': job.client_name,
+                        'description': job.description,
+                        'created_at': invoice.created_at,
+                        'total_amount': float(invoice.total_amount or 0),
+                        'deposit_amount': float(invoice.deposit_amount or 0),
+                        'is_completed': isinstance(job, CompletedJob)
+                    })
+        else:
+            results = []
+
+        return render_template('search_invoices.html', invoices=results)
+    except Exception as e:
+        logger.error(f"Error en búsqueda de facturas: {str(e)}")
+        flash('Error al buscar facturas', 'error')
+        return render_template('search_invoices.html', invoices=[])
+
 @bp.route('/logout')
 @login_required
 def logout():
