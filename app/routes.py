@@ -592,7 +592,7 @@ def approve_job_with_pin(job_id):
 
 @bp.route('/messages/<int:message_id>/approve-photos', methods=['POST'])
 @login_required
-@staff_required  # Cambiado de admin_required a staff_required para permitir supervisores
+@staff_required
 def approve_photos_for_job(message_id):
     """Aprobar y enviar fotos por WhatsApp"""
     try:
