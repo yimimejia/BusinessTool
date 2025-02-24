@@ -41,7 +41,7 @@
                         <tr>
                             <td>{{ invoice.invoice_number }}</td>
                             <td>
-                                <a href="{{ url_for('main.show_job_qr', job_id=invoice.id) }}" 
+                                <a href="{{ url_for('main.view_job_invoice', job_id=invoice.id) }}" 
                                    target="_blank" class="text-decoration-none">
                                     {{ invoice.client_name }}
                                 </a>
@@ -59,10 +59,10 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <a href="{{ url_for('main.show_job_qr', job_id=invoice.id) }}" 
+                                <a href="{{ url_for('main.view_job_invoice', job_id=invoice.id) }}" 
                                    target="_blank" 
                                    class="btn btn-sm btn-primary">
-                                    <i class="bi bi-qr-code"></i> Ver Factura QR
+                                    <i class="bi bi-file-pdf"></i> Ver Factura
                                 </a>
                             </td>
                         </tr>

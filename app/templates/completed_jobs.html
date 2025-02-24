@@ -20,12 +20,12 @@
                 {% for job in jobs %}
                 <tr {% if job.is_called %}class="text-danger text-decoration-line-through"{% endif %}>
                     <td>
-                        <a href="{{ url_for('main.show_job_qr', job_id=job.id) }}" target="_blank" class="text-decoration-none {% if job.is_called %}text-danger{% endif %}">
+                        <a href="{{ url_for('main.display_job_invoice', job_id=job.id) }}" target="_blank" class="text-decoration-none {% if job.is_called %}text-danger{% endif %}">
                             {{ job.id }}
                         </a>
                     </td>
                     <td>
-                        <a href="{{ url_for('main.show_job_qr', job_id=job.id) }}" target="_blank" class="text-decoration-none {% if job.is_called %}text-danger{% endif %}">
+                        <a href="{{ url_for('main.display_job_invoice', job_id=job.id) }}" target="_blank" class="text-decoration-none {% if job.is_called %}text-danger{% endif %}">
                             {{ job.client_name }}
                         </a>
                     </td>
