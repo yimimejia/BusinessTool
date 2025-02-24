@@ -917,7 +917,8 @@ def process_pending_job(job_id):
         )
 
         flash('Trabajo aprobado exitosamente', 'success')
-        return redirect(url_for('main.pending_verification'))
+        # Redirigir a la vista de la factura del trabajo completado
+        return redirect(url_for('main.view_job_invoice', job_id=completed_job.id))
 
     except Exception as e:
         db.session.rollback()
