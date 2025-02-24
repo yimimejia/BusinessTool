@@ -279,8 +279,16 @@ def send_whatsapp_photos(job_id):
             flash('No hay número de teléfono registrado para este cliente', 'error')
             return redirect(url_for('main.completed_jobs'))
 
-        # Limpiar número de teléfono
-        clean_phone = re.sub(r'[^\d]', '', job.phone_number)
+        # Limpiar número de teléfono y asegurar formato internacional
+        clean_phone = re.sub(r'[^\d+]', '', job.phone_number)
+        # Si no tiene código de país, agregar +1 (República Dominicana)
+        if not clean_phone.startswith('+'):
+            if clean_phone.startswith('1'):
+                clean_phone = '+' + clean_phone
+            else:
+                clean_phone = '+1' + clean_phone
+        # Eliminar el + para la URL de WhatsApp
+        whatsapp_phone = clean_phone.replace('+', '')
         
         # Mensaje básico
         message = f"""*FOTO VIDEO MOJICA*
@@ -292,7 +300,7 @@ Factura: {job.invoice_number}
 ¡Gracias por su preferencia!"""
 
         # Crear enlace de WhatsApp
-        whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(message)}"
+        whatsapp_url = f"https://wa.me/{whatsapp_phone}?text={urllib.parse.quote(message)}"
         
         log_activity(
             'enviar_whatsapp',
