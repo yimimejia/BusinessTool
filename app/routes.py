@@ -425,25 +425,21 @@ def reject_pending_photos(job_id):
 
 @bp.route('/messages/<int:message_id>/approve-photos', methods=['POST'])
 @login_required
-@admin_required
+@staff_required  # Cambiado de admin_required a staff_required para permitir supervisores
 def approve_photos(message_id):
     """Aprobar y enviar fotos por WhatsApp"""
-    message = Message.query.get_or_404(message_id)
-
-    if not message.photos:
-        flash('Este mensaje no contiene fotos', 'error')
-        return redirect(url_for('main.completed_jobs'))
-
-    # Extraer el ID del trabajo desde el contenido del mensaje
-    job_id_match = re.search(r'trabajo #(\d+)', message.content)
-    if not job_id_match:
-        flash('No se pudo identificar el trabajo asociado', 'error')
-        return redirect(url_for('main.completed_jobs'))
-
-    job_id = int(job_id_match.group(1))
-    job = CompletedJob.query.get_or_404(job_id)
-
     try:
+        message = Message.query.get_or_404(message_id)
+
+        # Extraer el ID del trabajo desde el contenido del mensaje
+        job_id_match = re.search(r'trabajo #(\d+)', message.content)
+        if not job_id_match:
+            flash('No se pudo identificar el trabajo asociado', 'error')
+            return redirect(url_for('main.jobs_pending_photos'))
+
+        job_id = int(job_id_match.group(1))
+        job = CompletedJob.query.get_or_404(job_id)
+
         # Generar token único para el enlace temporal
         expiry_date = datetime.utcnow() + timedelta(days=2)
         token = secrets.token_urlsafe(32)
@@ -455,11 +451,18 @@ def approve_photos(message_id):
         
         # Crear enlace para ver las fotos
         photos_url = url_for('main.view_approved_photos', 
-                           token=token, 
-                           _external=True)
+                        token=token, 
+                        _external=True)
 
         # Preparar mensaje de WhatsApp
-        clean_phone = job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+        clean_phone = re.sub(r'[^\d+]', '', job.phone_number)
+        if not clean_phone.startswith('+'):
+            if clean_phone.startswith('1'):
+                clean_phone = '+' + clean_phone
+            else:
+                clean_phone = '+1' + clean_phone
+        whatsapp_phone = clean_phone.replace('+', '')
+        
         whatsapp_message = f"""*FOTO VIDEO MOJICA*
 ¡Sus fotos están listas!
 
@@ -479,14 +482,14 @@ Para ver y descargar sus fotos, use este enlace (válido por 48 horas):
         )
 
         # Redirigir a WhatsApp con el mensaje
-        whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(whatsapp_message)}"
+        whatsapp_url = f"https://wa.me/{whatsapp_phone}?text={urllib.parse.quote(whatsapp_message)}"
         return redirect(whatsapp_url)
 
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error al aprobar fotos: {str(e)}")
         flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
-        return redirect(url_for('main.completed_jobs'))
+        return redirect(url_for('main.jobs_pending_photos'))
 
 @bp.route('/photos/view/<token>')
 def view_approved_photos(token):
@@ -601,7 +604,7 @@ def unread_messages_count():
 
 @bp.route('/jobs/pending/photos')
 @login_required
-@staff_required
+@staff_required  # Ya modificado para incluir supervisores
 def jobs_pending_photos():
     """Ver trabajos pendientes de aprobación de fotos"""
     try:
@@ -610,6 +613,7 @@ def jobs_pending_photos():
         
         # Log para debugging
         logger.info(f"Obtenidos {len(jobs)} trabajos pendientes de aprobación de fotos")
+        logger.info(f"Usuario actual: {current_user.username}, Es admin: {current_user.is_admin}, Es supervisor: {current_user.is_supervisor}")
         
         return render_template('pending_photos.html', jobs=jobs)
     except Exception as e:
@@ -706,6 +710,21 @@ def view_public_invoice(qr_code):
     except Exception as e:
         logger.error(f"Error mostrando factura pública: {str(e)}")
         return "Error al mostrar la factura", 500
+
+@bp.route('/jobs/pending/verification')
+@login_required
+@staff_required  # Ya modificado para incluir supervisores
+def pending_verification():
+    """Ver trabajos pendientes de verificación"""
+    try:
+        jobs = PendingJob.query.filter_by(pending_type='new_job').order_by(PendingJob.created_at.desc()).all()
+        return render_template('pending_verification.html', jobs=jobs)
+    except Exception as e:
+        logger.error(f"Error al obtener trabajos pendientes: {str(e)}")
+        flash('Error al cargar los trabajos pendientes', 'error')
+        return redirect(url_for('main.dashboard'))
+
+
 
 @bp.route('/search')
 @login_required
@@ -1035,13 +1054,6 @@ def show_job_qr(job_id):
         flash('Error al generar el código QR', 'error')
         return redirect(url_for('main.dashboard'))
 
-@bp.route('/jobs/pending/<int:job_id>/approve-form')
-@login_required
-@staff_required
-def approve_job_form(job_id):
-    """Mostrar formulario de aprobación en página completa"""
-    job = PendingJob.query.get_or_404(job_id)
-    return render_template('approve_job.html', job=job)
 
 
 @bp.route('/jobs/<int:job_id>/edit', methods=['GET', 'POST'])
@@ -1109,17 +1121,6 @@ def mark_delivered(job_id):
     flash('Trabajo marcado como entregado', 'success')
     return redirect(url_for('main.completed_jobs'))
 
-@bp.route('/jobs/pending/verification', methods=['GET'])
-@login_required
-@staff_required
-def pending_verification():
-    """Vista de trabajos pendientes por verificar"""
-    try:
-        jobs = PendingJob.query.filter_by(pending_type='new_job').all()
-        return render_template('pending_verification.html', jobs=jobs)
-    except Exception as e:
-        flash(f'Error al cargar trabajos pendientes: {str(e)}', 'error')
-        return redirect(url_for('main.dashboard'))
 
 
 @bp.route('/jobs/<int:job_id>/remove', methods=['POST'])
