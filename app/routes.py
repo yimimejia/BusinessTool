@@ -738,27 +738,45 @@ def new_job():
             # Si no es staff, siempre usar el ID del usuario actual como diseñador
             designer_id = request.form.get('designer_id') if current_user.is_staff else current_user.id
 
+            total_amount = float(request.form.get('total_amount', 0))
+            deposit_amount = float(request.form.get('deposit_amount', 0))
+            invoice_number = request.form.get('invoice_number')
+
             # Crear el trabajo
             job = Job(
                 description=request.form.get('description'),
                 designer_id=designer_id,
                 registered_by_id=current_user.id,
-                invoice_number=request.form.get('invoice_number'),
+                invoice_number=invoice_number,
                 client_name=request.form.get('client_name'),
                 phone_number=phone_number,
                 tags=tags,
-                total_amount=float(request.form.get('total_amount', 0))
+                total_amount=total_amount,
+                deposit_amount=deposit_amount
             )
 
             db.session.add(job)
+            db.session.flush()  # Para obtener el ID del trabajo
+
+            # Crear la factura automáticamente
+            invoice = Invoice(
+                job_id=job.id,
+                job_type='job',
+                invoice_number=invoice_number,
+                total_amount=total_amount,
+                deposit_amount=deposit_amount,
+                created_at=datetime.utcnow()
+            )
+            
+            db.session.add(invoice)
             db.session.commit()
 
             log_activity(
                 'nuevo_trabajo',
-                f"Trabajo creado para {job.client_name} (Factura: {job.invoice_number})"
+                f"Trabajo y factura creados para {job.client_name} (Factura: {job.invoice_number})"
             )
 
-            flash('Trabajo creado exitosamente', 'success')
+            flash('Trabajo y factura creados exitosamente', 'success')
             return redirect(url_for('main.dashboard'))
 
         except ValueError as e:
@@ -865,14 +883,26 @@ def process_pending_job(job_id):
             deposit_amount=deposit_amount
         )
 
-        # Eliminar el trabajo pendiente y agregar el completado
+        # Crear la factura para el trabajo completado
+        invoice = Invoice(
+            job_id=completed_job.id,
+            job_type='completed_job',
+            invoice_number=completed_job.invoice_number,
+            total_amount=total_amount,
+            deposit_amount=deposit_amount,
+            created_at=completed_job.created_at,
+            issued_at=datetime.utcnow()
+        )
+
+        # Eliminar el trabajo pendiente y agregar el completado y la factura
         db.session.delete(pending_job)
         db.session.add(completed_job)
+        db.session.add(invoice)
         db.session.commit()
 
         log_activity(
             'trabajo_aprobado',
-            f"Trabajo aprobado: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
+            f"Trabajo aprobado y factura creada: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
         )
 
         flash('Trabajo aprobado exitosamente', 'success')
@@ -880,6 +910,7 @@ def process_pending_job(job_id):
 
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Error al aprobar trabajo pendiente: {str(e)}")
         flash('Error al aprobar el trabajo. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.pending_verification'))
 
