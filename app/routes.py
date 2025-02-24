@@ -496,23 +496,14 @@ Para ver y descargar sus fotos, use este enlace (válido por 48 horas):
 def view_approved_photos(token):
     """Vista pública para ver fotos aprobadas con token temporal"""
     try:
-        # Buscar en la tabla de trabajos pendientes
-        pending_job = PendingJob.query.filter_by(token=token).first()
+        # Buscar primero en trabajos completados
+        job = CompletedJob.query.filter_by(temp_token=token).first()
         
-        if pending_job and datetime.utcnow() <= pending_job.token_expiry:
-            # Si encontramos el trabajo pendiente y el token no ha expirado
-            photos = json.loads(pending_job.photos) if pending_job.photos else []
+        if job and datetime.utcnow() <= job.token_expiry:
+            photos = json.loads(job.photos) if job.photos else []
             return render_template('photos_gallery.html', 
                                 photos=photos,
-                                expiry_date=pending_job.token_expiry)
-        
-        # Si no encontramos en pendientes, buscar en trabajos completados
-        completed_job = CompletedJob.query.filter_by(temp_token=token).first()
-        if completed_job and datetime.utcnow() <= completed_job.token_expiry:
-            photos = json.loads(completed_job.photos) if completed_job.photos else []
-            return render_template('photos_gallery.html', 
-                                photos=photos,
-                                expiry_date=completed_job.token_expiry)
+                                expiry_date=job.token_expiry)
         
         return "Este enlace ha expirado o no es válido", 410
     except Exception as e:
@@ -548,7 +539,7 @@ def approve_job_with_pin(job_id):
             total_amount=float(pending_job.total_amount or 0),
             deposit_amount=float(pending_job.deposit_amount or 0),
             created_at=pending_job.created_at,
-            status='pending'
+            status='listo'  # Cambiado de 'pending' a 'listo'
         )
 
         # Generar QR code
@@ -568,6 +559,24 @@ def approve_job_with_pin(job_id):
         )
 
         db.session.add(invoice)
+        
+        # Mover a trabajos completados
+        completed_job = CompletedJob(
+            original_job_id=active_job.id,
+            description=pending_job.description,
+            designer_id=pending_job.designer_id,
+            registered_by_id=current_user.id,
+            invoice_number=pending_job.invoice_number,
+            client_name=pending_job.client_name,
+            phone_number=pending_job.phone_number,
+            total_amount=float(pending_job.total_amount or 0),
+            deposit_amount=float(pending_job.deposit_amount or 0),
+            created_at=pending_job.created_at,
+            completed_at=datetime.utcnow(),
+            status='listo'
+        )
+        
+        db.session.add(completed_job)
         db.session.delete(pending_job)
         db.session.commit()
 
@@ -576,8 +585,8 @@ def approve_job_with_pin(job_id):
             f"Trabajo aprobado con PIN: {active_job.client_name} - {active_job.invoice_number}"
         )
 
-        flash('Trabajo aprobado exitosamente', 'success')
-        return redirect(url_for('main.pending_jobs'))
+        flash('Trabajo aprobado y movido a completados exitosamente', 'success')
+        return redirect(url_for('main.completed_jobs'))
 
     except Exception as e:
         db.session.rollback()
