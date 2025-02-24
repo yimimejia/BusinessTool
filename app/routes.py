@@ -51,19 +51,19 @@ def get_job_invoice_data(job_id=None, qr_code=None):
     """Función interna para obtener datos de factura"""
     try:
         if job_id:
-            # Buscar primero en trabajos activos
-            job = Job.query.get(job_id)
+            # Buscar primero en completados
+            job = CompletedJob.query.get(job_id)
             if not job:
-                # Si no está en activos, buscar en completados
-                job = CompletedJob.query.get(job_id)
+                # Si no está en completados, buscar en activos
+                job = Job.query.get(job_id)
             if not job:
-                # Si no está en completados, buscar en pendientes
+                # Si no está en activos, buscar en pendientes
                 job = PendingJob.query.get_or_404(job_id)
         else:
-            # Buscar por QR code
-            job = Job.query.filter_by(qr_code=qr_code).first()
+            # Buscar por QR code, primero en completados
+            job = CompletedJob.query.filter_by(qr_code=qr_code).first()
             if not job:
-                job = CompletedJob.query.filter_by(qr_code=qr_code).first()
+                job = Job.query.filter_by(qr_code=qr_code).first()
                 if not job:
                     job = PendingJob.query.filter_by(qr_code=qr_code).first()
                     if not job:
@@ -76,9 +76,15 @@ def get_job_invoice_data(job_id=None, qr_code=None):
                 total_amount = float(job.total_amount or 0)
                 deposit_amount = float(job.deposit_amount or 0)
             else:
-                # Para otros tipos de trabajo, usar el total_amount si existe
-                total_amount = float(job.total_amount or 0)
-                deposit_amount = float(getattr(job, 'deposit_amount', 0) or 0)
+                # Para otros tipos de trabajo, intentar encontrar su versión completada
+                completed_version = CompletedJob.query.filter_by(original_job_id=job.id).first()
+                if completed_version:
+                    total_amount = float(completed_version.total_amount or 0)
+                    deposit_amount = float(completed_version.deposit_amount or 0)
+                else:
+                    # Si no hay versión completada, usar los montos del trabajo actual
+                    total_amount = float(job.total_amount or 0)
+                    deposit_amount = float(getattr(job, 'deposit_amount', 0) or 0)
             
             remaining_amount = total_amount - deposit_amount
 
@@ -88,7 +94,7 @@ def get_job_invoice_data(job_id=None, qr_code=None):
             deposit_amount = 0
             remaining_amount = 0
 
-        # Generar QR code
+        # Generar QR code si no existe
         if not job.qr_code:
             job.generate_qr_code()
             db.session.commit()
