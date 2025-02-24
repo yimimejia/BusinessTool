@@ -20,7 +20,7 @@
                 </div>
             </form>
 
-            {% if invoices %}
+            {% if results %}
             <div class="table-responsive">
                 <table class="table table-striped" id="invoicesTable">
                     <thead>
@@ -37,29 +37,22 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for invoice in invoices %}
+                        {% for result in results %}
                         <tr>
-                            <td>{{ invoice.invoice_number }}</td>
+                            <td>{{ result.invoice_number }}</td>
+                            <td>{{ result.client_name }}</td>
+                            <td>{{ result.description }}</td>
+                            <td>${{ "%.2f"|format(result.total_amount) }}</td>
+                            <td>${{ "%.2f"|format(result.deposit_amount) }}</td>
+                            <td>${{ "%.2f"|format(result.remaining_amount) }}</td>
+                            <td>{{ result.created_at.strftime('%Y-%m-%d') }}</td>
                             <td>
-                                <a href="{{ url_for('main.view_job_invoice', job_id=invoice.id) }}" 
-                                   target="_blank" class="text-decoration-none">
-                                    {{ invoice.client_name }}
-                                </a>
-                            </td>
-                            <td>{{ invoice.description }}</td>
-                            <td>${{ "%.2f"|format(invoice.total_amount) }}</td>
-                            <td>${{ "%.2f"|format(invoice.deposit_amount) }}</td>
-                            <td>${{ "%.2f"|format(invoice.total_amount - invoice.deposit_amount) }}</td>
-                            <td>{{ invoice.created_at.strftime('%Y-%m-%d') }}</td>
-                            <td>
-                                {% if invoice.is_completed %}
-                                <span class="badge bg-success">Completado</span>
-                                {% else %}
-                                <span class="badge bg-warning">Pendiente</span>
-                                {% endif %}
+                                <span class="badge {% if result.status == 'Completado' %}bg-success{% else %}bg-warning{% endif %}">
+                                    {{ result.status }}
+                                </span>
                             </td>
                             <td>
-                                <a href="{{ url_for('main.view_job_invoice', job_id=invoice.id) }}" 
+                                <a href="{{ url_for('main.view_job_invoice', job_id=result.id) }}" 
                                    target="_blank" 
                                    class="btn btn-sm btn-primary">
                                     <i class="bi bi-file-pdf"></i> Ver Factura

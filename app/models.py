@@ -12,7 +12,7 @@ class Invoice(db.Model):
     __tablename__ = 'invoices'
     id = db.Column(db.Integer, primary_key=True)
     job_id = db.Column(db.Integer, nullable=False)  # ID del trabajo relacionado
-    job_type = db.Column(db.String(20), nullable=False)  # 'job', 'completed_job', o 'pending_job'
+    job_type = db.Column(db.String(20), nullable=False)  # 'job' o 'completed_job'
     invoice_number = db.Column(db.String(50), unique=True, nullable=False)
     total_amount = db.Column(db.Numeric(10, 2), nullable=False)
     deposit_amount = db.Column(db.Numeric(10, 2), default=0)
@@ -32,8 +32,6 @@ class Invoice(db.Model):
             return Job.query.get(self.job_id)
         elif self.job_type == 'completed_job':
             return CompletedJob.query.get(self.job_id)
-        elif self.job_type == 'pending_job':
-            return PendingJob.query.get(self.job_id)
         return None
 
     @property
