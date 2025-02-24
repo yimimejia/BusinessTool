@@ -653,6 +653,29 @@ def send_whatsapp(job_id):
     return redirect(whatsapp_link)
 
 
+@bp.route('/jobs/<int:job_id>/qr')
+@login_required
+def show_job_qr(job_id):
+    """Ver código QR de un trabajo"""
+    try:
+        job, qr_code_image, total_amount, deposit_amount, remaining_amount = get_job_invoice_data(job_id=job_id)
+        if not job:
+            flash('Trabajo no encontrado', 'error')
+            return redirect(url_for('main.dashboard'))
+
+        logger.info(f"Montos en show_job_qr - Total: {total_amount}, Abono:{deposit_amount}, Restante: {remaining_amount}")
+
+        return render_template('invoice_pdf.html',
+                           job=job,
+                           qr_code=qr_code_image,
+                           total_amount=total_amount,
+                           deposit_amount=deposit_amount,
+                           remaining_amount=remaining_amount)
+    except Exception as e:
+        logger.error(f"Error mostrando QR: {str(e)}")
+        flash('Error al mostrar el código QR', 'error')
+        return redirect(url_for('main.dashboard'))
+
 @bp.route('/jobs/<int:job_id>/invoice')
 @login_required
 def view_job_invoice(job_id):
@@ -1004,56 +1027,25 @@ def new_job():
 @bp.route('/jobs/<int:job_id>/qr')
 @login_required
 def show_job_qr(job_id):
-    """Muestra la página con el QR del trabajo"""
+    """Ver código QR de un trabajo"""
     try:
-        job = Job.query.get_or_404(job_id)
+        job, qr_code_image, total_amount, deposit_amount, remaining_amount = get_job_invoice_data(job_id=job_id)
+        if not job:
+            flash('Trabajo no encontrado', 'error')
+            return redirect(url_for('main.dashboard'))
 
-        # Asegurar que los montos sean números flotantes
-        total_amount = float(job.total_amount if job.total_amount else 0)
-        deposit_amount = float(job.deposit_amount if job.deposit_amount else 0)
-        remaining_amount = total_amount - deposit_amount
-
-        # Generar el QR si no existe
-        if not job.qr_code:
-            job.generate_qr_code()
-            db.session.commit()
-
-        # Crear QR con mejor calidad y tamaño
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_H,
-            box_size=15,
-            border=4
-        )
-
-        # Usar solo la URL en el QR para simplicidad
-        qr_data = f"{request.url_root.rstrip('/')}/jobs/public/{job.qr_code}"
-        qr.add_data(qr_data)
-        qr.make(fit=True)
-
-        # Crear imagen con mejor contraste
-        img = qr.make_image(fill_color="black", back_color="white")
-
-        # Convertir a base64
-        buffered = io.BytesIO()
-        img.save(buffered, format="PNG", quality=100)
-        qr_image = base64.b64encode(buffered.getvalue()).decode()
-
-        # Log para debugging
         logger.info(f"Montos en show_job_qr - Total: {total_amount}, Abono:{deposit_amount}, Restante: {remaining_amount}")
 
-        return render_template('job_qr.html', 
-                             job=job, 
-                             qr_image=qr_image,
-                             total_amount=total_amount,
-                             deposit_amount=deposit_amount,
-                             remaining_amount=remaining_amount)
-
+        return render_template('invoice_pdf.html',
+                           job=job,
+                           qr_code=qr_code_image,
+                           total_amount=total_amount,
+                           deposit_amount=deposit_amount,
+                           remaining_amount=remaining_amount)
     except Exception as e:
-        logger.error(f"Error en show_job_qr: {str(e)}")
-        flash('Error al generar el código QR', 'error')
+        logger.error(f"Error mostrando QR: {str(e)}")
+        flash('Error al mostrar el código QR', 'error')
         return redirect(url_for('main.dashboard'))
-
 
 
 @bp.route('/jobs/<int:job_id>/edit', methods=['GET', 'POST'])
