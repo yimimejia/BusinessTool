@@ -381,6 +381,48 @@ def process_pending_job(job_id):
         flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.pending_verification'))
 
+@bp.route('/jobs/<int:job_id>/reject-photos', methods=['POST'])
+@login_required
+@staff_required
+def reject_pending_photos(job_id):
+    """Rechazar fotos de un trabajo pendiente"""
+    try:
+        pending_job = PendingJob.query.get_or_404(job_id)
+        
+        if pending_job.pending_type != 'photo_verification':
+            flash('Tipo de trabajo pendiente incorrecto', 'error')
+            return redirect(url_for('main.jobs_pending_photos'))
+
+        # Borrar fotos del sistema de archivos
+        if pending_job.photos:
+            photos = json.loads(pending_job.photos)
+            for photo in photos:
+                try:
+                    photo_path = os.path.join(current_app.static_folder, photo)
+                    if os.path.exists(photo_path):
+                        os.remove(photo_path)
+                except Exception as e:
+                    logger.error(f"Error borrando foto {photo}: {str(e)}")
+
+        # Registrar el rechazo
+        log_activity(
+            'rechazar_fotos',
+            f"Fotos rechazadas - Trabajo #{pending_job.original_job_id}, Cliente: {pending_job.client_name}"
+        )
+
+        # Eliminar el trabajo pendiente
+        db.session.delete(pending_job)
+        db.session.commit()
+
+        flash('Fotos rechazadas exitosamente', 'success')
+        return redirect(url_for('main.jobs_pending_photos'))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al rechazar fotos: {str(e)}")
+        flash('Error al procesar la solicitud', 'error')
+        return redirect(url_for('main.jobs_pending_photos'))
+
 @bp.route('/messages/<int:message_id>/approve-photos', methods=['POST'])
 @login_required
 @admin_required
