@@ -310,7 +310,10 @@ class CompletedJob(db.Model):
     tags = db.Column(db.String(200))
     qr_code = db.Column(db.String(100), unique=True)
     total_amount = db.Column(db.Numeric(10, 2))
-    deposit_amount = db.Column(db.Numeric(10, 2))  # Agregado el campo deposit_amount
+    deposit_amount = db.Column(db.Numeric(10, 2))
+    photos = db.Column(db.Text)  # JSON string con las rutas de las fotos
+    temp_token = db.Column(db.String(100))  # Token temporal para compartir fotos
+    token_expiry = db.Column(db.DateTime)  # Fecha de expiración del token
 
     designer = db.relationship('User', foreign_keys=[designer_id])
     registered_by = db.relationship('User', foreign_keys=[registered_by_id])

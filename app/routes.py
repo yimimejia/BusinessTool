@@ -626,23 +626,33 @@ def approve_photos_for_job(message_id):
         token = secrets.token_urlsafe(32)
         expiry_date = datetime.utcnow() + timedelta(days=2)
         
-        # Copiar fotos y token al trabajo completado
-        job.photos = pending_job.photos
-        job.temp_token = token
-        job.token_expiry = expiry_date
-        
-        # Log para debugging
-        logger.info(f"Configurando token para trabajo {job.id}:")
-        logger.info(f"Token: {token}")
-        logger.info(f"Expira en: {expiry_date}")
-        
+        # Asegurarse de que las fotos sean un JSON válido
         try:
+            photos = json.loads(pending_job.photos) if pending_job.photos else []
+            # Verificar que las fotos existen físicamente
+            verified_photos = []
+            for photo_path in photos:
+                full_path = os.path.join(current_app.static_folder, photo_path)
+                if os.path.exists(full_path):
+                    verified_photos.append(photo_path)
+                else:
+                    logger.warning(f"Foto no encontrada: {full_path}")
+            
+            # Actualizar el trabajo completado con las fotos verificadas
+            job.photos = json.dumps(verified_photos)
+            job.temp_token = token
+            job.token_expiry = expiry_date
+            
+            logger.info(f"Configurando trabajo {job.id} con {len(verified_photos)} fotos verificadas")
+            logger.info(f"Token: {token}")
+            logger.info(f"Expira en: {expiry_date}")
+            
             db.session.commit()
             logger.info(f"Token y fotos guardados correctamente para trabajo {job.id}")
-        except Exception as e:
-            logger.error(f"Error guardando token y fotos: {str(e)}")
-            db.session.rollback()
-            flash('Error al guardar las fotos', 'error')
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Error decodificando JSON de fotos: {str(e)}")
+            flash('Error al procesar las fotos', 'error')
             return redirect(url_for('main.jobs_pending_photos'))
         
         # Crear enlace para ver las fotos
