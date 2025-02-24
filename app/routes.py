@@ -813,19 +813,10 @@ def search_invoices():
     try:
         query = request.args.get('query', '')
         if query:
-            # Buscar en la tabla de facturas y unir con los trabajos
-            invoices = Invoice.query.join(
-                Job,
-                ((Invoice.job_id == Job.id) & (Invoice.job_type == 'job'))
-            ).join(
-                CompletedJob,
-                ((Invoice.job_id == CompletedJob.id) & (Invoice.job_type == 'completed_job')),
-                isouter=True
-            ).filter(
+            # Buscar facturas que coincidan con el criterio de búsqueda
+            invoices = Invoice.query.filter(
                 or_(
-                    Invoice.invoice_number.ilike(f'%{query}%'),
-                    Job.client_name.ilike(f'%{query}%'),
-                    CompletedJob.client_name.ilike(f'%{query}%')
+                    Invoice.invoice_number.ilike(f'%{query}%')
                 )
             ).order_by(Invoice.created_at.desc()).all()
 
@@ -834,14 +825,14 @@ def search_invoices():
                 job = invoice.get_job()
                 if job:
                     results.append({
-                        'id': job.id,
+                        'id': invoice.job_id,
                         'invoice_number': invoice.invoice_number,
-                        'client_name': job.client_name,
-                        'description': job.description,
+                        'client_name': job.client_name if hasattr(job, 'client_name') else '',
+                        'description': job.description if hasattr(job, 'description') else '',
                         'created_at': invoice.created_at,
                         'total_amount': float(invoice.total_amount or 0),
                         'deposit_amount': float(invoice.deposit_amount or 0),
-                        'is_completed': isinstance(job, CompletedJob)
+                        'is_completed': invoice.job_type == 'completed_job'
                     })
         else:
             results = []
