@@ -875,9 +875,8 @@ def process_pending_job(job_id):
             flash('Error en los montos ingresados. Por favor, verifique los valores.', 'error')
             return redirect(url_for('main.pending_verification'))
 
-        # Crear el trabajo completado
-        completed_job = CompletedJob(
-            original_job_id=pending_job.id,
+        # Crear el trabajo pendiente
+        active_job = Job(
             description=pending_job.description,
             designer_id=pending_job.designer_id,
             registered_by_id=current_user.id,
@@ -887,19 +886,18 @@ def process_pending_job(job_id):
             deposit_amount=deposit_amount,
             tags=request.form.get('tags'),
             phone_number=pending_job.phone_number,
-            created_at=pending_job.created_at,
-            completed_at=datetime.utcnow()
+            created_at=pending_job.created_at
         )
 
         # Generar QR code y obtener ID 
-        completed_job.generate_qr_code()
-        db.session.add(completed_job)
-        db.session.flush()  # Esto asigna un ID al trabajo completado
+        active_job.generate_qr_code()
+        db.session.add(active_job)
+        db.session.flush()  # Esto asigna un ID al trabajo
 
         # Crear factura con el ID del trabajo
         invoice = Invoice(
-            job_id=completed_job.id,  # Ahora tenemos un ID válido
-            job_type='completed_job',
+            job_id=active_job.id,
+            job_type='job',
             invoice_number=request.form.get('invoice_number'),
             total_amount=total_amount,
             deposit_amount=deposit_amount,
@@ -913,12 +911,12 @@ def process_pending_job(job_id):
 
         log_activity(
             'aprobar_trabajo',
-            f"Trabajo aprobado: {completed_job.client_name} - {completed_job.invoice_number}"
+            f"Trabajo movido a pendientes: {active_job.client_name} - {active_job.invoice_number}"
         )
 
         flash('Trabajo aprobado exitosamente', 'success')
-        # Redirigir a la vista de la factura del trabajo completado
-        return redirect(url_for('main.view_job_invoice', job_id=completed_job.id))
+        # Redirigir a la vista de trabajos pendientes
+        return redirect(url_for('main.pending_jobs'))
 
     except Exception as e:
         db.session.rollback()
