@@ -519,6 +519,72 @@ def view_approved_photos(token):
         logger.error(f"Error al mostrar fotos aprobadas: {str(e)}")
         return "Error al cargar las fotos", 500
 
+@bp.route('/jobs/<int:job_id>/approve-with-pin', methods=['POST'])
+@login_required
+def approve_job_with_pin(job_id):
+    """Aprobar trabajo usando PIN predeterminado"""
+    try:
+        pin = request.form.get('pin')
+        
+        # Verificar PIN
+        if pin != '0372':
+            flash('PIN incorrecto', 'error')
+            return redirect(url_for('main.pending_verification'))
+
+        pending_job = PendingJob.query.get_or_404(job_id)
+        
+        if pending_job.pending_type != 'new_job':
+            flash('Tipo de trabajo pendiente incorrecto', 'error')
+            return redirect(url_for('main.pending_verification'))
+
+        # Crear el trabajo activo
+        active_job = Job(
+            description=pending_job.description,
+            designer_id=pending_job.designer_id,
+            registered_by_id=current_user.id,
+            invoice_number=pending_job.invoice_number,
+            client_name=pending_job.client_name,
+            phone_number=pending_job.phone_number,
+            total_amount=float(pending_job.total_amount or 0),
+            deposit_amount=float(pending_job.deposit_amount or 0),
+            created_at=pending_job.created_at,
+            status='pending'
+        )
+
+        # Generar QR code
+        active_job.generate_qr_code()
+        db.session.add(active_job)
+        db.session.flush()
+
+        # Crear factura
+        invoice = Invoice(
+            job_id=active_job.id,
+            job_type='job',
+            invoice_number=pending_job.invoice_number,
+            total_amount=float(pending_job.total_amount or 0),
+            deposit_amount=float(pending_job.deposit_amount or 0),
+            created_at=pending_job.created_at,
+            issued_at=datetime.utcnow()
+        )
+
+        db.session.add(invoice)
+        db.session.delete(pending_job)
+        db.session.commit()
+
+        log_activity(
+            'aprobar_trabajo_pin',
+            f"Trabajo aprobado con PIN: {active_job.client_name} - {active_job.invoice_number}"
+        )
+
+        flash('Trabajo aprobado exitosamente', 'success')
+        return redirect(url_for('main.pending_jobs'))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al aprobar trabajo con PIN: {str(e)}")
+        flash('Error al procesar la solicitud', 'error')
+        return redirect(url_for('main.pending_verification'))
+
 @bp.route('/stream')
 def stream():
     return Response(sse.stream(), mimetype='text/event-stream')
