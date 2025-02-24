@@ -422,11 +422,204 @@ def reject_pending_photos(job_id):
         logger.error(f"Error al rechazar fotos: {str(e)}")
         flash('Error al procesar la solicitud', 'error')
         return redirect(url_for('main.jobs_pending_photos'))
+        
+        # Crear enlace para ver las fotos
+        photos_url = url_for('main.view_approved_photos', 
+                        token=token, 
+                        _external=True)
+
+        # Preparar mensaje de WhatsApp
+        clean_phone = re.sub(r'[^\d+]', '', job.phone_number)
+        if not clean_phone.startswith('+'):
+            if clean_phone.startswith('1'):
+                clean_phone = '+' + clean_phone
+            else:
+                clean_phone = '+1' + clean_phone
+        whatsapp_phone = clean_phone.replace('+', '')
+        
+        whatsapp_message = f"""*FOTO VIDEO MOJICA*
+¡Sus fotos están listas!
+
+Cliente: {job.client_name}
+Factura: {job.invoice_number}
+
+Para ver y descargar sus fotos, use este enlace (válido por 48 horas):
+{photos_url}
+
+¡Gracias por su preferencia!"""
+
+        # Eliminar el trabajo pendiente después de preparar todo
+        db.session.delete(pending_job)
+        db.session.commit()
+
+        log_activity(
+            'fotos_aprobadas',
+            f"Fotos aprobadas y enlace enviado - Trabajo #{job.id}, Cliente: {job.client_name}"
+        )
+
+        # Redirigir a WhatsApp con el mensaje
+        whatsapp_url = f"https://wa.me/{whatsapp_phone}?text={urllib.parse.quote(whatsapp_message)}"
+        return redirect(whatsapp_url)
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al aprobar fotos: {str(e)}")
+        flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
+        return redirect(url_for('main.jobs_pending_photos'))
+
+def save_photos_to_job_folder(job_id, photos):
+    """Guardar fotos en la carpeta del trabajo específico"""
+    try:
+        # Crear directorio para las fotos del trabajo si no existe
+        upload_folder = os.path.join(current_app.static_folder, 'uploads', str(job_id))
+        os.makedirs(upload_folder, exist_ok=True)
+
+        photo_paths = []
+        for photo in photos:
+            if photo and photo.filename:
+                # Generar nombre único para la foto
+                filename = secure_filename(photo.filename)
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                unique_filename = f"{timestamp}_{filename}"
+                
+                # Guardar la foto
+                photo_path = os.path.join('uploads', str(job_id), unique_filename)
+                full_path = os.path.join(current_app.static_folder, photo_path)
+                photo.save(full_path)
+                
+                # Añadir la ruta relativa a la lista
+                photo_paths.append(photo_path)
+
+        return photo_paths
+    except Exception as e:
+        logger.error(f"Error al guardar fotos: {str(e)}")
+        raise
+
+@bp.route('/photos/view/<token>')
+def view_approved_photos(token):
+    """Vista pública para ver fotos aprobadas con token temporal"""
+    try:
+        # Buscar el trabajo completado por token
+        job = CompletedJob.query.filter_by(temp_token=token).first()
+        
+        if not job or not job.temp_token or job.temp_token != token:
+            return render_template('photos_gallery.html', expired=True)
+            
+        if datetime.utcnow() > job.token_expiry:
+            return render_template('photos_gallery.html', expired=True)
+            
+        # Verificar y cargar las fotos
+        photos = []
+        if job.photos:
+            saved_photos = json.loads(job.photos)
+            for photo_path in saved_photos:
+                full_path = os.path.join(current_app.static_folder, photo_path)
+                if os.path.exists(full_path):
+                    photos.append(photo_path)
+
+        return render_template('photos_gallery.html', 
+                           photos=photos,
+                           expired=False,
+                           job=job)
+
+    except Exception as e:
+        logger.error(f"Error al mostrar fotos aprobadas: {str(e)}")
+        return render_template('photos_gallery.html', 
+                           expired=True, 
+                           error="Error al cargar las fotos")
+
+@bp.route('/jobs/<int:job_id>/approve-with-pin', methods=['POST'])
+@login_required
+def approve_job_with_pin(job_id):
+    """Aprobar trabajo usando PIN predeterminado"""
+    try:
+        pin = request.form.get('pin')
+        
+        # Verificar PIN
+        if pin != '0372':
+            flash('PIN incorrecto', 'error')
+            return redirect(url_for('main.pending_verification'))
+
+        pending_job = PendingJob.query.get_or_404(job_id)
+        
+        if pending_job.pending_type != 'new_job':
+            flash('Tipo de trabajo pendiente incorrecto', 'error')
+            return redirect(url_for('main.pending_verification'))
+
+        # Verificar campos requeridos
+        required_fields = [
+            ('invoice_number', 'número de factura'),
+            ('client_name', 'nombre del cliente'),
+            ('description', 'descripción'),
+            ('designer_id', 'diseñador')
+        ]
+        
+        for field, name in required_fields:
+            if not getattr(pending_job, field):
+                flash(f'Error: Falta el {name}', 'error')
+                return redirect(url_for('main.pending_verification'))
+
+        try:
+            # Iniciar transacción explícita
+            db.session.begin_nested()
+
+            # Crear el trabajo activo
+            active_job = Job(
+                description=pending_job.description,
+                designer_id=pending_job.designer_id,
+                registered_by_id=current_user.id,
+                invoice_number=pending_job.invoice_number,
+                client_name=pending_job.client_name,
+                phone_number=pending_job.phone_number,
+                total_amount=float(pending_job.total_amount or 0),
+                deposit_amount=float(pending_job.deposit_amount or 0),
+                created_at=pending_job.created_at,
+                status='pending'
+            )
+
+            # Generar QR code
+            active_job.generate_qr_code()
+            db.session.add(active_job)
+            db.session.flush()
+
+            # Crear factura
+            invoice = Invoice(
+                job_id=active_job.id,
+                job_type='job',
+                invoice_number=pending_job.invoice_number,
+                total_amount=float(pending_job.total_amount or 0),
+                deposit_amount=float(pending_job.deposit_amount or 0),
+                created_at=pending_job.created_at,
+                issued_at=datetime.utcnow()
+            )
+
+            db.session.add(invoice)
+            db.session.delete(pending_job)
+            db.session.commit()
+
+            log_activity(
+                'aprobar_trabajo_pin',
+                f"Trabajo movido a pendientes: {active_job.client_name} - {active_job.invoice_number}"
+            )
+
+            flash('Trabajo aprobado exitosamente', 'success')
+            return redirect(url_for('main.pending_jobs'))
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            logger.error(f"Error de base de datos al aprobar trabajo: {str(e)}")
+            flash('Error al procesar el trabajo. Por favor, inténtelo de nuevo.', 'error')
+            return redirect(url_for('main.pending_verification'))
+
+    except Exception as e:
+        logger.error(f"Error al aprobar trabajo con PIN: {str(e)}")
+        flash('Error al procesar la solicitud', 'error')
+        return redirect(url_for('main.pending_verification'))
 
 @bp.route('/messages/<int:message_id>/approve-photos', methods=['POST'])
 @login_required
 @staff_required  # Cambiado de admin_required a staff_required para permitir supervisores
-def approve_photos(message_id):
+def approve_photos_for_job(message_id):
     """Aprobar y enviar fotos por WhatsApp"""
     try:
         # Obtener el trabajo pendiente
@@ -491,107 +684,6 @@ Para ver y descargar sus fotos, use este enlace (válido por 48 horas):
         logger.error(f"Error al aprobar fotos: {str(e)}")
         flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.jobs_pending_photos'))
-
-@bp.route('/photos/view/<token>')
-def view_approved_photos(token):
-    """Vista pública para ver fotos aprobadas con token temporal"""
-    try:
-        # Buscar primero en trabajos completados
-        job = CompletedJob.query.filter_by(temp_token=token).first()
-        
-        if job and datetime.utcnow() <= job.token_expiry:
-            # Verificar que el token corresponda
-            if job.temp_token != token:
-                return "Enlace no válido", 403
-                
-            # Cargar fotos
-            photos = json.loads(job.photos) if job.photos else []
-            
-            # Verificar que cada foto existe
-            valid_photos = []
-            for photo in photos:
-                photo_path = os.path.join(current_app.static_folder, photo)
-                if os.path.exists(photo_path):
-                    valid_photos.append(photo)
-                else:
-                    logger.warning(f"Foto no encontrada: {photo}")
-            
-            return render_template('photos_gallery.html', 
-                              photos=valid_photos,
-                              expired=False)
-        
-        return render_template('photos_gallery.html', 
-                           expired=True)
-                           
-    except Exception as e:
-        logger.error(f"Error al mostrar fotos aprobadas: {str(e)}")
-        return "Error al cargar las fotos", 500
-
-@bp.route('/jobs/<int:job_id>/approve-with-pin', methods=['POST'])
-@login_required
-def approve_job_with_pin(job_id):
-    """Aprobar trabajo usando PIN predeterminado"""
-    try:
-        pin = request.form.get('pin')
-        
-        # Verificar PIN
-        if pin != '0372':
-            flash('PIN incorrecto', 'error')
-            return redirect(url_for('main.pending_verification'))
-
-        pending_job = PendingJob.query.get_or_404(job_id)
-        
-        if pending_job.pending_type != 'new_job':
-            flash('Tipo de trabajo pendiente incorrecto', 'error')
-            return redirect(url_for('main.pending_verification'))
-
-        # Crear el trabajo activo
-        active_job = Job(
-            description=pending_job.description,
-            designer_id=pending_job.designer_id,
-            registered_by_id=current_user.id,
-            invoice_number=pending_job.invoice_number,
-            client_name=pending_job.client_name,
-            phone_number=pending_job.phone_number,
-            total_amount=float(pending_job.total_amount or 0),
-            deposit_amount=float(pending_job.deposit_amount or 0),
-            created_at=pending_job.created_at,
-            status='pending'  # Cambiado a 'pending' para que vaya a trabajos pendientes
-        )
-
-        # Generar QR code
-        active_job.generate_qr_code()
-        db.session.add(active_job)
-        db.session.flush()  # Esto asigna un ID al trabajo
-
-        # Crear factura con el ID del trabajo
-        invoice = Invoice(
-            job_id=active_job.id,
-            job_type='job',
-            invoice_number=pending_job.invoice_number,
-            total_amount=float(pending_job.total_amount or 0),
-            deposit_amount=float(pending_job.deposit_amount or 0),
-            created_at=pending_job.created_at,
-            issued_at=datetime.utcnow()
-        )
-
-        db.session.add(invoice)
-        db.session.delete(pending_job)
-        db.session.commit()
-
-        log_activity(
-            'aprobar_trabajo_pin',
-            f"Trabajo movido a pendientes: {active_job.client_name} - {active_job.invoice_number}"
-        )
-
-        flash('Trabajo aprobado exitosamente', 'success')
-        return redirect(url_for('main.pending_jobs'))
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error al aprobar trabajo con PIN: {str(e)}")
-        flash('Error al procesar la solicitud', 'error')
-        return redirect(url_for('main.pending_verification'))
 
 @bp.route('/stream')
 def stream():
