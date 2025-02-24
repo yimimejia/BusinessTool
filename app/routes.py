@@ -21,6 +21,9 @@ import io
 import time
 import re
 from PIL import Image
+from apscheduler.schedulers.background import BackgroundScheduler
+from weasyprint import HTML
+from pdf2image import convert_from_path
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -301,24 +304,63 @@ def send_whatsapp_invoice(job_id):
                 clean_phone = '+1' + clean_phone
         whatsapp_phone = clean_phone.replace('+', '')
         
-        # Generar enlace de la factura
-        invoice_url = url_for('main.view_job_invoice', 
-                            job_id=job.id,
-                            _external=True)
+        # Generar el PDF de la factura
+        job, qr_code_image, total_amount, deposit_amount, remaining_amount = get_job_invoice_data(job_id)
+        if not job:
+            flash('Error al generar la factura', 'error')
+            return redirect(url_for('main.completed_jobs'))
+
+        # Crear directorio temporal si no existe
+        temp_dir = os.path.join(current_app.static_folder, 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+
+        # Generar nombre único para el archivo
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        pdf_filename = f"factura_{job.invoice_number}_{timestamp}.pdf"
+        jpg_filename = f"factura_{job.invoice_number}_{timestamp}.jpg"
+        pdf_path = os.path.join(temp_dir, pdf_filename)
+        jpg_path = os.path.join(temp_dir, jpg_filename)
+
+        # Generar PDF
+        from weasyprint import HTML
+        html_content = render_template(
+            'invoice_pdf.html',
+            job=job,
+            qr_code=qr_code_image,
+            total_amount=total_amount,
+            deposit_amount=deposit_amount,
+            remaining_amount=remaining_amount
+        )
+        HTML(string=html_content).write_pdf(pdf_path)
+
+        # Convertir PDF a JPG usando Pillow
+        from pdf2image import convert_from_path
+        from PIL import Image
+
+        # Convertir primera página del PDF a imagen
+        pages = convert_from_path(pdf_path, 500)
+        pages[0].save(jpg_path, 'JPEG', quality=95)
+
+        # Generar URLs públicas temporales para los archivos
+        pdf_url = url_for('static', filename=f'temp/{pdf_filename}', _external=True)
+        jpg_url = url_for('static', filename=f'temp/{jpg_filename}', _external=True)
         
-        # Mensaje profesional con detalles importantes
+        # Mensaje profesional con enlaces a los archivos
         message = f"""*FOTO VIDEO MOJICA*
 ¡Saludos estimado(a) {job.client_name}!
 
 Le enviamos su factura correspondiente al trabajo realizado:
 
 📋 Número de Factura: {job.invoice_number}
-💰 Monto Total: ${float(job.total_amount or 0):.2f}
-💵 Abono: ${float(job.deposit_amount or 0):.2f}
-🔸 Restante: ${float((job.total_amount or 0) - (job.deposit_amount or 0)):.2f}
+💰 Monto Total: ${float(total_amount):.2f}
+💵 Abono: ${float(deposit_amount):.2f}
+🔸 Restante: ${float(remaining_amount):.2f}
 
-Para ver o descargar su factura, haga clic en el siguiente enlace:
-{invoice_url}
+📄 Factura en formato PDF:
+{pdf_url}
+
+🖼️ Factura en formato JPG:
+{jpg_url}
 
 Agradecemos su confianza en nuestros servicios.
 ¡Que tenga un excelente día!
@@ -329,6 +371,16 @@ Calidad y profesionalismo"""
         # Crear enlace de WhatsApp con el mensaje
         whatsapp_url = f"https://wa.me/{whatsapp_phone}?text={urllib.parse.quote(message)}"
         
+        # Programar limpieza de archivos temporales (después de 24 horas)
+        cleanup_time = datetime.now() + timedelta(hours=24)
+        scheduler = BackgroundScheduler()
+        scheduler.add_job(
+            lambda: cleanup_temp_files(pdf_path, jpg_path),
+            'date',
+            run_date=cleanup_time
+        )
+        scheduler.start()
+
         log_activity(
             'enviar_whatsapp_factura',
             f"Factura enviada por WhatsApp a {job.client_name} (Factura: {job.invoice_number})"
@@ -340,6 +392,15 @@ Calidad y profesionalismo"""
         logger.error(f"Error al enviar factura por WhatsApp: {str(e)}")
         flash('Error al procesar la solicitud', 'error')
         return redirect(url_for('main.completed_jobs'))
+
+def cleanup_temp_files(*file_paths):
+    """Eliminar archivos temporales"""
+    for file_path in file_paths:
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            logger.error(f"Error eliminando archivo temporal {file_path}: {str(e)}")
 
 @bp.route('/jobs/<int:job_id>/approve', methods=['GET'])
 @login_required
