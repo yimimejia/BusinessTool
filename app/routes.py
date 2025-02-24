@@ -266,3 +266,70 @@ def send_job_photos(job_id):
         db.session.rollback()
         flash('Error al procesar las fotos', 'error')
         return redirect(url_for('main.completed_jobs'))
+
+@bp.route('/completed_jobs')
+@login_required
+def completed_jobs():
+    """Ver trabajos completados"""
+    try:
+        jobs = CompletedJob.query.filter(
+            CompletedJob.is_delivered.is_(False)
+        ).order_by(CompletedJob.created_at.desc()).all()
+
+        return render_template('completed_jobs.html', jobs=jobs)
+    except Exception as e:
+        logger.error(f"Error al cargar trabajos completados: {str(e)}")
+        flash('Error al cargar los trabajos completados', 'error')
+        return redirect(url_for('main.dashboard'))
+
+@bp.route('/jobs/<int:job_id>/mark-called', methods=['POST'])
+@login_required
+def mark_called(job_id):
+    """Marcar trabajo como llamado"""
+    try:
+        job = CompletedJob.query.get_or_404(job_id)
+        job.is_called = True
+        job.called_at = datetime.utcnow()
+        job.called_by_id = current_user.id
+        db.session.commit()
+
+        flash('Trabajo marcado como llamado', 'success')
+    except Exception as e:
+        logger.error(f"Error al marcar trabajo como llamado: {str(e)}")
+        flash('Error al actualizar el trabajo', 'error')
+
+    return redirect(url_for('main.completed_jobs'))
+
+@bp.route('/jobs/<int:job_id>/mark-delivered', methods=['POST'])
+@login_required
+def mark_delivered(job_id):
+    """Marcar trabajo como entregado"""
+    try:
+        job = CompletedJob.query.get_or_404(job_id)
+        job.is_delivered = True
+        job.delivered_at = datetime.utcnow()
+        job.delivered_by_id = current_user.id
+        db.session.commit()
+
+        flash('Trabajo marcado como entregado', 'success')
+    except Exception as e:
+        logger.error(f"Error al marcar trabajo como entregado: {str(e)}")
+        flash('Error al actualizar el trabajo', 'error')
+
+    return redirect(url_for('main.completed_jobs'))
+
+@bp.route('/jobs/pending-photos')
+@login_required
+@staff_required
+def jobs_pending_photos():
+    """Ver trabajos con fotos pendientes por aprobar"""
+    try:
+        jobs = PendingJob.query.filter_by(
+            pending_type='photo_verification'
+        ).order_by(PendingJob.created_at.desc()).all()
+
+        return render_template('pending_photos.html', jobs=jobs)
+    except Exception as e:
+        logger.error(f"Error al cargar trabajos pendientes: {str(e)}")
+        flash('Error al cargar los trabajos pendientes', 'error')
+        return redirect(url_for('main.dashboard'))
