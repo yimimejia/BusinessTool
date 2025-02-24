@@ -429,25 +429,24 @@ def reject_pending_photos(job_id):
 def approve_photos(message_id):
     """Aprobar y enviar fotos por WhatsApp"""
     try:
-        message = Message.query.get_or_404(message_id)
-
-        # Extraer el ID del trabajo desde el contenido del mensaje
-        job_id_match = re.search(r'trabajo #(\d+)', message.content)
-        if not job_id_match:
-            flash('No se pudo identificar el trabajo asociado', 'error')
+        # Obtener el trabajo pendiente
+        pending_job = PendingJob.query.get_or_404(message_id)
+        
+        if pending_job.pending_type != 'photo_verification':
+            flash('Tipo de trabajo pendiente incorrecto', 'error')
             return redirect(url_for('main.jobs_pending_photos'))
-
-        job_id = int(job_id_match.group(1))
-        job = CompletedJob.query.get_or_404(job_id)
+            
+        # Obtener el trabajo original
+        job = CompletedJob.query.get_or_404(pending_job.original_job_id)
 
         # Generar token único para el enlace temporal
         expiry_date = datetime.utcnow() + timedelta(days=2)
         token = secrets.token_urlsafe(32)
         
         # Guardar token y fecha de expiración en el mensaje
-        message.token = token
-        message.token_expiry = expiry_date
-        message.is_approved = True
+        pending_job.token = token
+        pending_job.token_expiry = expiry_date
+        pending_job.is_approved = True
         
         # Crear enlace para ver las fotos
         photos_url = url_for('main.view_approved_photos', 
