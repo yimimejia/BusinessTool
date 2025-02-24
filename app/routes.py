@@ -50,24 +50,44 @@ def admin_required(f):
 def get_job_invoice_data(job_id=None, qr_code=None):
     """Función interna para obtener datos de factura"""
     try:
+        job = None
         if job_id:
             # Buscar primero en completados
             job = CompletedJob.query.get(job_id)
             if not job:
-                # Si no está en completados, buscar en activos
-                job = Job.query.get(job_id)
-            if not job:
-                # Si no está en activos, buscar en pendientes
-                job = PendingJob.query.get_or_404(job_id)
+                # Si no está en completados, buscar versión completada del trabajo activo
+                active_job = Job.query.get(job_id)
+                if active_job:
+                    job = CompletedJob.query.filter_by(original_job_id=active_job.id).first()
+                    if not job:
+                        job = active_job
+                else:
+                    # Si no está en activos, buscar en pendientes
+                    pending_job = PendingJob.query.get(job_id)
+                    if pending_job:
+                        job = CompletedJob.query.filter_by(original_job_id=pending_job.id).first()
+                        if not job:
+                            job = pending_job
         else:
             # Buscar por QR code, primero en completados
             job = CompletedJob.query.filter_by(qr_code=qr_code).first()
             if not job:
-                job = Job.query.filter_by(qr_code=qr_code).first()
-                if not job:
-                    job = PendingJob.query.filter_by(qr_code=qr_code).first()
+                # Si no está en completados, buscar en activos y su versión completada
+                active_job = Job.query.filter_by(qr_code=qr_code).first()
+                if active_job:
+                    job = CompletedJob.query.filter_by(original_job_id=active_job.id).first()
                     if not job:
-                        return None, None, 0, 0, 0
+                        job = active_job
+                else:
+                    # Si no está en activos, buscar en pendientes
+                    pending_job = PendingJob.query.filter_by(qr_code=qr_code).first()
+                    if pending_job:
+                        job = CompletedJob.query.filter_by(original_job_id=pending_job.id).first()
+                        if not job:
+                            job = pending_job
+
+        if not job:
+            return None, None, 0, 0, 0
 
         # Procesar los montos
         try:
@@ -79,6 +99,7 @@ def get_job_invoice_data(job_id=None, qr_code=None):
                 # Para otros tipos de trabajo, intentar encontrar su versión completada
                 completed_version = CompletedJob.query.filter_by(original_job_id=job.id).first()
                 if completed_version:
+                    job = completed_version  # Usar la versión completada
                     total_amount = float(completed_version.total_amount or 0)
                     deposit_amount = float(completed_version.deposit_amount or 0)
                 else:
