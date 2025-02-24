@@ -2069,51 +2069,6 @@ def pending_jobs():
         flash(f'Error al cargar trabajos pendientes: {str(e)}', '`error')
         return redirect(url_for('main.dashboard'))
 
-@bp.route('/jobs/<int:job_id>/approve', methods=['GET', 'POST'])
-@login_required
-@staff_required
-def approve_job_form(job_id):
-    """Vista para aprobar un trabajo pendiente"""
-    try:
-        job = PendingJob.query.get_or_404(job_id)
-
-        if request.method == 'POST':
-            try:
-                # Procesar el formulario de aprobación
-                approved_job = Job(
-                    description=request.form.get('description'),
-                    designer_id=request.form.get('designer_id'),
-                    registered_by_id=current_user.id,
-                    invoice_number=request.form.get('invoice_number'),
-                    client_name=request.form.get('client_name'),
-                    phone_number=request.form.get('phone_number'),
-                    total_amount=float(request.form.get('total_amount', 0)),
-                    deposit_amount=float(request.form.get('deposit_amount', 0)),
-                    tags=request.form.get('tags')
-                )
-
-                # Generar código QR
-                approved_job.generate_qr_code()
-
-                db.session.add(approved_job)
-                db.session.delete(job)  # Eliminar el trabajo pendiente
-                db.session.commit()
-
-                flash('Trabajo aprobado exitosamente', 'success')
-                return redirect(url_for('main.show_job_qr', job_id=approved_job.id))
-
-            except Exception as e:
-                db.session.rollback()
-                flash(f'Error al aprobar el trabajo: {str(e)}', 'error')
-                return redirect(url_for('main.dashboard'))
-
-        # GET: Mostrar formulario de aprobación
-        designers = User.query.filter_by(is_designer=True).all()
-        return render_template('approve_job.html', job=job, designers=designers)
-
-    except Exception as e:
-        flash(f'Error al cargar el trabajo: {str(e)}', 'error')
-        return redirect(url_for('main.dashboard'))
 
 @bp.route('/api/complete_job', methods=['POST'])
 @login_required
