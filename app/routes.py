@@ -477,9 +477,17 @@ def view_approved_photos(token):
         job = CompletedJob.query.filter_by(temp_token=token).first()
         
         if not job or not job.temp_token or job.temp_token != token:
+            logger.error(f"Token no encontrado o inválido: {token}")
             return render_template('photos_gallery.html', photos=[], expired=True)
             
-        if datetime.utcnow() > job.token_expiry:
+        # Verificar expiración
+        now = datetime.utcnow()
+        if not job.token_expiry:
+            logger.error(f"Fecha de expiración no encontrada para trabajo {job.id}")
+            return render_template('photos_gallery.html', photos=[], expired=True)
+            
+        if now > job.token_expiry:
+            logger.error(f"Token expirado para trabajo {job.id}. Expira: {job.token_expiry}, Ahora: {now}")
             return render_template('photos_gallery.html', photos=[], expired=True)
             
         # Verificar y cargar las fotos
@@ -491,10 +499,13 @@ def view_approved_photos(token):
                     full_path = os.path.join(current_app.static_folder, photo_path)
                     if os.path.exists(full_path):
                         photos.append(photo_path)
+                    else:
+                        logger.warning(f"Foto no encontrada: {full_path}")
             except json.JSONDecodeError:
                 logger.error(f"Error decodificando JSON de fotos para trabajo {job.id}")
                 photos = []
 
+        logger.info(f"Mostrando {len(photos)} fotos para trabajo {job.id}, expira en: {job.token_expiry}")
         return render_template('photos_gallery.html', 
                            photos=photos,
                            expired=False,
@@ -612,13 +623,27 @@ def approve_photos_for_job(message_id):
         job = CompletedJob.query.get_or_404(pending_job.original_job_id)
 
         # Generar token único para el enlace temporal
-        expiry_date = datetime.utcnow() + timedelta(days=2)
         token = secrets.token_urlsafe(32)
+        expiry_date = datetime.utcnow() + timedelta(days=2)
         
         # Copiar fotos y token al trabajo completado
         job.photos = pending_job.photos
         job.temp_token = token
         job.token_expiry = expiry_date
+        
+        # Log para debugging
+        logger.info(f"Configurando token para trabajo {job.id}:")
+        logger.info(f"Token: {token}")
+        logger.info(f"Expira en: {expiry_date}")
+        
+        try:
+            db.session.commit()
+            logger.info(f"Token y fotos guardados correctamente para trabajo {job.id}")
+        except Exception as e:
+            logger.error(f"Error guardando token y fotos: {str(e)}")
+            db.session.rollback()
+            flash('Error al guardar las fotos', 'error')
+            return redirect(url_for('main.jobs_pending_photos'))
         
         # Crear enlace para ver las fotos
         photos_url = url_for('main.view_approved_photos', 
