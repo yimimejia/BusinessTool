@@ -373,69 +373,6 @@ def process_pending_job(job_id):
         flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.pending_verification'))
 
-@bp.route('/jobs/<int:job_id>/approve', methods=['POST'])
-@login_required
-@staff_required
-def approve_pending_job(job_id):
-    """Aprobar un trabajo pendiente"""
-    try:
-        pending_job = PendingJob.query.get_or_404(job_id)
-        
-        # Si es un trabajo original, usar su created_at
-        if pending_job.original_job_id:
-            original_job = Job.query.get(pending_job.original_job_id)
-            created_at = original_job.created_at if original_job else pending_job.created_at
-        else:
-            created_at = pending_job.created_at
-
-        # Crear el trabajo completado
-        completed_job = CompletedJob(
-            original_job_id=pending_job.original_job_id,
-            description=pending_job.description,
-            designer_id=pending_job.designer_id,
-            registered_by_id=current_user.id,
-            invoice_number=pending_job.invoice_number,
-            client_name=pending_job.client_name,
-            phone_number=pending_job.phone_number,
-            created_at=created_at,  # Usar la fecha correcta
-            completed_at=datetime.utcnow(),
-            total_amount=pending_job.total_amount,
-            deposit_amount=pending_job.deposit_amount
-        )
-
-        # Generar QR code
-        completed_job.generate_qr_code()
-        db.session.add(completed_job)
-        
-        # Si hay fotos, moverlas al trabajo completado
-        if pending_job.photos:
-            # Crear un mensaje para el admin con las fotos
-            message = Message(
-                sender_id=current_user.id,
-                recipient_id=1,  # ID del admin
-                content=f"Fotos aprobadas para el trabajo #{completed_job.id}",
-                photos=pending_job.photos,
-                created_at=datetime.utcnow()
-            )
-            db.session.add(message)
-
-        db.session.delete(pending_job)
-        db.session.commit()
-
-        log_activity(
-            'aprobar_trabajo',
-            f"Trabajo aprobado: {completed_job.client_name} - {completed_job.invoice_number}"
-        )
-
-        flash('Trabajo aprobado exitosamente', 'success')
-        return redirect(url_for('main.completed_jobs'))
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error al aprobar trabajo pendiente: {str(e)}")
-        flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
-        return redirect(url_for('main.pending_verification'))
-
 @bp.route('/messages/<int:message_id>/approve-photos', methods=['POST'])
 @login_required
 @admin_required
