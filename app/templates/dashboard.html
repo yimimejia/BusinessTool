@@ -54,9 +54,17 @@
                     <tbody>
                         {% for job in jobs %}
                         <tr>
-                            <td>{{ job.id }}</td>
+                            <td>
+                                <a href="{{ url_for('main.show_job_qr', job_id=job.id) }}" target="_blank" class="text-decoration-none">
+                                    {{ job.id }}
+                                </a>
+                            </td>
                             <td>{{ job.description }}</td>
-                            <td>{{ job.client_name }}</td>
+                            <td>
+                                <a href="{{ url_for('main.show_job_qr', job_id=job.id) }}" target="_blank" class="text-decoration-none">
+                                    {{ job.client_name }}
+                                </a>
+                            </td>
                             <td>{{ job.invoice_number }}</td>
                             <td>
                                 {% if job.is_completed %}
