@@ -268,6 +268,111 @@ def send_job_photos(job_id):
         flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.completed_jobs'))
 
+@bp.route('/jobs/<int:job_id>/send-whatsapp-photos', methods=['GET'])
+@login_required
+def send_whatsapp_photos(job_id):
+    """Enviar mensaje de WhatsApp para fotos"""
+    try:
+        job = CompletedJob.query.get_or_404(job_id)
+        
+        if not job.phone_number:
+            flash('No hay número de teléfono registrado para este cliente', 'error')
+            return redirect(url_for('main.completed_jobs'))
+
+        # Limpiar número de teléfono
+        clean_phone = job.phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+        
+        # Mensaje básico
+        message = f"""*FOTO VIDEO MOJICA*
+¡Hola {job.client_name}!
+
+Sus fotos están listas para ser revisadas.
+Factura: {job.invoice_number}
+
+¡Gracias por su preferencia!"""
+
+        # Crear enlace de WhatsApp
+        whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(message)}"
+        
+        log_activity(
+            'enviar_whatsapp',
+            f"Mensaje WhatsApp enviado a {job.client_name} (Factura: {job.invoice_number})"
+        )
+
+        return redirect(whatsapp_url)
+
+    except Exception as e:
+        logger.error(f"Error al enviar WhatsApp: {str(e)}")
+        flash('Error al procesar la solicitud', 'error')
+        return redirect(url_for('main.completed_jobs'))
+
+@bp.route('/jobs/<int:job_id>/process-pending', methods=['POST'])
+@login_required
+@staff_required
+def process_pending_job(job_id):
+    """Procesar trabajo pendiente"""
+    try:
+        pending_job = PendingJob.query.get_or_404(job_id)
+        
+        # Validar montos
+        try:
+            total_amount = float(request.form.get('total_amount', 0))
+            deposit_amount = float(request.form.get('deposit_amount', 0))
+            if total_amount < 0 or deposit_amount < 0:
+                raise ValueError('Los montos no pueden ser negativos')
+        except ValueError:
+            flash('Error en los montos ingresados. Por favor, verifique los valores.', 'error')
+            return redirect(url_for('main.pending_verification'))
+
+        # Crear el trabajo activo
+        active_job = Job(
+            description=pending_job.description,
+            designer_id=pending_job.designer_id,
+            registered_by_id=current_user.id,
+            invoice_number=request.form.get('invoice_number'),
+            client_name=pending_job.client_name,
+            total_amount=total_amount,
+            deposit_amount=deposit_amount,
+            tags=request.form.get('tags'),
+            phone_number=pending_job.phone_number,
+            created_at=pending_job.created_at,
+            status='pending'  # Asegurarnos que el estado sea pendiente
+        )
+
+        # Generar QR code y obtener ID 
+        active_job.generate_qr_code()
+        db.session.add(active_job)
+        db.session.flush()  # Esto asigna un ID al trabajo
+
+        # Crear factura con el ID del trabajo
+        invoice = Invoice(
+            job_id=active_job.id,
+            job_type='job',
+            invoice_number=request.form.get('invoice_number'),
+            total_amount=total_amount,
+            deposit_amount=deposit_amount,
+            created_at=pending_job.created_at,
+            issued_at=datetime.utcnow()
+        )
+
+        db.session.add(invoice)
+        db.session.delete(pending_job)
+        db.session.commit()
+
+        log_activity(
+            'aprobar_trabajo',
+            f"Trabajo movido a pendientes: {active_job.client_name} - {active_job.invoice_number}"
+        )
+
+        flash('Trabajo aprobado exitosamente', 'success')
+        return redirect(url_for('main.pending_jobs'))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al aprobar trabajo pendiente: {str(e)}")
+        flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
+        return redirect(url_for('main.pending_verification'))
+
 @bp.route('/messages/<int:message_id>/approve-photos', methods=['POST'])
 @login_required
 @admin_required
@@ -890,78 +995,6 @@ def approve_job_form(job_id):
     job = PendingJob.query.get_or_404(job_id)
     return render_template('approve_job.html', job=job)
 
-@bp.route('/jobs/pending/<int:job_id>/approve', methods=['POST'])
-@login_required
-@staff_required
-def process_pending_job(job_id):
-    """Aprobar un trabajo pendiente"""
-    try:
-        pending_job = PendingJob.query.get_or_404(job_id)
-        
-        # Obtener y validar los montos del formulario
-        try:
-            total_amount = float(request.form.get('total_amount', 0))
-            deposit_amount = float(request.form.get('deposit_amount', 0))
-            
-            if total_amount < 0 or deposit_amount < 0:
-                raise ValueError("Los montos no pueden ser negativos")
-            
-            if deposit_amount > total_amount:
-                raise ValueError("El abono no puede ser mayor que el monto total")
-            
-        except ValueError as e:
-            flash('Error en los montos ingresados. Por favor, verifique los valores.', 'error')
-            return redirect(url_for('main.pending_verification'))
-
-        # Crear el trabajo activo con estado pendiente
-        active_job = Job(
-            description=pending_job.description,
-            designer_id=pending_job.designer_id,
-            registered_by_id=current_user.id,
-            invoice_number=request.form.get('invoice_number'),
-            client_name=pending_job.client_name,
-            total_amount=total_amount,
-            deposit_amount=deposit_amount,
-            tags=request.form.get('tags'),
-            phone_number=pending_job.phone_number,
-            created_at=pending_job.created_at,
-            status='pending'  # Asegurarnos que el estado sea pendiente
-        )
-
-        # Generar QR code y obtener ID 
-        active_job.generate_qr_code()
-        db.session.add(active_job)
-        db.session.flush()  # Esto asigna un ID al trabajo
-
-        # Crear factura con el ID del trabajo
-        invoice = Invoice(
-            job_id=active_job.id,
-            job_type='job',
-            invoice_number=request.form.get('invoice_number'),
-            total_amount=total_amount,
-            deposit_amount=deposit_amount,
-            created_at=pending_job.created_at,
-            issued_at=datetime.utcnow()
-        )
-
-        db.session.add(invoice)
-        db.session.delete(pending_job)
-        db.session.commit()
-
-        log_activity(
-            'aprobar_trabajo',
-            f"Trabajo movido a pendientes: {active_job.client_name} - {active_job.invoice_number}"
-        )
-
-        flash('Trabajo aprobado exitosamente', 'success')
-        # Redirigir a la vista de trabajos pendientes 
-        return redirect(url_for('main.pending_jobs'))
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error al aprobar trabajo pendiente: {str(e)}")
-        flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
-        return redirect(url_for('main.pending_verification'))
 
 @bp.route('/jobs/<int:job_id>/edit', methods=['GET', 'POST'])
 @login_required
