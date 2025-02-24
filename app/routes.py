@@ -306,17 +306,25 @@ def send_whatsapp_invoice(job_id):
                             job_id=job.id,
                             _external=True)
         
-        # Mensaje básico con enlace a la factura
+        # Mensaje profesional con detalles importantes
         message = f"""*FOTO VIDEO MOJICA*
-¡Hola {job.client_name}!
+¡Saludos estimado(a) {job.client_name}!
 
-Sus fotos están listas para ser revisadas.
-Factura: {job.invoice_number}
+Le enviamos su factura correspondiente al trabajo realizado:
 
-Para ver su factura, use este enlace:
+📋 Número de Factura: {job.invoice_number}
+💰 Monto Total: ${float(job.total_amount or 0):.2f}
+💵 Abono: ${float(job.deposit_amount or 0):.2f}
+🔸 Restante: ${float((job.total_amount or 0) - (job.deposit_amount or 0)):.2f}
+
+Para ver o descargar su factura, haga clic en el siguiente enlace:
 {invoice_url}
 
-¡Gracias por su preferencia!"""
+Agradecemos su confianza en nuestros servicios.
+¡Que tenga un excelente día!
+
+*FOTO VIDEO MOJICA*
+Calidad y profesionalismo"""
 
         # Crear enlace de WhatsApp con el mensaje
         whatsapp_url = f"https://wa.me/{whatsapp_phone}?text={urllib.parse.quote(message)}"
