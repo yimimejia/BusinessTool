@@ -314,6 +314,24 @@ Factura: {job.invoice_number}
         flash('Error al procesar la solicitud', 'error')
         return redirect(url_for('main.completed_jobs'))
 
+@bp.route('/jobs/<int:job_id>/approve', methods=['GET'])
+@login_required
+@staff_required
+def approve_job_form(job_id):
+    """Mostrar formulario de aprobación de trabajo"""
+    try:
+        job = PendingJob.query.get_or_404(job_id)
+        
+        if job.pending_type != 'new_job':
+            flash('Tipo de trabajo pendiente incorrecto', 'error')
+            return redirect(url_for('main.pending_verification'))
+            
+        return render_template('approve_job.html', job=job)
+    except Exception as e:
+        logger.error(f"Error al mostrar formulario de aprobación: {str(e)}")
+        flash('Error al cargar el formulario', 'error')
+        return redirect(url_for('main.pending_verification'))
+
 @bp.route('/jobs/<int:job_id>/process-pending', methods=['POST'])
 @login_required
 @staff_required
