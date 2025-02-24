@@ -875,7 +875,7 @@ def process_pending_job(job_id):
             flash('Error en los montos ingresados. Por favor, verifique los valores.', 'error')
             return redirect(url_for('main.pending_verification'))
 
-        # Crear el trabajo pendiente
+        # Crear el trabajo activo con estado pendiente
         active_job = Job(
             description=pending_job.description,
             designer_id=pending_job.designer_id,
@@ -886,7 +886,8 @@ def process_pending_job(job_id):
             deposit_amount=deposit_amount,
             tags=request.form.get('tags'),
             phone_number=pending_job.phone_number,
-            created_at=pending_job.created_at
+            created_at=pending_job.created_at,
+            status='pending'  # Asegurarnos que el estado sea pendiente
         )
 
         # Generar QR code y obtener ID 
@@ -915,7 +916,7 @@ def process_pending_job(job_id):
         )
 
         flash('Trabajo aprobado exitosamente', 'success')
-        # Redirigir a la vista de trabajos pendientes
+        # Redirigir a la vista de trabajos pendientes 
         return redirect(url_for('main.pending_jobs'))
 
     except Exception as e:
