@@ -27,17 +27,17 @@ def create_app():
     # Configure Flask app
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_pre_ping": True,
-        "pool_recycle": 300,
-        "pool_timeout": 30,
-        "pool_size": 10,
-        "max_overflow": 5,
+        "pool_pre_ping": True,  # Verificar conexión antes de usar
+        "pool_recycle": 300,    # Reciclar conexiones cada 5 minutos
+        "pool_timeout": 30,     # Timeout de conexión de 30 segundos
+        "pool_size": 10,        # Tamaño máximo del pool
+        "max_overflow": 5,      # Conexiones adicionales permitidas
         "connect_args": {
-            "connect_timeout": 10,
-            "keepalives": 1,
-            "keepalives_idle": 30,
-            "keepalives_interval": 10,
-            "keepalives_count": 5
+            "connect_timeout": 10,  # Timeout de conexión inicial
+            "keepalives": 1,        # Mantener conexiones vivas
+            "keepalives_idle": 30,  # Tiempo de inactividad antes de keepalive
+            "keepalives_interval": 10,  # Intervalo entre keepalives
+            "keepalives_count": 5    # Número de reintentos de keepalive
         }
     }
     app.secret_key = os.environ.get("SESSION_SECRET", "dev-key-temporary")
@@ -68,7 +68,7 @@ def create_app():
         from app import models
 
         # Import and register routes blueprint
-        from app.views import bp as main_blueprint
+        from app.routes import bp as main_blueprint
         app.register_blueprint(main_blueprint)
 
         # Create tables
