@@ -443,7 +443,7 @@ def approve_photos(message_id):
         expiry_date = datetime.utcnow() + timedelta(days=2)
         token = secrets.token_urlsafe(32)
         
-        # Guardar token y fecha de expiración en el mensaje
+        # Guardar token y fecha de expiración en el trabajo pendiente
         pending_job.token = token
         pending_job.token_expiry = expiry_date
         pending_job.is_approved = True
@@ -473,6 +473,8 @@ Para ver y descargar sus fotos, use este enlace (válido por 48 horas):
 
 ¡Gracias por su preferencia!"""
 
+        # Eliminar el trabajo pendiente después de preparar todo
+        db.session.delete(pending_job)
         db.session.commit()
 
         log_activity(
