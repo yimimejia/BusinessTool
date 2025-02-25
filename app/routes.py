@@ -508,7 +508,7 @@ def process_pending_job(job_id):
             flash('Tipo de trabajo pendiente incorrecto', 'error')
             return redirect(url_for('main.pending_verification'))
 
-        # Crear el trabajo activo copiando los datos directamente
+        # Crear el trabajo activo
         active_job = Job(
             description=pending_job.description,
             designer_id=pending_job.designer_id,
@@ -523,12 +523,12 @@ def process_pending_job(job_id):
             status='pending'
         )
 
-        # Generar QR code
-        active_job.generate_qr_code()
+        # Generar QR code con el formato FVM-{id}
         db.session.add(active_job)
-        db.session.flush()  # Obtener el ID del trabajo
-
-        # Crear factura copiando los datos directamente
+        db.session.flush()  # Para obtener el ID
+        active_job.generate_qr_code()
+        
+        # Crear factura
         invoice = Invoice(
             job_id=active_job.id,
             job_type='job',
@@ -543,6 +543,8 @@ def process_pending_job(job_id):
         db.session.delete(pending_job)
         db.session.commit()
 
+        logger.info(f"Trabajo creado con QR: {active_job.qr_code}")
+        
         flash('Trabajo aprobado exitosamente', 'success')
         return redirect(url_for('main.pending_jobs'))
 

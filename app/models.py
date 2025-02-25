@@ -123,14 +123,14 @@ class Job(db.Model):
     phone_number = db.Column(db.String(20))
     description = db.Column(db.Text, nullable=False)
     designer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    registered_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False) #Added from original
+    registered_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     completed_at = db.Column(db.DateTime)
     status = db.Column(db.String(20), default='pending')  # pending, completed, delivered
     total_amount = db.Column(db.Numeric(10, 2), nullable=False)
     deposit_amount = db.Column(db.Numeric(10, 2), default=0)
     qr_code = db.Column(db.String(100), unique=True)
-    tags = db.Column(db.String(200)) #Added from original
+    tags = db.Column(db.String(200))
 
     @validates('phone_number')
     def validate_phone_number(self, key, phone_number):
