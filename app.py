@@ -44,3 +44,8 @@ def create_app():
             return User.query.get(int(user_id))
 
         return app
+
+from app import app
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)

@@ -841,6 +841,10 @@ def new_pending_job():
             return redirect(url_for('main.new_pending_job'))
 
         try:
+            # Formatear número de teléfono
+            if not phone_number.startswith('+1'):
+                phone_number = f'+1{phone_number}' if phone_number.startswith('1') else f'+1{phone_number}'
+
             # Crear trabajo pendiente
             pending_job = PendingJob(
                 description=description,
@@ -867,9 +871,7 @@ def new_pending_job():
             flash('Error al crear el trabajo pendiente', 'error')
             return redirect(url_for('main.new_pending_job'))
 
-    # Para peticiones GET, generar CSRF token y mostrar formulario
-    csrf_token = generate_csrf()
-    return render_template('new_pending_job.html', csrf_token=csrf_token)
+    return render_template('new_pending_job.html')
 
 @bp.route('/')
 def index():
@@ -2292,13 +2294,7 @@ def public_job(qr_code):
         logger.error(f"Error mostrando trabajo público: {str(e)}")
         return "Error al mostrar el trabajo", 500
 
-@bp.route('/jobs/pending/new', methods=['GET', 'POST'])
-@login_required
-def new_pending_job():
-    if request.method == 'POST':
-        try:
-            phone_number = request.form.get('phone_number')
-            if not phone_number.startswith('+1'):
+
                 phone_number = f'+1{phone_number}' if phone_number.startswith('1') else f'+1{phone_number}'
 
             pending_job = PendingJob(

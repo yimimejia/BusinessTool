@@ -3,7 +3,6 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate 
-from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.orm import DeclarativeBase
 from datetime import datetime
 import pytz
@@ -18,7 +17,6 @@ class Base(DeclarativeBase):
 db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 migrate = Migrate()
-csrf = CSRFProtect()
 
 # Create app factory
 def create_app():
@@ -40,10 +38,6 @@ def create_app():
     # Ensure secret key is set
     app.secret_key = os.environ.get("SESSION_SECRET", "dev-key-temporary")
 
-    # Configure CSRF protection
-    app.config["WTF_CSRF_SECRET_KEY"] = os.environ.get("CSRF_SECRET_KEY", "csrf-key-temporary")
-    app.config["WTF_CSRF_ENABLED"] = True
-
     app.config["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379")
 
     # Create uploads directory
@@ -59,7 +53,6 @@ def create_app():
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
-    csrf.init_app(app)
 
     # Configure login
     login_manager.login_view = 'main.login'
@@ -103,7 +96,6 @@ def create_app():
                 logging.info("Usuario administrador creado exitosamente")
         except Exception as e:
             logging.error(f"Error during app initialization: {str(e)}")
-            # No necesitamos hacer raise aquí, permitimos que la app continúe
 
         return app
 
