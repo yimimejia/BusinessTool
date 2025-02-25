@@ -7,49 +7,49 @@
   "theme_color": "#000000",
   "icons": [
     {
-      "src": "/static/icons/logo-72x72.png",
+      "src": "/static/icons/camera-72x72.png",
       "sizes": "72x72",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/static/icons/logo-96x96.png",
+      "src": "/static/icons/camera-96x96.png",
       "sizes": "96x96",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/static/icons/logo-128x128.png",
+      "src": "/static/icons/camera-128x128.png",
       "sizes": "128x128",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/static/icons/logo-144x144.png",
+      "src": "/static/icons/camera-144x144.png",
       "sizes": "144x144",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/static/icons/logo-152x152.png",
+      "src": "/static/icons/camera-152x152.png",
       "sizes": "152x152",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/static/icons/logo-192x192.png",
+      "src": "/static/icons/camera-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/static/icons/logo-384x384.png",
+      "src": "/static/icons/camera-384x384.png",
       "sizes": "384x384",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/static/icons/logo-512x512.png",
+      "src": "/static/icons/camera-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

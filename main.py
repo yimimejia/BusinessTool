@@ -1,4 +1,13 @@
 from app import app
+import logging
+
+# Configurar logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    try:
+        logger.info("Iniciando servidor Flask...")
+        app.run(host='0.0.0.0', port=5000, debug=True)
+    except Exception as e:
+        logger.error(f"Error al iniciar el servidor: {str(e)}")

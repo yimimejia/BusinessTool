@@ -4,14 +4,14 @@ const urlsToCache = [
   '/static/styles.css',
   '/static/js/notifications.js',
   '/static/notification.mp3',
-  '/static/icons/logo-72x72.png',
-  '/static/icons/logo-96x96.png',
-  '/static/icons/logo-128x128.png',
-  '/static/icons/logo-144x144.png',
-  '/static/icons/logo-152x152.png',
-  '/static/icons/logo-192x192.png',
-  '/static/icons/logo-384x384.png',
-  '/static/icons/logo-512x512.png',
+  '/static/icons/camera-72x72.png',
+  '/static/icons/camera-96x96.png',
+  '/static/icons/camera-128x128.png',
+  '/static/icons/camera-144x144.png',
+  '/static/icons/camera-152x152.png',
+  '/static/icons/camera-192x192.png',
+  '/static/icons/camera-384x384.png',
+  '/static/icons/camera-512x512.png',
   '/static/manifest.json'
 ];
 
@@ -46,8 +46,8 @@ self.addEventListener('fetch', event => {
 self.addEventListener('push', event => {
   const options = {
     body: event.data.text(),
-    icon: '/static/icons/logo-192x192.png',
-    badge: '/static/icons/logo-72x72.png',
+    icon: '/static/icons/camera-192x192.png',
+    badge: '/static/icons/camera-72x72.png',
     sound: '/static/notification.mp3',
     vibrate: [200, 100, 200]
   };
