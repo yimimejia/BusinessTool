@@ -94,6 +94,13 @@ class User(UserMixin, db.Model):
     def get_unread_messages_count(self):
         return Message.query.filter_by(recipient_id=self.id, is_read=False).count()
 
+    def get_unread_messages_count_from(self, sender_id):
+        return Message.query.filter_by(
+            recipient_id=self.id,
+            sender_id=sender_id,
+            is_read=False
+        ).count()
+
     def get_messages(self):
         return Message.query.filter(
             (Message.recipient_id == self.id) | (Message.sender_id == self.id)
