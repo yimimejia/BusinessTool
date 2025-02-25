@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 
 {% block title %}Mensajes{% endblock %}
@@ -31,6 +32,11 @@
         <!-- Chat -->
         <div class="col-md-8">
             <div class="chat-container" style="height: calc(100vh - 200px); display: flex; flex-direction: column;">
+                <!-- Header del chat -->
+                <div class="chat-header p-3 border-bottom">
+                    <h5 id="selectedUserName">Selecciona un usuario para chatear</h5>
+                </div>
+
                 <!-- Mensajes -->
                 <div class="messages-container flex-grow-1" style="overflow-y: auto; padding: 20px;">
                     {% for message in messages %}
@@ -62,15 +68,9 @@
                         <div class="flex-grow-1">
                             <input type="text" class="form-control" id="content" name="content" placeholder="Escribe un mensaje..." required>
                         </div>
-                        <div class="d-flex gap-2">
-                            <label class="btn btn-outline-primary mb-0" style="cursor: pointer;">
-                                <i class="bi bi-image"></i>
-                                <input type="file" name="photos" multiple accept="image/*" style="display: none;">
-                            </label>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-send"></i>
-                            </button>
-                        </div>
+                        <button type="submit" class="btn btn-primary" id="sendButton" disabled>
+                            <i class="bi bi-send"></i> Enviar
+                        </button>
                     </form>
                 </div>
             </div>
@@ -84,6 +84,7 @@
     padding: 10px 15px;
     border-radius: 15px;
     position: relative;
+    margin-bottom: 10px;
 }
 
 .message-bubble.sent {
@@ -113,6 +114,10 @@
     padding: 20px;
     background-image: url("data:image/svg+xml,%3Csvg width='70' height='70' viewBox='0 0 70 70' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23b2b2b2' fill-opacity='0.1' fill-rule='evenodd'%3E%3Cpath d='M0 0h35v35H0V0zm5 5h25v25H5V5zm5 5h15v15H10V10z'/%3E%3C/g%3E%3C/svg%3E");
 }
+
+.user-chat.active {
+    background-color: #e9ecef;
+}
 </style>
 
 {% block scripts %}
@@ -120,6 +125,9 @@
 document.addEventListener('DOMContentLoaded', function() {
     const userChats = document.querySelectorAll('.user-chat');
     const recipientIdInput = document.getElementById('recipient_id');
+    const selectedUserName = document.getElementById('selectedUserName');
+    const sendButton = document.getElementById('sendButton');
+    const contentInput = document.getElementById('content');
 
     userChats.forEach(chat => {
         chat.addEventListener('click', function(e) {
@@ -128,8 +136,13 @@ document.addEventListener('DOMContentLoaded', function() {
             userChats.forEach(c => c.classList.remove('active'));
             // Agregar clase activa al seleccionado
             this.classList.add('active');
-            // Actualizar recipient_id
+            // Actualizar recipient_id y nombre del usuario seleccionado
             recipientIdInput.value = this.dataset.userId;
+            selectedUserName.textContent = this.dataset.userName;
+            // Habilitar el botón de enviar
+            sendButton.disabled = false;
+            // Enfocar el input de mensaje
+            contentInput.focus();
         });
     });
 
