@@ -151,57 +151,57 @@
     <div class="toast-container"></div>
 
     <!-- Modal para trabajos urgentes -->
-    <div class="modal fade" id="urgentJobsModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title">
-                        <i class="bi bi-exclamation-triangle-fill"></i> 
-                        Trabajos Urgentes
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+<div class="modal fade" id="urgentJobsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill"></i> 
+                    v1.1 - Trabajos Urgentes
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% if urgent_jobs %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Cliente</th>
+                                <th>Descripción</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for job in urgent_jobs %}
+                            <tr>
+                                <td>{{ job.id }}</td>
+                                <td>{{ job.client_name }}</td>
+                                <td>{{ job.description }}</td>
+                                <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
+                                <td>
+                                    <a href="{{ url_for('main.display_job_invoice', job_id=job.id) }}" 
+                                       class="btn btn-sm btn-primary">
+                                        <i class="bi bi-eye"></i> Ver
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-                <div class="modal-body">
-                    {% if urgent_jobs %}
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Cliente</th>
-                                    <th>Descripción</th>
-                                    <th>Fecha</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for job in urgent_jobs %}
-                                <tr>
-                                    <td>{{ job.id }}</td>
-                                    <td>{{ job.client_name }}</td>
-                                    <td>{{ job.description }}</td>
-                                    <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
-                                    <td>
-                                        <a href="{{ url_for('main.display_job_invoice', job_id=job.id) }}" 
-                                           class="btn btn-sm btn-primary">
-                                            <i class="bi bi-eye"></i> Ver
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <p class="text-center">No hay trabajos urgentes pendientes.</p>
-                    {% endif %}
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                </div>
+                {% else %}
+                <p class="text-center">No hay trabajos urgentes pendientes.</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
+</div>
 
     {% if request.endpoint != 'main.view_approved_photos' %}
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
