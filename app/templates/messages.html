@@ -48,23 +48,15 @@
                         <div class="mb-3">
                             <label for="recipient_id" class="form-label">Seleccionar destinatario:</label>
                             <select class="form-select" id="recipient_id" name="recipient_id" required>
-                                <option value="">Seleccionar usuario...</option>
+                                <option value="">Seleccionar destinatario...</option>
+                                <option value="all">Enviar a todos los diseñadores</option>
                                 {% for user in users %}
-                                <option value="{{ user.id }}">{{ user.name }} {% if user.is_admin %}(Admin){% elif user.is_supervisor %}(Supervisor){% else %}(Diseñador){% endif %}</option>
+                                    {% if user.id != current_user.id %}
+                                    <option value="{{ user.id }}">{{ user.name }} {% if user.is_admin %}(Admin){% elif user.is_supervisor %}(Supervisor){% else %}(Diseñador){% endif %}</option>
+                                    {% endif %}
                                 {% endfor %}
                             </select>
-                        </div>
-                        <div class="form-check mb-3">
-                            <input type="checkbox" class="form-check-input" id="sendToAll" name="send_to_all" value="true">
-                            <label class="form-check-label" for="sendToAll">Enviar a todos los diseñadores</label>
-                        </div>
-
-                        <select name="recipient_id" class="form-control mb-2" id="recipientSelect">
-                            <option value="">Seleccionar destinatario...</option>
-                            {% for user in users if user.is_designer %}
-                                <option value="{{ user.id }}">{{ user.name }}</option>
-                            {% endfor %}
-                        </select>
+                        </div>t>
 
                         <div class="mb-3">
                             <label for="content" class="form-label">Mensaje</label>
