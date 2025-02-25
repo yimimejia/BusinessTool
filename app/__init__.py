@@ -34,6 +34,10 @@ def create_app():
         "max_overflow": 5
     }
 
+    # Configure upload folder
+    app.config['UPLOAD_FOLDER'] = os.path.join(app.static_folder, 'uploads')
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
     # Ensure secret key is set
     app.secret_key = os.environ.get("SESSION_SECRET", "dev-key-temporary")
 
