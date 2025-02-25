@@ -1,10 +1,12 @@
 {
   "name": "FOTO VIDEO MOJICA",
-  "short_name": "FV Mojica",
+  "short_name": "FV MOJICA",
+  "description": "Sistema de gestión de trabajos fotográficos y de video",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#000000",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "/static/icons/camera-72x72.png",

@@ -1,32 +1,45 @@
-from PIL import Image, ImageDraw
+from PIL import Image
 import os
 
-def generate_pwa_icons():
-    # Asegurarnos de que el directorio de íconos exista
+def process_logo():
+    """
+    Procesa el logo de la cámara y genera los diferentes tamaños de iconos necesarios
+    para la PWA.
+    """
+    # Asegurar que el directorio de iconos existe
     icons_dir = os.path.join('app', 'static', 'icons')
     os.makedirs(icons_dir, exist_ok=True)
 
-    sizes = [(192, 192), (512, 512)]
-    
-    for size in sizes:
-        # Crear una imagen con fondo negro
-        img = Image.new('RGB', size, color='black')
-        draw = ImageDraw.Draw(img)
-        
-        # Calcular el tamaño del círculo (80% del tamaño más pequeño)
-        circle_size = int(min(size) * 0.8)
-        
-        # Calcular las coordenadas para centrar el círculo
-        x = (size[0] - circle_size) // 2
-        y = (size[1] - circle_size) // 2
-        
-        # Dibujar un círculo blanco
-        draw.ellipse([x, y, x + circle_size, y + circle_size], fill='white')
-        
-        # Guardar el ícono
-        filename = f'icon-{size[0]}x{size[1]}.png'
-        filepath = os.path.join(icons_dir, filename)
-        img.save(filepath)
+    try:
+        # Abrir la imagen del logo
+        with Image.open('attached_assets/123_1740442189049.png') as img:
+            # Convertir a RGBA si no lo está ya
+            if img.mode != 'RGBA':
+                img = img.convert('RGBA')
+
+            # Tamaños requeridos para PWA
+            sizes = [
+                (72, 72),
+                (96, 96),
+                (128, 128),
+                (144, 144),
+                (152, 152),
+                (192, 192),
+                (384, 384),
+                (512, 512)
+            ]
+
+            # Generar cada tamaño
+            for width, height in sizes:
+                resized = img.resize((width, height), Image.Resampling.LANCZOS)
+                output_path = f'app/static/icons/camera-{width}x{width}.png'
+                resized.save(output_path, 'PNG')
+                print(f'Generated: {output_path}')
+
+        return True
+    except Exception as e:
+        print(f'Error processing logo: {str(e)}')
+        return False
 
 if __name__ == '__main__':
-    generate_pwa_icons()
+    process_logo()
