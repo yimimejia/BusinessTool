@@ -1038,16 +1038,25 @@ def send_message():
         flash('Usuario no encontrado', 'error')
         return redirect(url_for('main.messages'))
 
-    message = Message(
-        sender_id=current_user.id,
-        recipient_id=recipient_id,
-        content=content
-    )
-    db.session.add(message)
-    send_notification(recipient_id, "Nuevo mensaje", content)
-    log_activity('enviar_mensaje', f"Mensaje enviado a {recipient.name}")
+    try:
+        message = Message(
+            sender_id=current_user.id,
+            recipient_id=recipient_id,
+            content=content
+        )
+        db.session.add(message)
+        db.session.commit()
 
-    db.session.commit()
+        # Send notification after successful commit
+        from app.utils.notifications import send_notification
+        send_notification(recipient_id, "Nuevo mensaje", content)
+        log_activity('enviar_mensaje', f"Mensaje enviado a {recipient.name}")
+
+        flash('Mensaje enviado exitosamente', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al enviar mensaje: {str(e)}")
+        flash('Error al enviar el mensaje', 'error')
     flash('Mensaje enviado exitosamente', 'success')
     return redirect(url_for('main.messages'))
 
