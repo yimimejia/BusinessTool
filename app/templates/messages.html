@@ -252,19 +252,15 @@
                         });
                         
                         if (response.ok) {
-                            // Clear message input
                             contentInput.value = '';
-                            // Optionally refresh messages
-                            // You can add message refresh logic here
+                            window.location.reload();
                         }
                     } catch (error) {
                         console.error('Error:', error);
                     }
-                };;
+                };
                 sendButton.disabled = false;
                 contentInput.focus();
-                
-                window.location.href = `/messages?user_id=${userId}`;
             });
         });
 

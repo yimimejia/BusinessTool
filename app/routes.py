@@ -2934,4 +2934,3 @@ def generate_invoice_view(qr_code=None):
     except Exception as e:
         logger.error(f"Error generando vista de factura: {str(e)}")
         return "Error al generar la vista de factura", 500
-
