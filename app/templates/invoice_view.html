@@ -1,68 +1,174 @@
-{% extends "base.html" %}
-{% block title %}FOTO VIDEO MOJICA - Factura #{{ job.invoice_number }}{% endblock %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FOTO VIDEO MOJICA - Factura #{{ job.invoice_number }}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: white;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .header p {
+            margin: 8px 0 0;
+            font-size: 16px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            padding: 15px;
+            gap: 10px;
+            border-top: 1px solid #eee;
+            border-bottom: 1px solid #eee;
+        }
+        .info-item strong {
+            display: block;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        .info-item span {
+            font-size: 16px;
+        }
+        .payment-details {
+            background: #f5f5f5;
+            margin: 15px;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .payment-details h2 {
+            margin: 0 0 15px;
+            font-size: 18px;
+        }
+        .payment-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .payment-item strong {
+            display: block;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        .payment-item span {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .qr-section {
+            text-align: center;
+            padding: 20px;
+        }
+        .qr-section img {
+            width: 200px;
+            height: 200px;
+        }
+        .qr-section p {
+            margin: 10px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+            padding: 15px;
+            justify-content: center;
+        }
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-print {
+            background: #007aff;
+            color: white;
+        }
+        .btn-whatsapp {
+            background: #25D366;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>FOTO VIDEO MOJICA</h1>
+        <p>Factura #{{ job.invoice_number }}</p>
+    </div>
 
-{% block content %}
-<div class="container mt-4">
-  <div class="card">
-    <div class="card-body">
-      <div class="text-center mb-4">
-        <h2>FOTO VIDEO MOJICA</h2>
-        <p class="mb-0">Factura #{{ job.invoice_number }}</p>
-      </div>
-
-      <div class="row">
-        <div class="col-6">
-          <p><strong>Cliente:</strong> {{ job.client_name }}</p>
-          <p><strong>Fecha:</strong> {{ job.created_at.strftime('%d/%m/%Y') }}</p>
+    <div class="info-grid">
+        <div class="info-item">
+            <strong>Cliente:</strong>
+            <span>{{ job.client_name }}</span>
         </div>
-        <div class="col-6">
-          <p><strong>Teléfono:</strong> {{ job.phone_number }}</p>
-          <p><strong>Descripción:</strong> {{ job.description }}</p>
+        <div class="info-item">
+            <strong>Teléfono:</strong>
+            <span>{{ job.phone_number }}</span>
         </div>
-      </div>
-
-      <div class="card bg-light mt-4">
-        <div class="card-body">
-          <h5>Detalles del Pago</h5>
-          <div class="row">
-            <div class="col-4">
-              <p class="mb-1"><strong>Monto Total:</strong></p>
-              <p class="h5">RD${{ "%.2f"|format(total_amount) }}</p>
-            </div>
-            <div class="col-4">
-              <p class="mb-1"><strong>Abono:</strong></p>
-              <p class="h5">RD${{ "%.2f"|format(deposit_amount) }}</p>
-            </div>
-            <div class="col-4">
-              <p class="mb-1"><strong>Restante:</strong></p>
-              <p class="h5">RD${{ "%.2f"|format(remaining_amount) }}</p>
-            </div>
-          </div>
+        <div class="info-item">
+            <strong>Fecha:</strong>
+            <span>{{ job.created_at.strftime('%d/%m/%Y') }}</span>
         </div>
-      </div>
+        <div class="info-item">
+            <strong>Descripción:</strong>
+            <span>{{ job.description }}</span>
+        </div>
+    </div>
 
-      <div class="text-center mt-4">
-        <img src="data:image/png;base64,{{ qr_image }}" alt="QR Code" style="max-width: 200px;">
-        <p class="text-muted mt-2">Escanee este código para verificar su trabajo</p>
-      </div>
+    <div class="payment-details">
+        <h2>Detalles del Pago</h2>
+        <div class="payment-grid">
+            <div class="payment-item">
+                <strong>Monto Total:</strong>
+                <span>RD${{ "%.2f"|format(total_amount) }}</span>
+            </div>
+            <div class="payment-item">
+                <strong>Abono:</strong>
+                <span>RD${{ "%.2f"|format(deposit_amount) }}</span>
+            </div>
+            <div class="payment-item">
+                <strong>Restante:</strong>
+                <span>RD${{ "%.2f"|format(remaining_amount) }}</span>
+            </div>
+        </div>
+    </div>
 
-      <div class="d-flex justify-content-center mt-4 gap-2">
-        <button onclick="window.print()" class="btn btn-primary">
-          <i class="bi bi-printer"></i> Imprimir
+    <div class="qr-section">
+        <img src="data:image/png;base64,{{ qr_image }}" alt="QR Code">
+        <p>Escanee este código para verificar su trabajo</p>
+    </div>
+
+    <div class="actions">
+        <button onclick="window.print()" class="btn btn-print">
+            <i class="bi bi-printer"></i> Imprimir
         </button>
         <a href="https://wa.me/{{ job.phone_number|replace('+', '')|replace(' ', '') }}?text={{ whatsapp_message|urlencode }}" 
-           class="btn btn-success" target="_blank">
-          <i class="bi bi-whatsapp"></i> Enviar por WhatsApp
+           class="btn btn-whatsapp" target="_blank">
+            <i class="bi bi-whatsapp"></i> Enviar por WhatsApp
         </a>
-      </div>
     </div>
-  </div>
-</div>
 
-<style>
-@media print {
-  .btn { display: none; }
-  .container { max-width: 100%; }
-}
-</style>
-{% endblock %}
+    <style>
+        @media print {
+            .actions { display: none; }
+            .payment-details { -webkit-print-color-adjust: exact; }
+        }
+    </style>
+</body>
+</html>
