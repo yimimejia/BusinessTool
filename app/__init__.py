@@ -77,6 +77,11 @@ def create_app():
         login_manager.login_view = 'main.login'
         logger.info("Login manager configured")
 
+        # Ensure icons directory exists
+        icons_dir = os.path.join(app.static_folder, 'icons')
+        os.makedirs(icons_dir, exist_ok=True)
+        logger.info(f"Icons directory ensured at: {icons_dir}")
+
         # Register blueprints
         logger.info("Registering blueprints...")
         app.register_blueprint(sse, url_prefix='/stream')
