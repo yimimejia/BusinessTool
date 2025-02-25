@@ -1,7 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response, send_from_directory, session, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
-from flask_wtf.csrf import generate_csrf
 from functools import wraps
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy import or_, desc, literal_column
@@ -31,6 +30,49 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 bp = Blueprint('main', __name__)
+
+@bp.route('/jobs/pending/new', methods=['GET', 'POST'])
+@login_required
+def new_pending_job():
+    """Crear un nuevo trabajo pendiente"""
+    if request.method == 'POST':
+        description = request.form.get('description')
+        client_name = request.form.get('client_name')
+        phone_number = request.form.get('phone_number')
+        designer_id = current_user.id
+
+        if not all([description, client_name, phone_number]):
+            flash('Por favor complete todos los campos requeridos', 'error')
+            return redirect(url_for('main.new_pending_job'))
+
+        try:
+            # Formatear número de teléfono
+            if not phone_number.startswith('+1'):
+                phone_number = f'+1{phone_number}' if phone_number.startswith('1') else f'+1{phone_number}'
+
+            # Crear trabajo pendiente
+            pending_job = PendingJob(
+                description=description,
+                designer_id=designer_id,
+                registered_by_id=current_user.id,
+                client_name=client_name,
+                phone_number=phone_number,
+                pending_type='new_job'
+            )
+            
+            db.session.add(pending_job)
+            db.session.commit()
+            
+            flash('Trabajo pendiente creado exitosamente', 'success')
+            return redirect(url_for('main.dashboard'))
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error al crear trabajo pendiente: {str(e)}")
+            flash('Error al crear el trabajo pendiente', 'error')
+            return redirect(url_for('main.new_pending_job'))
+
+    return render_template('new_pending_job.html')
 
 def staff_required(f):
     """Decorator para requerir que el usuario sea admin o supervisor"""
@@ -825,50 +867,6 @@ Para ver y descargar sus fotos, use este enlace (válido por 48 horas):
 @bp.route('/stream')
 def stream():
     return Response(sse.stream(), mimetype='text/event-stream')
-
-@bp.route('/jobs/pending/new', methods=['GET', 'POST'])
-@login_required
-def new_pending_job():
-    """Crear un nuevo trabajo pendiente"""
-    if request.method == 'POST':
-        description = request.form.get('description')
-        client_name = request.form.get('client_name')
-        phone_number = request.form.get('phone_number')
-        designer_id = current_user.id
-
-        if not all([description, client_name, phone_number]):
-            flash('Por favor complete todos los campos requeridos', 'error')
-            return redirect(url_for('main.new_pending_job'))
-
-        try:
-            # Formatear número de teléfono
-            if not phone_number.startswith('+1'):
-                phone_number = f'+1{phone_number}' if phone_number.startswith('1') else f'+1{phone_number}'
-
-            # Crear trabajo pendiente
-            pending_job = PendingJob(
-                description=description,
-                designer_id=designer_id,
-                registered_by_id=current_user.id,
-                client_name=client_name,
-                phone_number=phone_number,
-                pending_type='new_job'
-            )
-            
-            db.session.add(pending_job)
-            db.session.commit()
-            
-            flash('Trabajo pendiente creado exitosamente', 'success')
-            return redirect(url_for('main.dashboard'))
-
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error al crear trabajo pendiente: {str(e)}")
-            flash('Error al crear el trabajo pendiente', 'error')
-            return redirect(url_for('main.new_pending_job'))
-
-    return render_template('new_pending_job.html')
-
 
 
 @bp.route('/')

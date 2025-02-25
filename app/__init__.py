@@ -18,7 +18,6 @@ db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 migrate = Migrate()
 
-# Create app factory
 def create_app():
     app = Flask(__name__)
 
@@ -61,7 +60,7 @@ def create_app():
     app.register_blueprint(sse, url_prefix='/stream')
 
     with app.app_context():
-        # Import models
+        # Import models here to avoid circular imports
         from app import models
 
         # Import and register routes blueprint
@@ -72,7 +71,7 @@ def create_app():
             # Create tables
             db.create_all()
 
-            # Set up login manager
+            # Configure user loader
             @login_manager.user_loader
             def load_user(user_id):
                 try:
@@ -81,7 +80,7 @@ def create_app():
                     logging.error(f"Error loading user: {str(e)}")
                     return None
 
-            # Adding admin user creation if not exists
+            # Add default admin user if not exists
             admin_user = models.User.query.filter_by(username='admin').first()
             if not admin_user:
                 admin = models.User(
@@ -94,10 +93,12 @@ def create_app():
                 db.session.add(admin)
                 db.session.commit()
                 logging.info("Usuario administrador creado exitosamente")
+
         except Exception as e:
             logging.error(f"Error during app initialization: {str(e)}")
+            raise
 
-        return app
+    return app
 
-# Create the app instance
+# Create the app instance only once
 app = create_app()
