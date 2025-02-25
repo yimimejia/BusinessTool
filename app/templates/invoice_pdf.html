@@ -135,7 +135,7 @@
                 <i class="bi bi-printer"></i> Imprimir
             </button>
             {% if job.phone_number %}
-            <a href="https://wa.me/{{ job.phone_number.replace('+', '').replace('-', '') }}?text=Hola {{ job.client_name }}, adjunto la factura de su trabajo" 
+            <a href="{{ url_for('main.send_whatsapp_invoice', job_id=job.id) }}" 
                class="btn btn-success" target="_blank">
                 <i class="bi bi-whatsapp"></i> Enviar por WhatsApp
             </a>
