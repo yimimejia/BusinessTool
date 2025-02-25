@@ -393,8 +393,8 @@ Factura: {job.invoice_number}
 
 ¡Gracias por su preferencia!"""
 
-        # Crear enlace de WhatsApp
-        whatsapp_url = f"https://wa.me/{whatsapp_phone}?text={urllib.parse.quote(message)}"
+        # Crear enlace de WhatsApp con mensaje codificado correctamente
+        whatsapp_url = f"https://api.whatsapp.com/send?phone={whatsapp_phone}&text={urllib.parse.quote(message)}"
         
         log_activity(
             'enviar_whatsapp',
@@ -435,40 +435,8 @@ def send_whatsapp_invoice(job_id):
             flash('Error al generar la factura', 'error')
             return redirect(url_for('main.completed_jobs'))
 
-        # Crear directorio temporal si no existe
-        temp_dir = os.path.join(current_app.static_folder, 'temp')
-        os.makedirs(temp_dir, exist_ok=True)
-
-        # Generar nombre único para el archivo
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        pdf_filename = f"factura_{job.invoice_number}_{timestamp}.pdf"
-        jpg_filename = f"factura_{job.invoice_number}_{timestamp}.jpg"
-        pdf_path = os.path.join(temp_dir, pdf_filename)
-        jpg_path = os.path.join(temp_dir, jpg_filename)
-
-        # Generar PDF
-        from weasyprint import HTML
-        html_content = render_template(
-            'invoice_view.html',
-            job=job,
-            qr_code=qr_code_image,
-            total_amount=total_amount,
-            deposit_amount=deposit_amount,
-            remaining_amount=remaining_amount
-        )
-        HTML(string=html_content).write_pdf(pdf_path)
-
-        # Convertir PDF a JPG usando Pillow
-        from pdf2image import convert_from_path
-        from PIL import Image
-
-        # Convertir primera página del PDF a imagen
-        pages = convert_from_path(pdf_path, 500)
-        pages[0].save(jpg_path, 'JPEG', quality=95)
-
-        # Generar URLs públicas temporales para los archivos
-        pdf_url = url_for('static', filename=f'temp/{pdf_filename}', _external=True)
-        jpg_url = url_for('static', filename=f'temp/{jpg_filename}', _external=True)
+        # Generar URLs públicas para los archivos
+        invoice_url = url_for('main.view_invoice_pdf', job_id=job.id, _external=True)
         
         # Mensaje profesional con enlaces a los archivos
         message = f"""*FOTO VIDEO MOJICA*
@@ -477,15 +445,12 @@ def send_whatsapp_invoice(job_id):
 Le enviamos su factura correspondiente al trabajo realizado:
 
 📋 Número de Factura: {job.invoice_number}
-💰 Monto Total: ${float(total_amount):.2f}
-💵 Abono: ${float(deposit_amount):.2f}
-🔸 Restante: ${float(remaining_amount):.2f}
+💰 Monto Total: RD${float(total_amount):.2f}
+💵 Abono: RD${float(deposit_amount):.2f}
+🔸 Restante: RD${float(remaining_amount):.2f}
 
-📄 Factura en formato PDF:
-{pdf_url}
-
-🖼️ Factura en formato JPG:
-{jpg_url}
+Para ver su factura, haga clic aquí:
+{invoice_url}
 
 Agradecemos su confianza en nuestros servicios.
 ¡Que tenga un excelente día!
@@ -493,18 +458,8 @@ Agradecemos su confianza en nuestros servicios.
 *FOTO VIDEO MOJICA*
 Calidad y profesionalismo"""
 
-        # Crear enlace de WhatsApp con el mensaje
-        whatsapp_url = f"https://wa.me/{whatsapp_phone}?text={urllib.parse.quote(message)}"
-        
-        # Programar limpieza de archivos temporales (después de 24 horas)
-        cleanup_time = datetime.now() + timedelta(hours=24)
-        scheduler = BackgroundScheduler()
-        scheduler.add_job(
-            lambda: cleanup_temp_files(pdf_path, jpg_path),
-            'date',
-            run_date=cleanup_time
-        )
-        scheduler.start()
+        # Crear enlace de WhatsApp con el mensaje codificado correctamente
+        whatsapp_url = f"https://api.whatsapp.com/send?phone={whatsapp_phone}&text={urllib.parse.quote(message)}"
 
         log_activity(
             'enviar_whatsapp_factura',
