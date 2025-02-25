@@ -135,7 +135,8 @@
                 <i class="bi bi-printer"></i> Imprimir
             </button>
             {% if job.phone_number %}
-            <a href="{{ url_for('main.send_whatsapp', job_id=job.id) }}" class="btn btn-success" target="_blank">
+            <a href="https://wa.me/{{ job.phone_number|replace('+', '')|replace(' ', '')|replace('-', '') }}?text=%2AFOTO%20VIDEO%20MOJICA%2A%0A%C2%A1Saludos%20estimado%28a%29%20{{ job.client_name }}%21%0A%0ALe%20enviamos%20su%20factura%3A%0A%F0%9F%93%8B%20N%C3%BAmero%3A%20{{ job.invoice_number }}%0A%F0%9F%92%B0%20Total%3A%20RD%24{{ "%.2f"|format(total_amount|default(0)|float) }}%0A%F0%9F%92%B5%20Abono%3A%20RD%24{{ "%.2f"|format(deposit_amount|default(0)|float) }}%0A%F0%9F%94%B8%20Restante%3A%20RD%24{{ "%.2f"|format((total_amount|default(0)|float - deposit_amount|default(0)|float)) }}%0A%0A%C2%A1Gracias%20por%20su%20preferencia%21" 
+               class="btn btn-success" target="_blank">
                 <i class="bi bi-whatsapp"></i> Enviar por WhatsApp
             </a>
             {% endif %}
