@@ -682,6 +682,43 @@ def view_approved_photos(token):
                            expired=True, 
                            error="Error al cargar las fotos")
 
+@bp.route('/jobs/<int:job_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_job(job_id):
+    """Eliminar un trabajo"""
+    try:
+        job = Job.query.get_or_404(job_id)
+        
+        # Registrar actividad antes de eliminar
+        log_activity(
+            'eliminar_trabajo',
+            f"Trabajo eliminado - Cliente: {job.client_name}, Factura: {job.invoice_number}"
+        )
+
+        # Eliminar fotos asociadas si existen
+        if hasattr(job, 'photos'):
+            for photo in job.photos:
+                try:
+                    photo_path = os.path.join(current_app.static_folder, photo.file_path)
+                    if os.path.exists(photo_path):
+                        os.remove(photo_path)
+                except Exception as e:
+                    logger.error(f"Error eliminando foto {photo.file_path}: {str(e)}")
+
+        # Eliminar el trabajo
+        db.session.delete(job)
+        db.session.commit()
+        
+        flash('Trabajo eliminado exitosamente', 'success')
+        return redirect(url_for('main.dashboard'))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al eliminar trabajo: {str(e)}")
+        flash('Error al eliminar el trabajo', 'error')
+        return redirect(url_for('main.dashboard'))
+
 @bp.route('/jobs/<int:job_id>/approve-with-pin', methods=['POST'])
 @login_required
 def approve_job_with_pin(job_id):
@@ -753,11 +790,11 @@ def approve_job_with_pin(job_id):
 
             log_activity(
                 'aprobar_trabajo_pin',
-                f"Trabajo movido a pendientes: {active_job.client_name} - {active_job.invoice_number}"
+                f"Trabajo aprobado: {active_job.client_name} - {active_job.invoice_number}"
             )
 
             flash('Trabajo aprobado exitosamente', 'success')
-            # Redireccionar a la factura del trabajo recién aprobado
+            # Redireccionar directamente a la vista de factura
             return redirect(url_for('main.view_job_invoice', job_id=active_job.id))
 
         except SQLAlchemyError as e:
