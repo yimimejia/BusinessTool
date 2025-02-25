@@ -240,10 +240,18 @@
                 selectedUserName.textContent = userName;
 
                 // Update form to use AJAX
+                // Configurar el formulario para envío de mensajes
                 const messageForm = document.getElementById('messageForm');
                 messageForm.onsubmit = async function(e) {
                     e.preventDefault();
+                    
+                    if (!recipientIdInput.value) {
+                        alert('Por favor seleccione un destinatario');
+                        return;
+                    }
+                    
                     const formData = new FormData(messageForm);
+                    sendButton.disabled = true;
                     
                     try {
                         const response = await fetch(messageForm.action, {
@@ -253,10 +261,16 @@
                         
                         if (response.ok) {
                             contentInput.value = '';
-                            window.location.reload();
+                            // Recargar solo los mensajes sin refrescar la página
+                            window.location.href = `/messages?user_id=${recipientIdInput.value}`;
+                        } else {
+                            alert('Error al enviar el mensaje');
                         }
                     } catch (error) {
                         console.error('Error:', error);
+                        alert('Error al enviar el mensaje');
+                    } finally {
+                        sendButton.disabled = false;
                     }
                 };
                 sendButton.disabled = false;
