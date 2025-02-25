@@ -157,3 +157,27 @@ body.login-page {
     margin-bottom: 1rem;
     border-radius: 5px;
 }
+
+.print-button, .whatsapp-button {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin: 10px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.whatsapp-button {
+    background-color: #25D366;
+}
+
+.whatsapp-button:hover {
+    background-color: #128C7E;
+    color: white;
+}
