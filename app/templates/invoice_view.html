@@ -10,31 +10,31 @@
         <p class="mb-0">Factura #{{ job.invoice_number }}</p>
       </div>
 
-      <div class="row mb-4">
-        <div class="col-md-6">
+      <div class="row">
+        <div class="col-6">
           <p><strong>Cliente:</strong> {{ job.client_name }}</p>
           <p><strong>Fecha:</strong> {{ job.created_at.strftime('%d/%m/%Y') }}</p>
         </div>
-        <div class="col-md-6">
+        <div class="col-6">
           <p><strong>Teléfono:</strong> {{ job.phone_number }}</p>
           <p><strong>Descripción:</strong> {{ job.description }}</p>
         </div>
       </div>
 
-      <div class="card bg-light">
+      <div class="card bg-light mt-4">
         <div class="card-body">
           <h5>Detalles del Pago</h5>
           <div class="row">
-            <div class="col-md-4">
-              <p><strong>Monto Total:</strong></p>
+            <div class="col-4">
+              <p class="mb-1"><strong>Monto Total:</strong></p>
               <p class="h5">RD${{ "%.2f"|format(total_amount) }}</p>
             </div>
-            <div class="col-md-4">
-              <p><strong>Abono:</strong></p>
+            <div class="col-4">
+              <p class="mb-1"><strong>Abono:</strong></p>
               <p class="h5">RD${{ "%.2f"|format(deposit_amount) }}</p>
             </div>
-            <div class="col-md-4">
-              <p><strong>Restante:</strong></p>
+            <div class="col-4">
+              <p class="mb-1"><strong>Restante:</strong></p>
               <p class="h5">RD${{ "%.2f"|format(remaining_amount) }}</p>
             </div>
           </div>
