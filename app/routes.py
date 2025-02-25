@@ -1054,18 +1054,25 @@ def send_message():
     flash('Mensaje enviado exitosamente', 'success')
     return redirect(url_for('main.messages'))
 
-@bp.route('/messages/<int:message_id>/read', methods=['POST'])
+@bp.route('/api/messages/mark_as_read/<int:user_id>', methods=['POST'])
 @login_required
-def mark_message_read(message_id):
-    """Marcar un mensaje como leído"""
-    message = Message.query.get_or_404(message_id)
-    if message.recipient_id != current_user.id:
-        flash('No tienes permiso para acceder a este mensaje', 'error')
-        return redirect(url_for('main.messages'))
-
-    message.is_read = True
-    db.session.commit()
-    return jsonify({'status': 'success'})
+def mark_messages_as_read(user_id):
+    """Marcar todos los mensajes de un usuario como leídos"""
+    try:
+        messages = Message.query.filter_by(
+            recipient_id=current_user.id,
+            sender_id=user_id,
+            is_read=False
+        ).all()
+        
+        for message in messages:
+            message.is_read = True
+        
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @bp.route('/messages/unread')
 @login_required
