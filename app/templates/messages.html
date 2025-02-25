@@ -238,6 +238,29 @@
                 
                 recipientIdInput.value = userId;
                 selectedUserName.textContent = userName;
+
+                // Update form to use AJAX
+                const messageForm = document.getElementById('messageForm');
+                messageForm.onsubmit = async function(e) {
+                    e.preventDefault();
+                    const formData = new FormData(messageForm);
+                    
+                    try {
+                        const response = await fetch(messageForm.action, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        if (response.ok) {
+                            // Clear message input
+                            contentInput.value = '';
+                            // Optionally refresh messages
+                            // You can add message refresh logic here
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                    }
+                };;
                 sendButton.disabled = false;
                 contentInput.focus();
                 
