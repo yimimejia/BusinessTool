@@ -45,7 +45,15 @@
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('main.send_message') }}" class="mb-4" enctype="multipart/form-data">
-                        <input type="hidden" id="recipient_id" name="recipient_id">
+                        <div class="mb-3">
+                            <label for="recipient_id" class="form-label">Seleccionar destinatario:</label>
+                            <select class="form-select" id="recipient_id" name="recipient_id" required>
+                                <option value="">Seleccionar usuario...</option>
+                                {% for user in users %}
+                                <option value="{{ user.id }}">{{ user.name }} {% if user.is_admin %}(Admin){% elif user.is_supervisor %}(Supervisor){% else %}(Diseñador){% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                         <div class="form-check mb-3">
                             <input type="checkbox" class="form-check-input" id="sendToAll" name="send_to_all" value="true">
                             <label class="form-check-label" for="sendToAll">Enviar a todos los diseñadores</label>

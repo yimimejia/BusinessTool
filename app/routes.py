@@ -1007,7 +1007,8 @@ def login():
 def messages():
     """Ver mensajes"""
     messages = current_user.get_messages()
-    return render_template('messages.html', messages=messages)
+    users = User.query.filter(User.id != current_user.id).all()
+    return render_template('messages.html', messages=messages, users=users)
 
 @bp.route('/messages/send', methods=['POST'])
 @login_required
