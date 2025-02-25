@@ -826,6 +826,51 @@ Para ver y descargar sus fotos, use este enlace (válido por 48 horas):
 def stream():
     return Response(sse.stream(), mimetype='text/event-stream')
 
+@bp.route('/jobs/pending/new', methods=['GET', 'POST'])
+@login_required
+def new_pending_job():
+    """Crear un nuevo trabajo pendiente"""
+    if request.method == 'POST':
+        description = request.form.get('description')
+        client_name = request.form.get('client_name')
+        phone_number = request.form.get('phone_number')
+        designer_id = current_user.id
+
+        if not all([description, client_name, phone_number]):
+            flash('Por favor complete todos los campos requeridos', 'error')
+            return redirect(url_for('main.new_pending_job'))
+
+        try:
+            # Crear trabajo pendiente
+            pending_job = PendingJob(
+                description=description,
+                designer_id=designer_id,
+                registered_by_id=current_user.id,
+                client_name=client_name,
+                phone_number=phone_number,
+                pending_type='new_job'
+            )
+            db.session.add(pending_job)
+            db.session.commit()
+
+            log_activity(
+                'crear_trabajo_pendiente',
+                f"Nuevo trabajo pendiente creado para {client_name}"
+            )
+
+            flash('Trabajo pendiente creado exitosamente', 'success')
+            return redirect(url_for('main.pending_verification'))
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error al crear trabajo pendiente: {str(e)}")
+            flash('Error al crear el trabajo pendiente', 'error')
+            return redirect(url_for('main.new_pending_job'))
+
+    # Para peticiones GET, generar CSRF token y mostrar formulario
+    csrf_token = generate_csrf()
+    return render_template('new_pending_job.html', csrf_token=csrf_token)
+
 @bp.route('/')
 def index():
     if current_user.is_authenticated:

@@ -24,6 +24,10 @@ csrf = CSRFProtect()
 def create_app():
     app = Flask(__name__)
 
+    # Enable debug mode for detailed error tracing
+    app.config["DEBUG"] = True
+    app.config["ENV"] = "development"
+
     # Configure Flask app
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
@@ -32,7 +36,14 @@ def create_app():
         "pool_size": 10,
         "max_overflow": 5
     }
+
+    # Ensure secret key is set
     app.secret_key = os.environ.get("SESSION_SECRET", "dev-key-temporary")
+
+    # Configure CSRF protection
+    app.config["WTF_CSRF_SECRET_KEY"] = os.environ.get("CSRF_SECRET_KEY", "csrf-key-temporary")
+    app.config["WTF_CSRF_ENABLED"] = True
+
     app.config["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379")
 
     # Create uploads directory
