@@ -76,3 +76,33 @@ if ('serviceWorker' in navigator) {
             console.log('Error registrando ServiceWorker:', error);
         });
 }
+// Configurar sistema de notificaciones
+let notificationPermission = false;
+
+async function requestNotificationPermission() {
+    if ('Notification' in window) {
+        const permission = await Notification.requestPermission();
+        notificationPermission = permission === 'granted';
+    }
+}
+
+function showNotification(title, message) {
+    if (notificationPermission && 'Notification' in window) {
+        new Notification(title, {
+            body: message,
+            icon: '/static/icons/logo-192x192.png'
+        });
+    }
+}
+
+// Solicitar permisos al cargar
+document.addEventListener('DOMContentLoaded', requestNotificationPermission);
+
+// Escuchar eventos SSE para notificaciones en tiempo real
+const evtSource = new EventSource("/stream");
+evtSource.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    if (data.type === 'notification') {
+        showNotification(data.title, data.message);
+    }
+};

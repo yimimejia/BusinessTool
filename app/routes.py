@@ -1012,32 +1012,44 @@ def messages():
 @bp.route('/messages/send', methods=['POST'])
 @login_required
 def send_message():
-    """Enviar un mensaje"""
+    """Enviar un mensaje a uno o todos los diseñadores"""
+    send_to_all = request.form.get('send_to_all') == 'true'
     recipient_id = request.form.get('recipient_id')
     content = request.form.get('content')
 
-    if not recipient_id or not content:
-        flash('Por favor complete todos los campos', 'error')
+    if not content:
+        flash('Por favor escriba un mensaje', 'error')
         return redirect(url_for('main.messages'))
 
-    recipient = User.query.get(recipient_id)
-    if not recipient:
-        flash('Usuario no encontrado', 'error')
-        return redirect(url_for('main.messages'))
+    if send_to_all:
+        # Enviar a todos los diseñadores
+        designers = User.query.filter_by(is_designer=True).all()
+        for designer in designers:
+            message = Message(
+                sender_id=current_user.id,
+                recipient_id=designer.id,
+                content=content
+            )
+            db.session.add(message)
+            send_notification(designer.id, "Nuevo mensaje", content)
+            
+        log_activity('enviar_mensaje', "Mensaje enviado a todos los diseñadores")
+    else:
+        if not recipient_id:
+            flash('Por favor seleccione un destinatario', 'error')
+            return redirect(url_for('main.messages'))
 
-    message = Message(
-        sender_id=current_user.id,
-        recipient_id=recipient_id,
-        content=content
-    )
-    db.session.add(message)
+        recipient = User.query.get(recipient_id)
+        message = Message(
+            sender_id=current_user.id,
+            recipient_id=recipient_id,
+            content=content
+        )
+        db.session.add(message)
+        send_notification(recipient_id, "Nuevo mensaje", content)
+        log_activity('enviar_mensaje', f"Mensaje enviado a {recipient.username}")
+
     db.session.commit()
-
-    log_activity(
-        'enviar_mensaje',
-        f"Mensaje enviado a {recipient.username}"
-    )
-
     flash('Mensaje enviado exitosamente', 'success')
     return redirect(url_for('main.messages'))
 

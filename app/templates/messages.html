@@ -44,11 +44,20 @@
                     <h5 class="mb-0">Nuevo Mensaje</h5>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('main.send_message') }}" enctype="multipart/form-data">
-                        <input type="hidden" id="recipient_id" name="recipient_id" required>
-                        <div class="mb-3">
-                            <label class="form-label">Para: <span id="recipient_name">Seleccione un usuario</span></label>
+                    <form method="POST" action="{{ url_for('main.send_message') }}" class="mb-4" enctype="multipart/form-data">
+                        <input type="hidden" id="recipient_id" name="recipient_id">
+                        <div class="form-check mb-3">
+                            <input type="checkbox" class="form-check-input" id="sendToAll" name="send_to_all" value="true">
+                            <label class="form-check-label" for="sendToAll">Enviar a todos los diseñadores</label>
                         </div>
+
+                        <select name="recipient_id" class="form-control mb-2" id="recipientSelect">
+                            <option value="">Seleccionar destinatario...</option>
+                            {% for user in users if user.is_designer %}
+                                <option value="{{ user.id }}">{{ user.name }}</option>
+                            {% endfor %}
+                        </select>
+
                         <div class="mb-3">
                             <label for="content" class="form-label">Mensaje</label>
                             <textarea class="form-control" id="content" name="content" rows="3" required></textarea>
@@ -61,7 +70,7 @@
                         </div>
                         {% endif %}
                         <button type="submit" class="btn btn-primary" id="sendButton" disabled>
-                            <i class="bi bi-send"></i> Enviar
+                            <i class="bi bi-send"></i> Enviar mensaje
                         </button>
                     </form>
                 </div>
@@ -169,6 +178,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const recipientIdInput = document.getElementById('recipient_id');
     const recipientNameSpan = document.getElementById('recipient_name');
     const sendButton = document.getElementById('sendButton');
+    const recipientSelect = document.getElementById('recipientSelect');
 
     userSelects.forEach(function(userSelect) {
         userSelect.addEventListener('click', function(e) {
@@ -182,6 +192,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const userId = this.dataset.userId;
             const userName = this.dataset.userName;
             recipientIdInput.value = userId;
+            recipientSelect.value = userId; // Update select box too
             recipientNameSpan.textContent = userName;
             sendButton.disabled = false;
         });
@@ -224,6 +235,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 reader.readAsDataURL(file);
             }
         });
+    }
+
+
+    // Enviar a todos
+    document.getElementById('sendToAll').addEventListener('change', function() {
+        recipientSelect.disabled = this.checked;
+        if (this.checked) {
+            recipientSelect.value = '';
+            recipientIdInput.value = ''; // Clear recipient ID if sending to all
+            recipientNameSpan.textContent = 'Todos los diseñadores'; // Update recipient name
+            sendButton.disabled = false; //Enable Send button
+        } else {
+            recipientNameSpan.textContent = 'Seleccione un usuario'; // Reset recipient name
+            sendButton.disabled = true; // Disable send button until a user is selected
+        }
+    });
+
+    // Solicitar permisos de notificación al cargar la página
+    if ('Notification' in window) {
+        Notification.requestPermission();
     }
 });
 </script>
