@@ -241,14 +241,26 @@
 
                 // Update form to use AJAX
                 // Configurar el formulario para envío de mensajes
-                const messageForm = document.getElementById('messageForm');
-                messageForm.onsubmit = async function(e) {
-                    e.preventDefault();
-                    
-                    if (!recipientIdInput.value) {
-                        alert('Por favor seleccione un destinatario');
-                        return;
-                    }
+                // Habilitar el botón de envío
+                sendButton.disabled = false;
+                
+                // Actualizar la interfaz
+                document.querySelector('.messages-container').innerHTML = '';
+                
+                // Cargar los mensajes del usuario seleccionado
+                window.location.href = `/messages?user_id=${userId}`;
+            });
+        });
+
+        // Configurar el formulario para envío de mensajes
+        const messageForm = document.querySelector('form');
+        messageForm.onsubmit = async function(e) {
+            e.preventDefault();
+            
+            if (!recipientIdInput.value) {
+                alert('Por favor seleccione un destinatario');
+                return;
+            }
                     
                     const formData = new FormData(this);
                     const userId = recipientIdInput.value;
