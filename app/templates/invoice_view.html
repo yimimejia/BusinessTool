@@ -44,8 +44,6 @@
             font-size: 14px;
         }
         .payment-section {
-            background: #f8f8f8;
-            padding: 15px;
             margin: 15px 0;
         }
         .payment-section h2 {
@@ -54,8 +52,9 @@
         }
         .payment-details {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: 1fr 1fr;
             gap: 10px;
+            margin-bottom: 10px;
         }
         .payment-item strong {
             display: block;
@@ -67,9 +66,10 @@
             font-size: 14px;
             font-weight: 600;
         }
-        .payment-item.restante {
-            background: #f0f0f0;
-            padding: 5px;
+        .payment-remaining {
+            background: #f8f8f8;
+            padding: 10px;
+            margin-top: 10px;
         }
         .qr-section {
             text-align: center;
@@ -113,7 +113,7 @@
         @media print {
             .actions { display: none; }
             body { padding: 0; }
-            .payment-section { -webkit-print-color-adjust: exact; }
+            .payment-remaining { -webkit-print-color-adjust: exact; }
         }
     </style>
 </head>
@@ -151,7 +151,9 @@
                 <strong>Abono:</strong>
                 <span>RD${{ "%.2f"|format(deposit_amount) }}</span>
             </div>
-            <div class="payment-item restante">
+        </div>
+        <div class="payment-remaining">
+            <div class="payment-item">
                 <strong>Restante:</strong>
                 <span>RD${{ "%.2f"|format(remaining_amount) }}</span>
             </div>
