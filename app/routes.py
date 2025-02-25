@@ -31,6 +31,114 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint('main', __name__)
 
+def staff_required(f):
+    """Decorator para requerir que el usuario sea admin o supervisor"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not (current_user.is_admin or current_user.is_supervisor):
+            flash('No tienes permiso para acceder a esta página', 'error')
+            return redirect(url_for('main.dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    """Decorator para requerir que el usuario sea admin"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin:
+            flash('No tienes permiso para acceder a esta página', 'error')
+            return redirect(url_for('main.dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def get_urgent_jobs():
+    """Obtener trabajos marcados como urgentes"""
+    try:
+        urgent_jobs = Job.query.filter(
+            Job.tags.ilike('%urgente%')
+        ).order_by(Job.created_at.desc()).all()
+        logger.info(f"Encontrados {len(urgent_jobs)} trabajos urgentes")
+        return urgent_jobs
+    except Exception as e:
+        logger.error(f"Error al obtener trabajos urgentes: {str(e)}")
+        return []
+
+@bp.route('/')
+@login_required
+def index():
+    """Ruta principal que redirige al dashboard"""
+    logger.info("Acceso a ruta principal '/'")
+    return redirect(url_for('main.dashboard'))
+
+@bp.route('/dashboard')
+@login_required
+def dashboard():
+    """Vista del dashboard principal"""
+    try:
+        # Obtener trabajos urgentes
+        urgent_jobs = get_urgent_jobs()
+        logger.info(f"Dashboard - Trabajos urgentes: {len(urgent_jobs)}")
+        
+        # Redirigir basado en el rol del usuario
+        if current_user.is_admin:
+            logger.info(f"Usuario admin {current_user.id} redirigiendo a admin_dashboard")
+            return redirect(url_for('main.admin_dashboard'))
+        elif current_user.is_supervisor:
+            logger.info(f"Usuario supervisor {current_user.id} redirigiendo a supervisor_dashboard")
+            return redirect(url_for('main.supervisor_dashboard'))
+        
+        # Obtener trabajos asignados al diseñador
+        jobs = Job.query.filter_by(
+            designer_id=current_user.id
+        ).order_by(Job.created_at.desc()).all()
+        
+        logger.info(f"Cargando dashboard para diseñador {current_user.id}")
+        return render_template('dashboard.html', 
+                           jobs=jobs,
+                           urgent_jobs=urgent_jobs)
+    except Exception as e:
+        logger.error(f"Error en dashboard: {str(e)}")
+        flash('Error al cargar el dashboard', 'error')
+        return redirect(url_for('main.index'))
+
+@bp.route('/dashboard/admin')
+@login_required
+@admin_required
+def admin_dashboard():
+    """Dashboard para administradores"""
+    try:
+        urgent_jobs = get_urgent_jobs()
+        logger.info(f"Admin Dashboard - Trabajos urgentes: {len(urgent_jobs)}")
+        
+        jobs = Job.query.order_by(Job.created_at.desc()).all()
+        
+        return render_template('dashboard_admin.html',
+                           jobs=jobs,
+                           urgent_jobs=urgent_jobs)
+    except Exception as e:
+        logger.error(f"Error en admin_dashboard: {str(e)}")
+        flash('Error al cargar el dashboard de administrador', 'error')
+        return redirect(url_for('main.index'))
+
+@bp.route('/dashboard/supervisor')
+@login_required
+@staff_required
+def supervisor_dashboard():
+    """Dashboard para supervisores"""
+    try:
+        urgent_jobs = get_urgent_jobs()
+        logger.info(f"Supervisor Dashboard - Trabajos urgentes: {len(urgent_jobs)}")
+        
+        jobs = Job.query.order_by(Job.created_at.desc()).all()
+        
+        return render_template('dashboard_supervisor.html',
+                           jobs=jobs,
+                           urgent_jobs=urgent_jobs)
+    except Exception as e:
+        logger.error(f"Error en supervisor_dashboard: {str(e)}")
+        flash('Error al cargar el dashboard de supervisor', 'error')
+        return redirect(url_for('main.index'))
+
 @bp.route('/jobs/pending/new', methods=['GET', 'POST'])
 @login_required
 def new_pending_job():
@@ -73,26 +181,6 @@ def new_pending_job():
             return redirect(url_for('main.new_pending_job'))
 
     return render_template('new_pending_job.html')
-
-def staff_required(f):
-    """Decorator para requerir que el usuario sea admin o supervisor"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not (current_user.is_admin or current_user.is_supervisor):
-            flash('No tienes permiso para acceder a esta página', 'error')
-            return redirect(url_for('main.dashboard'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-def admin_required(f):
-    """Decorator para requerir que el usuario sea admin"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_admin:
-            flash('No tienes permiso para acceder a esta página', 'error')
-            return redirect(url_for('main.dashboard'))
-        return f(*args, **kwargs)
-    return decorated_function
 
 @bp.route('/jobs/<int:job_id>/view-invoice', methods=['GET'])
 @login_required

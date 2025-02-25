@@ -138,6 +138,7 @@ class Job(db.Model):
     deposit_amount = db.Column(db.Numeric(10, 2), default=0)
     qr_code = db.Column(db.String(100), unique=True)
     tags = db.Column(db.String(200))
+    is_urgent = db.Column(db.Boolean, default=False)  # Nuevo campo para marcar trabajos urgentes
 
     @validates('phone_number')
     def validate_phone_number(self, key, phone_number):
@@ -205,6 +206,11 @@ Para ver su factura digital y código QR, haga clic aquí:
             'qr_code': self.qr_code,
             'url': public_url
         }
+    @property
+    def is_tagged_urgent(self):
+        """Verifica si el trabajo está etiquetado como urgente"""
+        return self.tags and 'urgente' in self.tags.lower()
+
 
 class Photo(db.Model):
     __tablename__ = 'photos'

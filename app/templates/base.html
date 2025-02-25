@@ -150,6 +150,59 @@
     <!-- Container para notificaciones toast -->
     <div class="toast-container"></div>
 
+    <!-- Urgent Jobs Modal -->
+    <div class="modal fade" id="urgentJobsModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle-fill"></i> 
+                        Trabajos Urgentes
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    {% if urgent_jobs %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Cliente</th>
+                                    <th>Descripción</th>
+                                    <th>Fecha</th>
+                                    <th>Diseñador</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for job in urgent_jobs %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('main.view_invoice_pdf', job_id=job.id) }}" class="text-primary">
+                                            {{ job.id }}
+                                        </a>
+                                    </td>
+                                    <td>{{ job.client_name }}</td>
+                                    <td>{{ job.description }}</td>
+                                    <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
+                                    <td>{{ job.designer.name if job.designer else 'No asignado' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center">No hay trabajos urgentes pendientes.</p>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                        Entendido
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {% if request.endpoint != 'main.view_approved_photos' %}
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
         <div class="container">
@@ -360,6 +413,15 @@
                     toast.remove();
                 });
             }
+        </script>
+        <script>
+            // Show urgent jobs modal on page load if there are urgent jobs
+            document.addEventListener('DOMContentLoaded', function() {
+                {% if urgent_jobs and urgent_jobs|length > 0 %}
+                var urgentJobsModal = new bootstrap.Modal(document.getElementById('urgentJobsModal'));
+                urgentJobsModal.show();
+                {% endif %}
+            });
         </script>
     {% endblock %}
 
