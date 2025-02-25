@@ -29,7 +29,7 @@
             {% for job in jobs %}
             <tr>
               <td>
-                <a href="{{ url_for('main.view_job_invoice', job_id=job.id) }}" class="text-primary">
+                <a href="{{ url_for('main.view_job_invoice_details', job_id=job.id) }}" class="text-primary">
                   {{ job.id }}
                 </a>
               </td>
@@ -70,6 +70,7 @@
   </div>
 </div>
 
+<!-- El resto del código permanece igual -->
 <!-- Modal de Autenticación -->
 <div class="modal fade" id="authModal" tabindex="-1">
   <div class="modal-dialog">
