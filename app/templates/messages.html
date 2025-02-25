@@ -171,17 +171,23 @@ document.addEventListener('DOMContentLoaded', function() {
     userChats.forEach(chat => {
         chat.addEventListener('click', function(e) {
             e.preventDefault();
+            const userId = this.dataset.userId;
+            const userName = this.dataset.userName;
+            
             // Remover clase activa de todos
             userChats.forEach(c => c.classList.remove('active'));
             // Agregar clase activa al seleccionado
             this.classList.add('active');
             // Actualizar recipient_id y nombre del usuario seleccionado
-            recipientIdInput.value = this.dataset.userId;
-            selectedUserName.textContent = this.dataset.userName;
+            recipientIdInput.value = userId;
+            selectedUserName.textContent = userName;
             // Habilitar el botón de enviar
             sendButton.disabled = false;
             // Enfocar el input de mensaje
             contentInput.focus();
+            
+            // Cargar mensajes del usuario seleccionado
+            window.location.href = `/messages?user_id=${userId}`;
         });
     });
 

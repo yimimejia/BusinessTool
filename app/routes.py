@@ -1006,7 +1006,15 @@ def login():
 @login_required
 def messages():
     """Ver mensajes"""
-    messages = current_user.get_messages()
+    selected_user_id = request.args.get('user_id')
+    if selected_user_id:
+        messages = Message.query.filter(
+            ((Message.sender_id == current_user.id) & (Message.recipient_id == selected_user_id)) |
+            ((Message.sender_id == selected_user_id) & (Message.recipient_id == current_user.id))
+        ).order_by(Message.created_at).all()
+    else:
+        messages = []
+    
     users = User.query.filter(User.id != current_user.id).all()
     return render_template('messages.html', messages=messages, users=users)
 
@@ -1014,7 +1022,6 @@ def messages():
 @login_required
 def send_message():
     """Enviar un mensaje a uno o todos los diseñadores"""
-    send_to_all = request.form.get('send_to_all') == 'true'
     recipient_id = request.form.get('recipient_id')
     content = request.form.get('content')
 
@@ -1022,33 +1029,23 @@ def send_message():
         flash('Por favor escriba un mensaje', 'error')
         return redirect(url_for('main.messages'))
 
-    if send_to_all:
-        # Enviar a todos los diseñadores
-        designers = User.query.filter_by(is_designer=True).all()
-        for designer in designers:
-            message = Message(
-                sender_id=current_user.id,
-                recipient_id=designer.id,
-                content=content
-            )
-            db.session.add(message)
-            send_notification(designer.id, "Nuevo mensaje", content)
-            
-        log_activity('enviar_mensaje', "Mensaje enviado a todos los diseñadores")
-    else:
-        if not recipient_id:
-            flash('Por favor seleccione un destinatario', 'error')
-            return redirect(url_for('main.messages'))
+    if not recipient_id:
+        flash('Por favor seleccione un destinatario', 'error')
+        return redirect(url_for('main.messages'))
 
-        recipient = User.query.get(recipient_id)
-        message = Message(
-            sender_id=current_user.id,
-            recipient_id=recipient_id,
-            content=content
-        )
-        db.session.add(message)
-        send_notification(recipient_id, "Nuevo mensaje", content)
-        log_activity('enviar_mensaje', f"Mensaje enviado a {recipient.username}")
+    recipient = User.query.get(recipient_id)
+    if not recipient:
+        flash('Usuario no encontrado', 'error')
+        return redirect(url_for('main.messages'))
+
+    message = Message(
+        sender_id=current_user.id,
+        recipient_id=recipient_id,
+        content=content
+    )
+    db.session.add(message)
+    send_notification(recipient_id, "Nuevo mensaje", content)
+    log_activity('enviar_mensaje', f"Mensaje enviado a {recipient.name}")
 
     db.session.commit()
     flash('Mensaje enviado exitosamente', 'success')
