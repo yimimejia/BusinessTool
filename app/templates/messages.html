@@ -16,7 +16,13 @@
                                 <i class="bi bi-person-circle fs-2"></i>
                             </div>
                             <div class="flex-grow-1 ms-3">
-                                <h6 class="mb-0">{{ user.name }}</h6>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">{{ user.name }}</h6>
+                                    {% set unread = current_user.get_unread_messages_count_from(user.id) %}
+                                    {% if unread > 0 %}
+                                    <span class="badge bg-danger rounded-pill unread-count">{{ unread }}</span>
+                                    {% endif %}
+                                </div>
                                 <small class="text-muted">
                                     {% if user.is_admin %}Admin{% elif user.is_supervisor %}Supervisor{% else %}Diseñador{% endif %}
                                 </small>
@@ -230,6 +236,21 @@ document.addEventListener('DOMContentLoaded', function() {
     const sendButton = document.getElementById('sendButton');
     const contentInput = document.getElementById('content');
 
+    const markMessagesAsRead = (userId) => {
+        // AJAX request to mark messages as read
+        fetch(`/api/messages/mark_as_read/${userId}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                // Update UI if needed (e.g., remove unread count)
+                const unreadCount = document.querySelector(`.user-chat[data-user-id="${userId}"] .unread-count`);
+                if (unreadCount) {
+                    unreadCount.remove();
+                }
+            })
+            .catch(error => console.error('Error marking messages as read:', error));
+    };
+
+
     userChats.forEach(chat => {
         chat.addEventListener('click', function(e) {
             e.preventDefault();
@@ -238,12 +259,15 @@ document.addEventListener('DOMContentLoaded', function() {
             // Agregar clase activa al seleccionado
             this.classList.add('active');
             // Actualizar recipient_id y nombre del usuario seleccionado
-            recipientIdInput.value = this.dataset.userId;
+            const userId = this.dataset.userId;
+            recipientIdInput.value = userId;
             selectedUserName.textContent = this.dataset.userName;
             // Habilitar el botón de enviar
             sendButton.disabled = false;
             // Enfocar el input de mensaje
             contentInput.focus();
+            // Marcar mensajes como leídos
+            markMessagesAsRead(userId);
         });
     });
 
