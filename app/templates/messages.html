@@ -191,8 +191,8 @@
             </div>
 
             <div class="chat-input">
-                <form action="{{ url_for('main.send_message') }}" method="POST" class="d-flex gap-2">
-                    <input type="hidden" name="recipient_id" id="recipient_id">
+                <form action="{{ url_for('main.send_message') }}" method="POST" class="d-flex gap-2" enctype="multipart/form-data">
+                    <input type="hidden" name="recipient_id" id="recipient_id" value="">>
                     <div class="flex-grow-1">
                         <input type="text" class="form-control" id="content" name="content" placeholder="Escribe un mensaje..." required>
                     </div>
@@ -212,6 +212,20 @@
         const selectedUserName = document.getElementById('selectedUserName');
         const sendButton = document.getElementById('sendButton');
         const contentInput = document.getElementById('content');
+        
+        // Obtener el user_id de la URL si existe
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentUserId = urlParams.get('user_id');
+        
+        if (currentUserId) {
+            const currentChat = document.querySelector(`.user-chat[data-user-id="${currentUserId}"]`);
+            if (currentChat) {
+                currentChat.classList.add('active');
+                recipientIdInput.value = currentUserId;
+                selectedUserName.textContent = currentChat.dataset.userName;
+                sendButton.disabled = false;
+            }
+        }
 
         userChats.forEach(chat => {
             chat.addEventListener('click', function(e) {
@@ -232,7 +246,9 @@
         });
 
         const messagesContainer = document.querySelector('.messages-container');
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
     });
     </script>
 </body>
