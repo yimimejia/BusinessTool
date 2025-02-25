@@ -15,7 +15,9 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SESSION_SECRET")
     app.config['TEMPLATES_AUTO_RELOAD'] = True
-    app.config['WTF_CSRF_ENABLED'] = False
+    app.config['WTF_CSRF_ENABLED'] = True
+app.config['WTF_CSRF_SECRET_KEY'] = os.environ.get("CSRF_SECRET_KEY", os.urandom(32))
+app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 
     # Database configuration
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")

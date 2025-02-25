@@ -835,6 +835,9 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
 
+    # Generate CSRF token
+    csrf_token = generate_csrf()
+
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
