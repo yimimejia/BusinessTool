@@ -12,47 +12,42 @@
         <div class="card-body">
             {% if jobs %}
             <div class="table-responsive">
-                <table class="table table-hover" id="pendingJobsTable" style="table-layout: fixed; width: 100%; min-width: 100%;">
-                    <colgroup>
-                        <col style="width: 20%">
-                        <col style="width: 35%">
-                        <col style="width: 15%">
-                        <col style="width: 15%">
-                        <col style="width: 15%">
-                        <col style="width: 20%">
-                    </colgroup>
+                <table class="table table-hover" id="pendingJobsTable">
                     <thead>
                         <tr>
-                            <th>Cliente</th>
-                            <th>Descripción</th>
-                            <th>Diseñador</th>
-                            <th>Registrado por</th>
-                            <th>Fecha</th>
-                            <th>Acciones</th>
+                            <th style="width: 15%">Factura</th>
+                            <th style="width: 20%">Cliente</th>
+                            <th style="width: 25%">Descripción</th>
+                            <th style="width: 15%">Diseñador</th>
+                            <th style="width: 15%">Fecha</th>
+                            <th style="width: 10%">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for job in jobs %}
                         <tr>
-                            <td style="word-wrap: break-word; font-size: 1.2em; padding: 15px">
+                            <td class="align-middle">{{ job.invoice_number }}</td>
+                            <td class="align-middle">
                                 <a href="{{ url_for('main.view_job_invoice', job_id=job.id) }}" class="text-decoration-none">
                                     {{ job.client_name }}
                                 </a>
                             </td>
-                            <td style="word-wrap: break-word; font-size: 1.2em; padding: 15px">{{ job.description }}</td>
-                            <td style="word-wrap: break-word; font-size: 1.2em; padding: 15px">{{ job.designer.name }}</td>
-                            <td>{{ job.registered_by.name }}</td>
-                            <td>{{ job.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                            <td>
-                                <button type="button" class="btn btn-success btn-sm approve-job" 
-                                        data-job-id="{{ job.id }}">
-                                    <i class="bi bi-check-circle"></i> Aprobar
-                                </button>
-                                <button type="button" class="btn btn-danger btn-sm" 
-                                        data-bs-toggle="modal" 
-                                        data-bs-target="#rejectModal{{ job.id }}">
-                                    <i class="bi bi-x-circle"></i> Rechazar
-                                </button>
+                            <td class="align-middle">{{ job.description }}</td>
+                            <td class="align-middle">{{ job.designer.name }}</td>
+                            <td class="align-middle">{{ job.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td class="align-middle">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-success approve-job" 
+                                            data-job-id="{{ job.id }}" title="Aprobar">
+                                        <i class="bi bi-check-circle"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-danger" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#rejectModal{{ job.id }}"
+                                            title="Rechazar">
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -97,8 +92,12 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Inicializar DataTable
-        initializeDataTable('#pendingJobsTable');
+        // Inicializar DataTable con configuración en español
+        initializeDataTable('#pendingJobsTable', {
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+            }
+        });
 
         let currentJobId = null;
         const authModal = new bootstrap.Modal(document.getElementById('authModal'));
@@ -119,19 +118,19 @@
         document.getElementById('submitAuth').addEventListener('click', function() {
             const password = document.getElementById('authPassword').value;
 
-            fetch(`/jobs/${currentJobId}/approve-pending`, {
+            fetch(`/jobs/${currentJobId}/approve-with-pin`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    admin_password: password
+                    pin: password
                 })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    location.reload();
+                    window.location.href = data.redirect_url;
                 } else {
                     if (errorDiv) {
                         errorDiv.textContent = data.message || 'Error al aprobar el trabajo';
