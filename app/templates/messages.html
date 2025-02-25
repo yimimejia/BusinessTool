@@ -3,106 +3,41 @@
 {% block title %}Mensajes{% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="container-fluid">
     <div class="row">
         <!-- Lista de Usuarios -->
-        <div class="col-md-4">
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0">Usuarios</h5>
-                </div>
-                <div class="card-body p-0">
-                    <div class="list-group list-group-flush">
-                        {% for user in users %}
-                            {% if user.id != current_user.id %}
-                            <a href="#" class="list-group-item list-group-item-action user-select" data-user-id="{{ user.id }}" data-user-name="{{ user.name }}">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <i class="bi bi-person-circle me-2"></i>
-                                        {{ user.name }}
-                                        <small class="text-muted d-block">{{ user.username }}</small>
-                                    </div>
-                                    {% if user.is_admin %}
-                                        <span class="badge bg-primary">Admin</span>
-                                    {% elif user.is_staff %}
-                                        <span class="badge bg-info">Staff</span>
-                                    {% endif %}
-                                </div>
-                            </a>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                </div>
+        <div class="col-md-4 border-end" style="height: calc(100vh - 100px); overflow-y: auto;">
+            <div class="list-group">
+                {% for user in users %}
+                    {% if user.id != current_user.id %}
+                    <a href="#" class="list-group-item list-group-item-action user-chat" data-user-id="{{ user.id }}" data-user-name="{{ user.name }}">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-person-circle fs-2"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-0">{{ user.name }}</h6>
+                                <small class="text-muted">
+                                    {% if user.is_admin %}Admin{% elif user.is_supervisor %}Supervisor{% else %}Diseñador{% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    </a>
+                    {% endif %}
+                {% endfor %}
             </div>
         </div>
 
-        <!-- Formulario de Mensaje y Mensajes -->
+        <!-- Chat -->
         <div class="col-md-8">
-            <!-- Formulario de Nuevo Mensaje -->
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0">Nuevo Mensaje</h5>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('main.send_message') }}" class="mb-4" enctype="multipart/form-data">
-                        <div class="mb-3">
-                            <label for="recipient_id" class="form-label">Seleccionar destinatario:</label>
-                            <select class="form-select" id="recipient_id" name="recipient_id" required>
-                                <option value="">Seleccionar destinatario...</option>
-                                <option value="all">Enviar a todos los diseñadores</option>
-                                {% for user in users %}
-                                    {% if user.id != current_user.id %}
-                                    <option value="{{ user.id }}">{{ user.name }} {% if user.is_admin %}(Admin){% elif user.is_supervisor %}(Supervisor){% else %}(Diseñador){% endif %}</option>
-                                    {% endif %}
-                                {% endfor %}
-                            </select>
-                        </div>t>
-
-                        <div class="mb-3">
-                            <label for="content" class="form-label">Mensaje</label>
-                            <textarea class="form-control" id="content" name="content" rows="3" required></textarea>
-                        </div>
-                        {% if current_user.is_admin or current_user.is_staff %}
-                        <div class="mb-3">
-                            <label for="photos" class="form-label">Fotos para WhatsApp</label>
-                            <input type="file" class="form-control" id="photos" name="photos" multiple accept="image/*">
-                            <div id="preview" class="mt-2 d-flex flex-wrap gap-2"></div>
-                        </div>
-                        {% endif %}
-                        <button type="submit" class="btn btn-primary" id="sendButton" disabled>
-                            <i class="bi bi-send"></i> Enviar mensaje
-                        </button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Lista de Mensajes -->
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Mensajes</h5>
-                </div>
-                <div class="card-body">
-                    <div class="messages-container">
-                        {% if messages %}
-                            {% for message in messages %}
-                            <div class="message-card mb-3 {% if message.sender_id == current_user.id %}sent{% else %}received{% endif %}
-                                         {% if not message.is_read and message.recipient_id == current_user.id %}unread{% endif %}"
-                                 data-message-id="{{ message.id }}">
-                                <div class="message-header">
-                                    <strong>
-                                        {% if message.sender_id == current_user.id %}
-                                            Enviado a {{ message.recipient.name }}
-                                        {% else %}
-                                            De: {{ message.sender.name }}
-                                        {% endif %}
-                                    </strong>
-                                    <small class="text-muted">
-                                        {{ message.created_at.strftime('%Y-%m-%d %H:%M') }}
-                                    </small>
-                                </div>
-                                <div class="message-content">
-                                    {{ message.content }}
-                                </div>
+            <div class="chat-container" style="height: calc(100vh - 200px); display: flex; flex-direction: column;">
+                <!-- Mensajes -->
+                <div class="messages-container flex-grow-1" style="overflow-y: auto; padding: 20px;">
+                    {% for message in messages %}
+                        <div class="message-bubble mb-3 {% if message.sender_id == current_user.id %}sent{% else %}received{% endif %}"
+                             data-message-id="{{ message.id }}">
+                            <div class="message-content">
+                                {{ message.content }}
                                 {% if message.photos %}
                                 <div class="message-photos mt-2">
                                     <div class="d-flex flex-wrap gap-2">
@@ -110,22 +45,33 @@
                                         <img src="{{ url_for('static', filename=photo) }}" class="img-thumbnail" style="max-width: 100px;">
                                         {% endfor %}
                                     </div>
-                                    {% if current_user.is_admin and not message.is_approved %}
-                                    <div class="mt-2">
-                                        <a href="{{ url_for('main.approve_photos', message_id=message.id) }}" 
-                                           class="btn btn-success btn-sm">
-                                            <i class="bi bi-check"></i> Aprobar y Enviar
-                                        </a>
-                                    </div>
-                                    {% endif %}
                                 </div>
                                 {% endif %}
                             </div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="alert alert-info">No hay mensajes.</div>
-                        {% endif %}
-                    </div>
+                            <small class="message-time text-muted">
+                                {{ message.created_at.strftime('%H:%M') }}
+                            </small>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Formulario de envío -->
+                <div class="message-form p-3 border-top">
+                    <form method="POST" action="{{ url_for('main.send_message') }}" enctype="multipart/form-data" class="d-flex gap-2">
+                        <input type="hidden" id="recipient_id" name="recipient_id" value="">
+                        <div class="flex-grow-1">
+                            <input type="text" class="form-control" id="content" name="content" placeholder="Escribe un mensaje..." required>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <label class="btn btn-outline-primary mb-0" style="cursor: pointer;">
+                                <i class="bi bi-image"></i>
+                                <input type="file" name="photos" multiple accept="image/*" style="display: none;">
+                            </label>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-send"></i>
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -133,129 +79,64 @@
 </div>
 
 <style>
-.user-select {
-    cursor: pointer;
+.message-bubble {
+    max-width: 70%;
+    padding: 10px 15px;
+    border-radius: 15px;
+    position: relative;
 }
-.user-select:hover {
-    background-color: rgba(13, 110, 253, 0.1);
+
+.message-bubble.sent {
+    background-color: #dcf8c6;
+    margin-left: auto;
+    border-top-right-radius: 5px;
 }
-.user-select.active {
-    background-color: rgba(13, 110, 253, 0.2);
+
+.message-bubble.received {
+    background-color: #fff;
+    margin-right: auto;
+    border-top-left-radius: 5px;
 }
+
+.message-time {
+    font-size: 0.75rem;
+    display: block;
+    text-align: right;
+    margin-top: 5px;
+}
+
+.chat-container {
+    background-color: #e5ddd5;
+}
+
 .messages-container {
-    max-height: 500px;
-    overflow-y: auto;
-}
-.message-card {
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 10px;
-}
-.message-card.sent {
-    background-color: rgba(13, 110, 253, 0.1);
-    margin-left: 20%;
-}
-.message-card.received {
-    background-color: rgba(33, 37, 41, 0.1);
-    margin-right: 20%;
-}
-.message-card.unread {
-    border-left: 4px solid #0d6efd;
-}
-.message-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 5px;
+    padding: 20px;
+    background-image: url("data:image/svg+xml,%3Csvg width='70' height='70' viewBox='0 0 70 70' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23b2b2b2' fill-opacity='0.1' fill-rule='evenodd'%3E%3Cpath d='M0 0h35v35H0V0zm5 5h25v25H5V5zm5 5h15v15H10V10z'/%3E%3C/g%3E%3C/svg%3E");
 }
 </style>
-{% endblock %}
 
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Selección de usuario
-    const userSelects = document.querySelectorAll('.user-select');
+    const userChats = document.querySelectorAll('.user-chat');
     const recipientIdInput = document.getElementById('recipient_id');
-    const recipientNameSpan = document.getElementById('recipient_name');
-    const sendButton = document.getElementById('sendButton');
-    const recipientSelect = document.getElementById('recipientSelect');
 
-    userSelects.forEach(function(userSelect) {
-        userSelect.addEventListener('click', function(e) {
+    userChats.forEach(chat => {
+        chat.addEventListener('click', function(e) {
             e.preventDefault();
-            // Remover clase activa de todos los usuarios
-            userSelects.forEach(u => u.classList.remove('active'));
-            // Agregar clase activa al usuario seleccionado
+            // Remover clase activa de todos
+            userChats.forEach(c => c.classList.remove('active'));
+            // Agregar clase activa al seleccionado
             this.classList.add('active');
-
-            // Actualizar el formulario
-            const userId = this.dataset.userId;
-            const userName = this.dataset.userName;
-            recipientIdInput.value = userId;
-            recipientSelect.value = userId; // Update select box too
-            recipientNameSpan.textContent = userName;
-            sendButton.disabled = false;
+            // Actualizar recipient_id
+            recipientIdInput.value = this.dataset.userId;
         });
     });
 
-    // Marcar mensajes como leídos
-    const unreadMessages = document.querySelectorAll('.message-card.unread');
-    unreadMessages.forEach(function(message) {
-        const messageId = message.dataset.messageId;
-        fetch(`/messages/${messageId}/read`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                message.classList.remove('unread');
-            }
-        });
-    });
-
-    // Preview de imágenes
-    const photosInput = document.getElementById('photos');
-    const previewDiv = document.getElementById('preview');
-
-    if (photosInput) {
-        photosInput.addEventListener('change', function() {
-            previewDiv.innerHTML = '';
-            for (let file of this.files) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.classList.add('img-thumbnail');
-                    img.style.maxWidth = '100px';
-                    previewDiv.appendChild(img);
-                }
-                reader.readAsDataURL(file);
-            }
-        });
-    }
-
-
-    // Enviar a todos
-    document.getElementById('sendToAll').addEventListener('change', function() {
-        recipientSelect.disabled = this.checked;
-        if (this.checked) {
-            recipientSelect.value = '';
-            recipientIdInput.value = ''; // Clear recipient ID if sending to all
-            recipientNameSpan.textContent = 'Todos los diseñadores'; // Update recipient name
-            sendButton.disabled = false; //Enable Send button
-        } else {
-            recipientNameSpan.textContent = 'Seleccione un usuario'; // Reset recipient name
-            sendButton.disabled = true; // Disable send button until a user is selected
-        }
-    });
-
-    // Solicitar permisos de notificación al cargar la página
-    if ('Notification' in window) {
-        Notification.requestPermission();
-    }
+    // Scroll al final de los mensajes
+    const messagesContainer = document.querySelector('.messages-container');
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
 });
 </script>
+{% endblock %}
 {% endblock %}
