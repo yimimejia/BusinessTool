@@ -167,14 +167,10 @@ def send_whatsapp_invoice(job_id):
             flash('No hay número de teléfono registrado para este cliente', 'error')
             return redirect(url_for('main.completed_jobs'))
 
-        # Limpiar número de teléfono
-        clean_phone = re.sub(r'[^\d+]', '', job.phone_number)
-        if not clean_phone.startswith('+'):
-            if clean_phone.startswith('1'):
-                clean_phone = '+' + clean_phone
-            else:
-                clean_phone = '+1' + clean_phone
-        whatsapp_phone = clean_phone.replace('+', '')
+        # Limpiar número de teléfono - remover todos los caracteres no numéricos
+        clean_phone = re.sub(r'[^\d]', '', job.phone_number)
+        if not clean_phone.startswith('1'):
+            clean_phone = '1' + clean_phone
         
         # Generar el PDF de la factura
         job, qr_code_image, total_amount, deposit_amount, remaining_amount = get_job_invoice_data(job_id)
@@ -182,31 +178,20 @@ def send_whatsapp_invoice(job_id):
             flash('Error al generar la factura', 'error')
             return redirect(url_for('main.completed_jobs'))
 
-        # Generar URLs públicas para los archivos
-        invoice_url = url_for('main.view_invoice_pdf', job_id=job.id, _external=True)
-        
-        # Mensaje profesional con enlaces a los archivos
-        message = f"""*FOTO VIDEO MOJICA*
+        # Preparar mensaje de WhatsApp
+        whatsapp_message = f"""*FOTO VIDEO MOJICA*
 ¡Saludos estimado(a) {job.client_name}!
 
-Le enviamos su factura correspondiente al trabajo realizado:
-
-📋 Número de Factura: {job.invoice_number}
-💰 Monto Total: RD${float(total_amount):.2f}
+Le enviamos su factura:
+📋 Número: {job.invoice_number}
+💰 Total: RD${float(total_amount):.2f}
 💵 Abono: RD${float(deposit_amount):.2f}
 🔸 Restante: RD${float(remaining_amount):.2f}
 
-Para ver su factura, haga clic aquí:
-{invoice_url}
-
-Agradecemos su confianza en nuestros servicios.
-¡Que tenga un excelente día!
-
-*FOTO VIDEO MOJICA*
-Calidad y profesionalismo"""
-
-        # Crear enlace de WhatsApp con el mensaje codificado correctamente
-        whatsapp_url = f"https://api.whatsapp.com/send?phone={whatsapp_phone}&text={urllib.parse.quote(message)}"
+¡Gracias por su preferencia!"""
+        
+        # Crear enlace de WhatsApp usando wa.me
+        whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(whatsapp_message)}"
 
         log_activity(
             'enviar_whatsapp_factura',
