@@ -16,7 +16,7 @@
               <th>ID</th>
               <th>Factura</th>
               <th>Cliente</th>
-              <th>Teléfono</th>
+              <th style="min-width: 150px;">Teléfono</th>
               <th>Descripción</th>
               <th>Fecha</th>
               <th>Registrado por</th>
@@ -35,7 +35,16 @@
               </td>
               <td>{{ job.invoice_number }}</td>
               <td>{{ job.client_name }}</td>
-              <td>{{ job.phone_number }}</td>
+              <td>
+                {% if job.phone_number %}
+                  <a href="https://wa.me/{{ job.phone_number|replace('+', '')|replace(' ', '') }}" 
+                     class="btn btn-sm btn-outline-success" target="_blank">
+                    <i class="bi bi-whatsapp"></i> {{ job.phone_number }}
+                  </a>
+                {% else %}
+                  <span class="text-muted">No disponible</span>
+                {% endif %}
+              </td>
               <td>{{ job.description }}</td>
               <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
               <td>{{ job.registered_by.name }}</td>

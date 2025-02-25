@@ -715,7 +715,8 @@ def approve_job_with_pin(job_id):
             )
 
             flash('Trabajo aprobado exitosamente', 'success')
-            return redirect(url_for('main.pending_jobs'))
+            # Redireccionar a la factura del trabajo recién aprobado
+            return redirect(url_for('main.view_job_invoice', job_id=active_job.id))
 
         except SQLAlchemyError as e:
             db.session.rollback()

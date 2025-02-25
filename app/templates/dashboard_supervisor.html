@@ -2,7 +2,7 @@
 {% block title %}Panel de Supervisor{% endblock %}
 
 {% block content %}
-<div class="container mt-4" style="max-width: 1400px;">  <!-- Ajusta este valor si quieres aún más ancho -->
+<div class="container mt-4" style="max-width: 1400px;">
   <h2>Panel de Supervisor</h2>
 
   <div class="card mt-4">
@@ -10,15 +10,14 @@
       <h5 class="mb-0">Trabajos Pendientes</h5>
       <a href="{{ url_for('main.new_pending_job') }}" class="btn btn-primary">Nuevo Trabajo</a>
     </div>
-    <div class="card-body" style="overflow-x: auto;">  <!-- Permite que la tabla se muestre sin recortar -->
-      <table class="table" id="jobsTable" style="min-width: 1000px;"> 
-        <!-- El min-width obliga a que la tabla no se encoja demasiado -->
+    <div class="card-body" style="overflow-x: auto;">
+      <table class="table" id="jobsTable" style="min-width: 1000px;">
         <thead>
           <tr>
             <th>ID</th>
             <th>Factura</th>
             <th>Cliente</th>
-            <th>Teléfono</th>
+            <th style="min-width: 150px;">Teléfono</th>
             <th>Descripción</th>
             <th>Fecha</th>
             <th>Registrado por</th>
@@ -37,7 +36,16 @@
             </td>
             <td>{{ job.invoice_number }}</td>
             <td>{{ job.client_name }}</td>
-            <td>{{ job.phone_number }}</td>
+            <td>
+              {% if job.phone_number %}
+                <a href="https://wa.me/{{ job.phone_number|replace('+', '')|replace(' ', '') }}" 
+                   class="btn btn-sm btn-outline-success" target="_blank">
+                  <i class="bi bi-whatsapp"></i> {{ job.phone_number }}
+                </a>
+              {% else %}
+                <span class="text-muted">No disponible</span>
+              {% endif %}
+            </td>
             <td>{{ job.description }}</td>
             <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
             <td>{{ job.registered_by.name }}</td>
@@ -95,7 +103,6 @@
 {{ super() }}
 <script>
 $(document).ready(function() {
-  // Inicializar DataTable
   $('#jobsTable').DataTable({
     language: {
       url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
@@ -107,7 +114,6 @@ $(document).ready(function() {
   const authModal = new bootstrap.Modal(document.getElementById('authModal'));
   const errorDiv = document.getElementById('authError');
 
-  // Configurar botones de completar
   $('.complete-job').click(function() {
     currentJobId = $(this).data('job-id');
     if (errorDiv) {
@@ -124,9 +130,9 @@ $(document).ready(function() {
     authModal.show();
   }
 
-  // Manejar el envío del formulario de autenticación
   $('#submitAuth').click(function() {
     const password = $('#authPassword').val();
+
     fetch(`/jobs/${currentJobId}/complete`, {
       method: 'POST',
       headers: {
