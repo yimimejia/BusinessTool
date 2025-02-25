@@ -9,6 +9,7 @@ import pytz
 import redis
 from flask_sse import sse
 import logging
+from flask_wtf.csrf import CSRFProtect  # Añadida importación de CSRFProtect
 
 # Initialize extensions first
 class Base(DeclarativeBase):
@@ -17,6 +18,7 @@ class Base(DeclarativeBase):
 db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 migrate = Migrate()
+csrf = CSRFProtect()  # Inicializar CSRFProtect
 
 def create_app():
     app = Flask(__name__)
@@ -37,21 +39,17 @@ def create_app():
     # Ensure secret key is set
     app.secret_key = os.environ.get("SESSION_SECRET", "dev-key-temporary")
 
+    # CSRF configuration
+    app.config['WTF_CSRF_ENABLED'] = True
+    app.config['WTF_CSRF_SECRET_KEY'] = os.environ.get("CSRF_SECRET_KEY", os.urandom(32))
+
     app.config["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379")
-
-    # Create uploads directory
-    upload_folder = os.path.join(app.static_folder, 'uploads')
-    os.makedirs(upload_folder, exist_ok=True)
-    app.config['UPLOAD_FOLDER'] = upload_folder
-
-    # Create temp directory for file uploads
-    temp_folder = os.path.join(app.static_folder, 'temp')
-    os.makedirs(temp_folder, exist_ok=True)
 
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
+    csrf.init_app(app)  # Inicializar CSRF protection
 
     # Configure login
     login_manager.login_view = 'main.login'
