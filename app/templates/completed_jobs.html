@@ -20,12 +20,12 @@
                 {% for job in jobs %}
                 <tr {% if job.is_called %}class="text-danger text-decoration-line-through"{% endif %}>
                     <td>
-                        <a href="{{ url_for('main.display_job_invoice', job_id=job.id) }}" target="_blank" class="text-decoration-none {% if job.is_called %}text-danger{% endif %}">
+                        <a href="{{ url_for('main.view_invoice_pdf', job_id=job.id) }}" target="_blank" class="text-decoration-none {% if job.is_called %}text-danger{% endif %}">
                             {{ job.id }}
                         </a>
                     </td>
                     <td>
-                        <a href="{{ url_for('main.display_job_invoice', job_id=job.id) }}" target="_blank" class="text-decoration-none {% if job.is_called %}text-danger{% endif %}">
+                        <a href="{{ url_for('main.view_invoice_pdf', job_id=job.id) }}" target="_blank" class="text-decoration-none {% if job.is_called %}text-danger{% endif %}">
                             {{ job.client_name }}
                         </a>
                     </td>
@@ -82,16 +82,16 @@
                                     </button>
                                 </form>
                                 {% if job.phone_number %}
-                                <a href="https://wa.me/{{ job.phone_number.replace('+', '').replace('-', '') }}?text=Hola {{ job.client_name }}, tu trabajo está listo" 
+                                {%- set whatsapp_message = "Hola " + job.client_name + ", tu trabajo está listo" -%}
+                                {%- set clean_phone = job.phone_number | replace('+', '') | replace('-', '') | replace(' ', '') -%}
+                                <a href="https://api.whatsapp.com/send?phone={{ clean_phone }}&text={{ whatsapp_message | urlencode }}" 
                                    class="btn btn-sm btn-success" target="_blank">
                                     <i class="bi bi-whatsapp"></i> WhatsApp
                                 </a>
-                                {% if job.phone_number %}
                                 <a href="{{ url_for('main.send_whatsapp_invoice', job_id=job.id) }}" 
                                    class="btn btn-sm btn-success" target="_blank">
                                     <i class="bi bi-whatsapp"></i> Enviar Factura
                                 </a>
-                                {% endif %}
                                 {% endif %}
                                 {% else %}
                                 <form action="{{ url_for('main.mark_delivered', job_id=job.id) }}" method="POST" class="d-inline">
@@ -114,7 +114,6 @@
     </div>
     {% endif %}
 </div>
-
 {% endblock %}
 
 {% block scripts %}
