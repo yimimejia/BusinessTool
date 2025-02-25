@@ -80,6 +80,7 @@ function sendWhatsApp() {
     message += "Abono: ${{ "%.2f"|format(job.deposit_amount) }}\n";
     {% endif %}
     message += "Fecha: {{ job.created_at.strftime('%d/%m/%Y %H:%M') }}\n\n";
+    message += "Link de la factura: {{ job_url }}\n\n";
     message += "Gracias por su preferencia";
 
     // Crear el enlace de WhatsApp

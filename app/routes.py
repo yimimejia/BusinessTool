@@ -94,6 +94,34 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+@bp.route('/jobs/<int:job_id>/invoice', methods=['GET'])
+@login_required
+def view_job_invoice_details(job_id):
+    """Ver factura de un trabajo"""
+    try:
+        job, qr_code_image, total_amount, deposit_amount, remaining_amount = get_job_invoice_data(job_id=job_id)
+        if not job:
+            flash('Trabajo no encontrado', 'error')
+            return redirect(url_for('main.dashboard'))
+            
+        # Generar URL para el QR
+        job_url = url_for('main.view_job_invoice_details', job_id=job.id, _external=True)
+        
+        logger.info(f"Renderizando factura - Total: {total_amount}, Abono: {deposit_amount}, Restante: {remaining_amount}")
+        return render_template(
+            'job_qr.html',
+            job=job,
+            qr_image=qr_code_image,
+            total_amount=total_amount,
+            deposit_amount=deposit_amount,
+            remaining_amount=remaining_amount,
+            job_url=job_url
+        )
+    except Exception as e:
+        logger.error(f"Error al mostrar factura: {str(e)}")
+        flash('Error al mostrar la factura', 'error')
+        return redirect(url_for('main.dashboard'))
+
 def get_job_invoice_data(job_id=None, qr_code=None):
     """Función interna para obtener datos de factura"""
     try:
@@ -111,31 +139,22 @@ def get_job_invoice_data(job_id=None, qr_code=None):
         elif qr_code:
             logger.info(f"Buscando trabajo por código QR: {qr_code}")
             try:
-                # Intentar decodificar el QR
-                decoded_qr = base64.urlsafe_b64decode(qr_code.encode()).decode()
-                logger.info(f"QR decodificado: {decoded_qr}")
-                
-                if decoded_qr.startswith('FVM-'):
-                    # Extraer el ID numérico y validar
-                    try:
-                        extracted_id = int(decoded_qr.split('-')[1])
-                        logger.info(f"ID extraído del QR: {extracted_id}")
-                        
-                        # Buscar primero en trabajos activos
-                        job = Job.query.get(extracted_id)
-                        if not job:
-                            logger.info(f"Buscando en trabajos completados: {extracted_id}")
-                            job = CompletedJob.query.get(extracted_id)
-                            
-                    except (IndexError, ValueError) as e:
-                        logger.error(f"Error al extraer ID del QR: {str(e)}")
-                        return None, None, 0, 0, 0
+                # El QR ahora contendrá la URL completa, extraer el ID del trabajo
+                if '/jobs/' in qr_code:
+                    job_id = int(qr_code.split('/jobs/')[-1].split('/')[0])
+                    logger.info(f"ID extraído de URL: {job_id}")
+                    
+                    # Buscar primero en trabajos activos
+                    job = Job.query.get(job_id)
+                    if not job:
+                        logger.info(f"Buscando en trabajos completados: {job_id}")
+                        job = CompletedJob.query.get(job_id)
                 else:
-                    logger.warning(f"Formato de QR inválido: {decoded_qr}")
+                    logger.warning(f"Formato de URL inválido: {qr_code}")
                     return None, None, 0, 0, 0
                     
             except Exception as e:
-                logger.error(f"Error decodificando QR: {str(e)}")
+                logger.error(f"Error procesando URL del QR: {str(e)}")
                 return None, None, 0, 0, 0
 
         if not job:
@@ -143,6 +162,27 @@ def get_job_invoice_data(job_id=None, qr_code=None):
             return None, None, 0, 0, 0
 
         logger.info(f"Trabajo encontrado: ID={job.id}, Cliente={job.client_name}")
+
+        # Generar URL para el QR
+        job_url = url_for('main.view_job_invoice_details', job_id=job.id, _external=True)
+        logger.info(f"URL generada para QR: {job_url}")
+
+        # Generar QR code con la URL
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=5
+        )
+
+        qr.add_data(job_url)
+        qr.make(fit=True)
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+
+        # Convert QR to base64
+        buffered = io.BytesIO()
+        qr_img.save(buffered, format="PNG")
+        qr_code_image = base64.b64encode(buffered.getvalue()).decode()
 
         # Buscar o crear factura
         invoice = Invoice.query.filter_by(
@@ -152,7 +192,6 @@ def get_job_invoice_data(job_id=None, qr_code=None):
 
         if not invoice:
             logger.info(f"Creando nueva factura para trabajo {job.id}")
-            # Crear nueva factura
             invoice = Invoice(
                 job_id=job.id,
                 job_type='completed_job' if isinstance(job, CompletedJob) else 'job',
@@ -161,6 +200,7 @@ def get_job_invoice_data(job_id=None, qr_code=None):
                 deposit_amount=float(getattr(job, 'deposit_amount', 0) or 0),
                 created_at=job.created_at
             )
+            
             try:
                 db.session.add(invoice)
                 db.session.commit()
@@ -168,33 +208,9 @@ def get_job_invoice_data(job_id=None, qr_code=None):
             except Exception as e:
                 logger.error(f"Error al crear factura: {str(e)}")
                 db.session.rollback()
-                # Intentar obtener la factura existente
                 invoice = Invoice.query.filter_by(invoice_number=job.invoice_number).first()
                 if not invoice:
                     return None, None, 0, 0, 0
-
-        # Generar QR si no existe
-        if not invoice.qr_code:
-            invoice.generate_qr_code()
-            db.session.commit()
-
-        # Generar QR code para la vista
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
-            border=5
-        )
-
-        qr_url = url_for('main.view_public_invoice', qr_code=invoice.qr_code, _external=True)
-        qr.add_data(qr_url)
-        qr.make(fit=True)
-        qr_img = qr.make_image(fill_color="black", back_color="white")
-
-        # Convert QR to base64
-        buffered = io.BytesIO()
-        qr_img.save(buffered, format="PNG")
-        qr_code_image = base64.b64encode(buffered.getvalue()).decode()
 
         logger.info(f"QR generado exitosamente para factura {invoice.invoice_number}")
         return job, qr_code_image, float(invoice.total_amount), float(invoice.deposit_amount), float(invoice.remaining_amount)
