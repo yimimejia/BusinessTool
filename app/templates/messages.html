@@ -250,27 +250,30 @@
                         return;
                     }
                     
-                    const formData = new FormData(messageForm);
-                    sendButton.disabled = true;
+                    const formData = new FormData(this);
+                    const userId = recipientIdInput.value;
                     
                     try {
-                        const response = await fetch(messageForm.action, {
+                        const response = await fetch('/messages/send', {
                             method: 'POST',
                             body: formData
                         });
                         
                         if (response.ok) {
                             contentInput.value = '';
-                            // Recargar solo los mensajes sin refrescar la página
-                            window.location.href = `/messages?user_id=${recipientIdInput.value}`;
-                        } else {
-                            alert('Error al enviar el mensaje');
+                            // Recargar mensajes sin cambiar la URL
+                            const messagesUrl = `/messages?user_id=${userId}`;
+                            const messagesResponse = await fetch(messagesUrl);
+                            const messagesHtml = await messagesResponse.text();
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = messagesHtml;
+                            const newMessages = tempDiv.querySelector('.messages-container');
+                            document.querySelector('.messages-container').innerHTML = newMessages.innerHTML;
                         }
                     } catch (error) {
                         console.error('Error:', error);
-                        alert('Error al enviar el mensaje');
-                    } finally {
-                        sendButton.disabled = false;
+                    }
+                    sendButton.disabled = false;
                     }
                 };
                 sendButton.disabled = false;
