@@ -31,6 +31,24 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint('main', __name__)
 
+@bp.context_processor
+def inject_urgent_jobs():
+    """Inject urgent jobs into all templates"""
+    if not current_user.is_authenticated:
+        return {'urgent_jobs': []}
+        
+    try:
+        # Buscar trabajos con la etiqueta "Urgente"
+        urgent_jobs = Job.query.filter(
+            Job.tags.ilike('%Urgente%'),
+            Job.status == 'pending'
+        ).order_by(Job.created_at.desc()).all()
+        
+        return {'urgent_jobs': urgent_jobs}
+    except Exception as e:
+        logger.error(f"Error al obtener trabajos urgentes: {str(e)}")
+        return {'urgent_jobs': []}
+
 @bp.route('/jobs/pending/new', methods=['GET', 'POST'])
 @login_required
 def new_pending_job():
