@@ -8,109 +8,118 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, sans-serif;
             margin: 0;
-            padding: 0;
+            padding: 15px;
             background: white;
             color: #333;
+            max-width: 600px;
+            margin: 0 auto;
         }
-        .header {
+        h1 {
             text-align: center;
-            padding: 20px 0;
+            font-size: 20px;
+            margin: 10px 0;
         }
-        .header h1 {
-            margin: 0;
-            font-size: 24px;
-            font-weight: bold;
-        }
-        .header p {
-            margin: 8px 0 0;
-            font-size: 16px;
+        .invoice-number {
+            text-align: center;
+            font-size: 14px;
+            margin: 5px 0 15px;
+            color: #333;
         }
         .info-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            padding: 15px;
-            gap: 10px;
-            border-top: 1px solid #eee;
-            border-bottom: 1px solid #eee;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .info-item {
+            margin: 0;
         }
         .info-item strong {
             display: block;
-            font-size: 14px;
+            font-size: 12px;
             color: #666;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
         .info-item span {
+            font-size: 14px;
+        }
+        .payment-section {
+            background: #f8f8f8;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .payment-section h2 {
+            margin: 0 0 10px;
             font-size: 16px;
         }
         .payment-details {
-            background: #f5f5f5;
-            margin: 15px;
-            padding: 15px;
-            border-radius: 8px;
-        }
-        .payment-details h2 {
-            margin: 0 0 15px;
-            font-size: 18px;
-        }
-        .payment-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 10px;
         }
         .payment-item strong {
             display: block;
-            font-size: 14px;
+            font-size: 12px;
             color: #666;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
         .payment-item span {
-            font-size: 18px;
-            font-weight: bold;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .payment-item.restante {
+            background: #f0f0f0;
+            padding: 5px;
         }
         .qr-section {
             text-align: center;
-            padding: 20px;
+            margin: 20px 0;
         }
         .qr-section img {
-            width: 200px;
-            height: 200px;
+            width: 150px;
+            height: 150px;
         }
         .qr-section p {
-            margin: 10px 0;
-            font-size: 14px;
+            margin: 8px 0;
+            font-size: 12px;
             color: #666;
         }
         .actions {
             display: flex;
             gap: 10px;
-            padding: 15px;
             justify-content: center;
+            margin-top: 20px;
         }
         .btn {
-            padding: 10px 20px;
-            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 14px;
             border: none;
-            font-size: 16px;
             cursor: pointer;
-            display: flex;
+            text-decoration: none;
+            display: inline-flex;
             align-items: center;
-            gap: 8px;
+            justify-content: center;
+            gap: 5px;
+            min-width: 120px;
         }
         .btn-print {
-            background: #007aff;
+            background: #007AFF;
             color: white;
         }
         .btn-whatsapp {
             background: #25D366;
             color: white;
         }
+        @media print {
+            .actions { display: none; }
+            body { padding: 0; }
+            .payment-section { -webkit-print-color-adjust: exact; }
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>FOTO VIDEO MOJICA</h1>
-        <p>Factura #{{ job.invoice_number }}</p>
-    </div>
+    <h1>FOTO VIDEO MOJICA</h1>
+    <p class="invoice-number">Factura #{{ job.invoice_number }}</p>
 
     <div class="info-grid">
         <div class="info-item">
@@ -131,9 +140,9 @@
         </div>
     </div>
 
-    <div class="payment-details">
+    <div class="payment-section">
         <h2>Detalles del Pago</h2>
-        <div class="payment-grid">
+        <div class="payment-details">
             <div class="payment-item">
                 <strong>Monto Total:</strong>
                 <span>RD${{ "%.2f"|format(total_amount) }}</span>
@@ -142,7 +151,7 @@
                 <strong>Abono:</strong>
                 <span>RD${{ "%.2f"|format(deposit_amount) }}</span>
             </div>
-            <div class="payment-item">
+            <div class="payment-item restante">
                 <strong>Restante:</strong>
                 <span>RD${{ "%.2f"|format(remaining_amount) }}</span>
             </div>
@@ -156,19 +165,12 @@
 
     <div class="actions">
         <button onclick="window.print()" class="btn btn-print">
-            <i class="bi bi-printer"></i> Imprimir
+            Imprimir
         </button>
         <a href="https://wa.me/{{ job.phone_number|replace('+', '')|replace(' ', '') }}?text={{ whatsapp_message|urlencode }}" 
            class="btn btn-whatsapp" target="_blank">
-            <i class="bi bi-whatsapp"></i> Enviar por WhatsApp
+            Enviar por WhatsApp
         </a>
     </div>
-
-    <style>
-        @media print {
-            .actions { display: none; }
-            .payment-details { -webkit-print-color-adjust: exact; }
-        }
-    </style>
 </body>
 </html>
