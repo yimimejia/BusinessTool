@@ -38,10 +38,22 @@
                 </div>
 
                 <!-- Mensajes -->
-                <div class="messages-container flex-grow-1" style="overflow-y: auto; padding: 20px;">
+                <div class="messages-container flex-grow-1" style="overflow-y: auto; padding: 20px; background-color: #0D1418;">
                     {% for message in messages %}
                         <div class="message-bubble mb-3 {% if message.sender_id == current_user.id %}sent{% else %}received{% endif %}"
-                             data-message-id="{{ message.id }}">
+                             data-message-id="{{ message.id }}" 
+                             style="{% if message.sender_id == current_user.id %}
+                                    background-color: #128C7E; 
+                                    color: #fff;
+                                    margin-left: auto;
+                                    {% else %}
+                                    background-color: #1F2C33;
+                                    color: #fff;
+                                    margin-right: auto;
+                                    {% endif %}
+                                    border-radius: 15px;
+                                    padding: 10px 15px;
+                                    max-width: 70%;">
                             <div class="message-content">
                                 {{ message.content }}
                                 {% if message.photos %}
