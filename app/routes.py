@@ -688,7 +688,13 @@ def view_approved_photos(token):
 def delete_job(job_id):
     """Eliminar un trabajo"""
     try:
-        job = Job.query.get_or_404(job_id)
+        # Buscar el trabajo en las tablas Job y CompletedJob
+        job = Job.query.get(job_id)
+        if not job:
+            job = CompletedJob.query.get(job_id)
+        
+        if not job:
+            return jsonify({'success': False, 'message': 'Trabajo no encontrado'}), 404
         
         # Registrar actividad antes de eliminar
         log_activity(
@@ -697,27 +703,26 @@ def delete_job(job_id):
         )
 
         # Eliminar fotos asociadas si existen
-        if hasattr(job, 'photos'):
-            for photo in job.photos:
+        if hasattr(job, 'photos') and job.photos:
+            photos = json.loads(job.photos) if isinstance(job.photos, str) else job.photos
+            for photo_path in photos:
                 try:
-                    photo_path = os.path.join(current_app.static_folder, photo.file_path)
-                    if os.path.exists(photo_path):
-                        os.remove(photo_path)
+                    full_path = os.path.join(current_app.static_folder, photo_path)
+                    if os.path.exists(full_path):
+                        os.remove(full_path)
                 except Exception as e:
-                    logger.error(f"Error eliminando foto {photo.file_path}: {str(e)}")
+                    logger.error(f"Error eliminando foto {photo_path}: {str(e)}")
 
         # Eliminar el trabajo
         db.session.delete(job)
         db.session.commit()
         
-        flash('Trabajo eliminado exitosamente', 'success')
-        return redirect(url_for('main.dashboard'))
+        return jsonify({'success': True, 'message': 'Trabajo eliminado exitosamente'})
 
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error al eliminar trabajo: {str(e)}")
-        flash('Error al eliminar el trabajo', 'error')
-        return redirect(url_for('main.dashboard'))
+        return jsonify({'success': False, 'message': 'Error al eliminar el trabajo'}), 500
 
 @bp.route('/jobs/<int:job_id>/approve-with-pin', methods=['POST'])
 @login_required

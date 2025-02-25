@@ -20,8 +20,7 @@
               <th>Cliente</th>
               <th>Teléfono</th>
               <th>Descripción</th>
-              <th>Fecha</th>
-              <th>Registrado por</th>
+              <th>Diseñador</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -38,15 +37,14 @@
               <td>{{ job.client_name }}</td>
               <td>{{ job.phone_number }}</td>
               <td>{{ job.description }}</td>
-              <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
-              <td>{{ job.registered_by.name }}</td>
+              <td>{{ job.designer.name if job.designer else 'No asignado' }}</td>
               <td><span class="badge bg-{{ job.status_color }}">{{ job.status_text }}</span></td>
               <td>
                 <div class="btn-group">
                   <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-pencil"></i> Editar
                   </a>
-                  <button class="btn btn-danger btn-sm delete-job" data-job-id="{{ job.id }}">
+                  <button type="button" class="btn btn-danger btn-sm" onclick="confirmDelete({{ job.id }})">
                     <i class="bi bi-trash"></i> Eliminar
                   </button>
                 </div>
@@ -90,34 +88,39 @@ $(document).ready(function() {
     },
     order: [[0, 'desc']]
   });
+});
 
-  let jobIdToDelete = null;
-  const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+let jobIdToDelete = null;
+const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
 
-  $('.delete-job').click(function() {
-    jobIdToDelete = $(this).data('job-id');
-    deleteModal.show();
-  });
+function confirmDelete(jobId) {
+  jobIdToDelete = jobId;
+  deleteModal.show();
+}
 
-  $('#confirmDelete').click(function() {
-    fetch(`/jobs/${jobIdToDelete}/delete`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        location.reload();
-      } else {
-        alert('Error al eliminar el trabajo');
-      }
-    })
-    .catch(error => {
-      console.error('Error:', error);
-      alert('Error al procesar la solicitud');
-    });
+document.getElementById('confirmDelete').addEventListener('click', function() {
+  if (!jobIdToDelete) return;
+
+  fetch(`/jobs/${jobIdToDelete}/delete`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      location.reload();
+    } else {
+      alert(data.message || 'Error al eliminar el trabajo');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Error al procesar la solicitud');
+  })
+  .finally(() => {
+    deleteModal.hide();
   });
 });
 </script>
