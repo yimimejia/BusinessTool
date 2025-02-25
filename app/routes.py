@@ -1,7 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response, send_from_directory, session, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
-from flask_wtf.csrf import generate_csrf
 from functools import wraps
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy import or_, desc, literal_column
@@ -878,12 +877,14 @@ def index():
 
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
+    """Vista de inicio de sesión"""
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
 
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+        remember = request.form.get('remember', False)
 
         if not username or not password:
             flash('Por favor ingrese usuario y contraseña', 'error')
@@ -891,22 +892,20 @@ def login():
 
         user = User.query.filter_by(username=username).first()
         if user and user.check_password(password):
-            # Si es diseñador, establecer sesión permanente
+            # Si es diseñador, establecer sesión permanente 
             if not user.is_admin and not user.is_supervisor:
                 user.permanent_session = True
                 session.permanent = True
             login_user(user, remember=user.permanent_session)
-            log_activity('login', f'Inicio de sesión exitoso - Usuario: {user.username}')
-            flash('¡Bienvenido!', 'success')
-            return redirect(url_for('main.dashboard'))
-
+            log_activity('login', f"Login exitoso: {username}")
+            next_page = request.args.get('next')
+            return redirect(next_page if next_page else url_for('main.dashboard'))
+        
         flash('Usuario o contraseña incorrectos', 'error')
-        log_activity('login_failed', f'Intento de inicio de sesión fallido - Usuario: {username}')
+        log_activity('login_failed', f"Intento fallido de login: {username}")
         return redirect(url_for('main.login'))
 
-    # Generate CSRF token for GET request
-    csrf_token = generate_csrf()
-    return render_template('login.html', csrf_token=csrf_token)
+    return render_template('login.html')
 
 # Nuevas rutas para mensajería
 
