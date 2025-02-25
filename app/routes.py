@@ -106,10 +106,19 @@ def get_job_invoice_data(job_id=None, qr_code=None):
                 # Si no está en trabajos activos, buscar en completados
                 job = CompletedJob.query.get(job_id)
         elif qr_code:
-            # Buscar por QR code
-            job = Job.query.filter_by(qr_code=qr_code).first()
-            if not job:
-                job = CompletedJob.query.filter_by(qr_code=qr_code).first()
+            # Decodificar el código QR y extraer el ID
+            try:
+                decoded_qr = base64.urlsafe_b64decode(qr_code).decode()
+                if decoded_qr.startswith('FVM-'):
+                    # Extraer el ID numérico
+                    extracted_id = int(decoded_qr.split('-')[1])
+                    # Buscar por ID
+                    job = Job.query.get(extracted_id)
+                    if not job:
+                        job = CompletedJob.query.get(extracted_id)
+            except Exception as e:
+                logger.error(f"Error decodificando QR: {str(e)}")
+                return None, None, 0, 0, 0
 
         if not job:
             return None, None, 0, 0, 0

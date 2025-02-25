@@ -151,9 +151,10 @@ class Job(db.Model):
         return formatted_number
 
     def generate_qr_code(self):
+        """Genera un código QR único para el trabajo"""
         if not self.qr_code:
-            # Agregar prefijo fotov y el ID del trabajo
-            unique_id = f"fotov{self.id}-{self.invoice_number}-{int(datetime.utcnow().timestamp())}"
+            # Usar FVM como prefijo seguido del ID del trabajo
+            unique_id = f"FVM-{self.id}"
             self.qr_code = base64.urlsafe_b64encode(unique_id.encode()).decode()
         return self.qr_code
 
@@ -317,8 +318,10 @@ class CompletedJob(db.Model):
     registered_by = db.relationship('User', foreign_keys=[registered_by_id])
 
     def generate_qr_code(self):
+        """Genera un código QR único para el trabajo completado"""
         if not self.qr_code:
-            unique_id = f"{int(datetime.utcnow().timestamp())}-{self.id}-{random.randint(1000, 9999)}"
+            # Usar FVM como prefijo seguido del ID del trabajo
+            unique_id = f"FVM-{self.id}"
             self.qr_code = base64.urlsafe_b64encode(unique_id.encode()).decode()
         return self.qr_code
 
