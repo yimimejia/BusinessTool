@@ -134,29 +134,8 @@ Le enviamos su factura:
 @login_required
 def view_job_invoice_details(job_id):
     """Ver factura de un trabajo"""
-    try:
-        job, qr_code_image, total_amount, deposit_amount, remaining_amount = get_job_invoice_data(job_id=job_id)
-        if not job:
-            flash('Trabajo no encontrado', 'error')
-            return redirect(url_for('main.dashboard'))
-            
-        # Generar URL para el QR
-        job_url = url_for('main.view_job_invoice_details', job_id=job.id, _external=True)
-        
-        logger.info(f"Renderizando factura - Total: {total_amount}, Abono: {deposit_amount}, Restante: {remaining_amount}")
-        return render_template(
-            'job_qr.html',
-            job=job,
-            qr_image=qr_code_image,
-            total_amount=total_amount,
-            deposit_amount=deposit_amount,
-            remaining_amount=remaining_amount,
-            job_url=job_url
-        )
-    except Exception as e:
-        logger.error(f"Error al mostrar factura: {str(e)}")
-        flash('Error al mostrar la factura', 'error')
-        return redirect(url_for('main.dashboard'))
+    # Redirigir a la vista principal de factura
+    return redirect(url_for('main.view_invoice_pdf', job_id=job_id))
 
 def get_job_invoice_data(job_id=None, qr_code=None):
     """Función interna para obtener datos de factura"""
@@ -200,7 +179,7 @@ def get_job_invoice_data(job_id=None, qr_code=None):
         logger.info(f"Trabajo encontrado: ID={job.id}, Cliente={job.client_name}")
 
         # Generar URL para el QR
-        job_url = url_for('main.view_job_invoice_details', job_id=job.id, _external=True)
+        job_url = url_for('main.view_invoice_pdf', job_id=job.id, _external=True)
         logger.info(f"URL generada para QR: {job_url}")
 
         # Generar QR code con la URL
@@ -452,7 +431,7 @@ def send_whatsapp_invoice(job_id):
         # Generar PDF
         from weasyprint import HTML
         html_content = render_template(
-            'invoice_pdf.html',
+            'invoice_view.html',
             job=job,
             qr_code=qr_code_image,
             total_amount=total_amount,
