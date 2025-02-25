@@ -26,31 +26,31 @@
             </tr>
           </thead>
           <tbody>
-            {% for job in jobs %}
-            <tr>
-              <td>
-                <a href="{{ url_for('main.view_job_pdf', job_id=job.id) }}" class="text-primary">
-                  {{ job.id }}
-                </a>
-              </td>
-              <td>{{ job.invoice_number }}</td>
-              <td>{{ job.client_name }}</td>
-              <td>{{ job.phone_number }}</td>
-              <td>{{ job.description }}</td>
-              <td>{{ job.designer.name if job.designer else 'No asignado' }}</td>
-              <td><span class="badge bg-{{ job.status_color }}">{{ job.status_text }}</span></td>
-              <td>
-                <div class="btn-group">
-                  <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-pencil"></i> Editar
-                  </a>
-                  <button type="button" class="btn btn-danger btn-sm" onclick="confirmDelete({{ job.id }})">
-                    <i class="bi bi-trash"></i> Eliminar
-                  </button>
-                </div>
-              </td>
-            </tr>
-            {% endfor %}
+{% for job in jobs %}
+<tr>
+  <td>
+    <a href="{{ url_for('main.view_job_invoice_details', job_id=job.id) }}" class="text-primary">
+      {{ job.id }}
+    </a>
+  </td>
+  <td>{{ job.invoice_number }}</td>
+  <td>{{ job.client_name }}</td>
+  <td>{{ job.phone_number }}</td>
+  <td>{{ job.description }}</td>
+  <td>{{ job.designer.name if job.designer else 'No asignado' }}</td>
+  <td><span class="badge bg-{{ job.status_color }}">{{ job.status_text }}</span></td>
+  <td>
+    <div class="btn-group">
+      <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-pencil"></i> Editar
+      </a>
+      <button type="button" class="btn btn-danger btn-sm" onclick="confirmDelete({{ job.id }})">
+        <i class="bi bi-trash"></i> Eliminar
+      </button>
+    </div>
+  </td>
+</tr>
+{% endfor %}
           </tbody>
         </table>
       </div>

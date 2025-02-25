@@ -55,7 +55,7 @@
                         {% for job in jobs %}
                         <tr>
                             <td>
-                              <a href="{{ url_for('main.view_job_pdf', job_id=job.id) }}" class="text-primary">
+                              <a href="{{ url_for('main.view_job_invoice_details', job_id=job.id) }}" class="text-primary">
                                 {{ job.id }}
                               </a>
                             </td>

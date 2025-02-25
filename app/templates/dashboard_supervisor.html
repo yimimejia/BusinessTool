@@ -27,46 +27,46 @@
           </tr>
         </thead>
         <tbody>
-          {% for job in jobs %}
-          <tr>
-            <td>
-              <a href="{{ url_for('main.view_job_pdf', job_id=job.id) }}" class="text-primary">
-                {{ job.id }}
-              </a>
-            </td>
-            <td>{{ job.invoice_number }}</td>
-            <td>{{ job.client_name }}</td>
-            <td>
-              {% if job.phone_number %}
-                <a href="https://wa.me/{{ job.phone_number|replace('+', '')|replace(' ', '') }}" 
-                   class="btn btn-sm btn-outline-success" target="_blank">
-                  <i class="bi bi-whatsapp"></i> {{ job.phone_number }}
-                </a>
-              {% else %}
-                <span class="text-muted">No disponible</span>
-              {% endif %}
-            </td>
-            <td>{{ job.description }}</td>
-            <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
-            <td>{{ job.registered_by.name }}</td>
-            <td>{{ job.tags }}</td>
-            <td>
-              <span class="badge bg-primary">{{ job.status }}</span>
-            </td>
-            <td>
-              <div class="btn-group">
-                <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-sm btn-outline-primary">
-                  <i class="bi bi-pencil"></i> Editar
-                </a>
-                {% if job.status == 'pending' %}
-                <button class="btn btn-success btn-sm complete-job" data-job-id="{{ job.id }}" onclick="completeJob({{ job.id }})">
-                  <i class="bi bi-check-circle"></i> Completar
-                </button>
-                {% endif %}
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
+{% for job in jobs %}
+<tr>
+  <td>
+    <a href="{{ url_for('main.view_job_invoice_details', job_id=job.id) }}" class="text-primary">
+      {{ job.id }}
+    </a>
+  </td>
+  <td>{{ job.invoice_number }}</td>
+  <td>{{ job.client_name }}</td>
+  <td>
+    {% if job.phone_number %}
+      <a href="https://wa.me/{{ job.phone_number|replace('+', '')|replace(' ', '') }}" 
+         class="btn btn-sm btn-outline-success" target="_blank">
+        <i class="bi bi-whatsapp"></i> {{ job.phone_number }}
+      </a>
+    {% else %}
+      <span class="text-muted">No disponible</span>
+    {% endif %}
+  </td>
+  <td>{{ job.description }}</td>
+  <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
+  <td>{{ job.registered_by.name }}</td>
+  <td>{{ job.tags }}</td>
+  <td>
+    <span class="badge bg-primary">{{ job.status }}</span>
+  </td>
+  <td>
+    <div class="btn-group">
+      <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-pencil"></i> Editar
+      </a>
+      {% if job.status == 'pending' %}
+      <button class="btn btn-success btn-sm complete-job" data-job-id="{{ job.id }}" onclick="completeJob({{ job.id }})">
+        <i class="bi bi-check-circle"></i> Completar
+      </button>
+      {% endif %}
+    </div>
+  </td>
+</tr>
+{% endfor %}
         </tbody>
       </table>
     </div>
