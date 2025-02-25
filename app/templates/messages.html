@@ -53,12 +53,65 @@
         }
 
         .messages-container {
-            padding: 20px;
+            padding: 15px;
             background-color: #0D1418;
             flex-grow: 1;
             overflow-y: auto;
             scrollbar-width: thin;
             scrollbar-color: #128C7E #0D1418;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (max-width: 768px) {
+            .chat-container {
+                flex-direction: column;
+            }
+            
+            .user-list {
+                max-height: 30vh;
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #2a3942;
+            }
+
+            .chat-content {
+                height: 70vh;
+            }
+
+            .message-bubble {
+                max-width: 85%;
+                padding: 10px 12px;
+                margin-bottom: 10px;
+            }
+
+            .input-container {
+                padding: 10px;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: #1F2C33;
+            }
+
+            .messages-container {
+                padding-bottom: 70px;
+            }
+
+            #messageForm {
+                display: flex;
+                gap: 8px;
+            }
+
+            #content {
+                flex-grow: 1;
+                height: 40px;
+                padding: 8px;
+            }
+
+            #sendButton {
+                padding: 8px 15px;
+                height: 40px;
+            }
         }
 
         .chat-header {
@@ -212,6 +265,30 @@
         const selectedUserName = document.getElementById('selectedUserName');
         const sendButton = document.getElementById('sendButton');
         const contentInput = document.getElementById('content');
+        const messageForm = document.getElementById('messageForm');
+
+        // Prevenir zoom en dispositivos móviles al tocar inputs
+        if ('ontouchstart' in window) {
+            contentInput.style.fontSize = '16px';
+        }
+
+        // Ajustar scroll al abrir teclado móvil
+        contentInput.addEventListener('focus', () => {
+            setTimeout(() => {
+                window.scrollTo(0, document.body.scrollHeight);
+            }, 300);
+        });
+
+        // Mejorar experiencia táctil
+        userChats.forEach(chat => {
+            chat.addEventListener('touchstart', function() {
+                this.style.backgroundColor = '#2a3942';
+            });
+            
+            chat.addEventListener('touchend', function() {
+                this.style.backgroundColor = '';
+            });
+        });
         
         // Obtener el user_id de la URL si existe
         const urlParams = new URLSearchParams(window.location.search);
