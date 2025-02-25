@@ -94,6 +94,42 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+@bp.route('/jobs/<int:job_id>/view-invoice', methods=['GET'])
+@login_required
+def view_invoice_pdf(job_id):
+    """Ver factura en formato tradicional"""
+    try:
+        job, qr_code_image, total_amount, deposit_amount, remaining_amount = get_job_invoice_data(job_id=job_id)
+        if not job:
+            flash('Trabajo no encontrado', 'error')
+            return redirect(url_for('main.dashboard'))
+            
+        # Preparar mensaje de WhatsApp
+        whatsapp_message = f"""*FOTO VIDEO MOJICA*
+¡Saludos estimado(a) {job.client_name}!
+
+Le enviamos su factura:
+📋 Número: {job.invoice_number}
+💰 Total: RD${float(total_amount):.2f}
+💵 Abono: RD${float(deposit_amount):.2f}
+🔸 Restante: RD${float(remaining_amount):.2f}
+
+¡Gracias por su preferencia!"""
+        
+        return render_template(
+            'invoice_view.html',
+            job=job,
+            qr_image=qr_code_image,
+            total_amount=total_amount,
+            deposit_amount=deposit_amount,
+            remaining_amount=remaining_amount,
+            whatsapp_message=whatsapp_message
+        )
+    except Exception as e:
+        logger.error(f"Error al mostrar factura: {str(e)}")
+        flash('Error al mostrar la factura', 'error')
+        return redirect(url_for('main.dashboard'))
+
 @bp.route('/jobs/<int:job_id>/invoice', methods=['GET'])
 @login_required
 def view_job_invoice_details(job_id):

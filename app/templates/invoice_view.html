@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}FOTO VIDEO MOJICA - Factura #{{ job.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="card">
+    <div class="card-body">
+      <div class="text-center mb-4">
+        <h2>FOTO VIDEO MOJICA</h2>
+        <p class="mb-0">Factura #{{ job.invoice_number }}</p>
+      </div>
+
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <p><strong>Cliente:</strong> {{ job.client_name }}</p>
+          <p><strong>Fecha:</strong> {{ job.created_at.strftime('%d/%m/%Y') }}</p>
+        </div>
+        <div class="col-md-6">
+          <p><strong>Teléfono:</strong> {{ job.phone_number }}</p>
+          <p><strong>Descripción:</strong> {{ job.description }}</p>
+        </div>
+      </div>
+
+      <div class="card bg-light">
+        <div class="card-body">
+          <h5>Detalles del Pago</h5>
+          <div class="row">
+            <div class="col-md-4">
+              <p><strong>Monto Total:</strong></p>
+              <p class="h5">RD${{ "%.2f"|format(total_amount) }}</p>
+            </div>
+            <div class="col-md-4">
+              <p><strong>Abono:</strong></p>
+              <p class="h5">RD${{ "%.2f"|format(deposit_amount) }}</p>
+            </div>
+            <div class="col-md-4">
+              <p><strong>Restante:</strong></p>
+              <p class="h5">RD${{ "%.2f"|format(remaining_amount) }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-center mt-4">
+        <img src="data:image/png;base64,{{ qr_image }}" alt="QR Code" style="max-width: 200px;">
+        <p class="text-muted mt-2">Escanee este código para verificar su trabajo</p>
+      </div>
+
+      <div class="d-flex justify-content-center mt-4 gap-2">
+        <button onclick="window.print()" class="btn btn-primary">
+          <i class="bi bi-printer"></i> Imprimir
+        </button>
+        <a href="https://wa.me/{{ job.phone_number|replace('+', '')|replace(' ', '') }}?text={{ whatsapp_message|urlencode }}" 
+           class="btn btn-success" target="_blank">
+          <i class="bi bi-whatsapp"></i> Enviar por WhatsApp
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+@media print {
+  .btn { display: none; }
+  .container { max-width: 100%; }
+}
+</style>
+{% endblock %}
