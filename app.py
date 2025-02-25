@@ -3,9 +3,11 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_sse import sse
+from flask_wtf.csrf import CSRFProtect
 
 db = SQLAlchemy()
 login_manager = LoginManager()
+csrf = CSRFProtect()
 
 def create_app():
     app = Flask(__name__)
@@ -21,6 +23,7 @@ def create_app():
     # Inicializar extensiones
     db.init_app(app)
     login_manager.init_app(app)
+    csrf.init_app(app)  # Initialize CSRF protection
     login_manager.login_view = 'main.login'
 
     # Registrar blueprints

@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response, send_from_directory, session, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
+from flask_wtf.csrf import generate_csrf
 from functools import wraps
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy import or_, desc, literal_column
@@ -835,12 +836,13 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
 
-    # Generate CSRF token
-    csrf_token = generate_csrf()
-
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+
+        if not username or not password:
+            flash('Por favor ingrese usuario y contraseña', 'error')
+            return redirect(url_for('main.login'))
 
         user = User.query.filter_by(username=username).first()
         if user and user.check_password(password):
@@ -855,7 +857,11 @@ def login():
 
         flash('Usuario o contraseña incorrectos', 'error')
         log_activity('login_failed', f'Intento de inicio de sesión fallido - Usuario: {username}')
-    return render_template('login.html')
+        return redirect(url_for('main.login'))
+
+    # Generate CSRF token for GET request
+    csrf_token = generate_csrf()
+    return render_template('login.html', csrf_token=csrf_token)
 
 # Nuevas rutas para mensajería
 
