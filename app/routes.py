@@ -26,10 +26,59 @@ from weasyprint import HTML
 from pdf2image import convert_from_path
 
 # Configurar logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 bp = Blueprint('main', __name__)
+
+@bp.route('/login', methods=['GET', 'POST'])
+def login():
+    """Login route"""
+    if current_user.is_authenticated:
+        logger.debug(f"Usuario ya autenticado: {current_user.username}")
+        return redirect(url_for('main.dashboard'))
+
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        logger.debug(f"Intento de login para usuario: {username}")
+
+        if not username or not password:
+            flash('Por favor ingrese usuario y contraseña', 'error')
+            return redirect(url_for('main.login'))
+
+        try:
+            user = User.query.filter_by(username=username).first()
+            
+            if user and user.check_password(password):
+                # Si es diseñador, establecer sesión permanente 
+                if not user.is_admin and not user.is_supervisor:
+                    user.permanent_session = True
+                    session.permanent = True
+                login_user(user, remember=user.permanent_session)
+                
+                # Log successful login
+                log_activity('login', f"Usuario {user.username} inició sesión")
+                logger.debug(f"Login exitoso para usuario: {username}")
+                
+                # Get the next page from args
+                next_page = request.args.get('next')
+                if not next_page or not next_page.startswith('/'):
+                    next_page = url_for('main.dashboard')
+                
+                return redirect(next_page)
+            else:
+                logger.warning(f"Credenciales incorrectas para usuario: {username}")
+                flash('Usuario o contraseña incorrectos', 'error')
+                return redirect(url_for('main.login'))
+
+        except Exception as e:
+            logger.error(f"Error durante el login: {str(e)}")
+            flash('Error al procesar el login', 'error')
+            return redirect(url_for('main.login'))
+
+    return render_template('login.html')
 
 @bp.context_processor
 def inject_urgent_jobs():
@@ -941,37 +990,7 @@ def index():
         return redirect(url_for('main.dashboard'))
     return redirect(url_for('main.login'))
 
-@bp.route('/login', methods=['GET', 'POST'])
-def login():
-    """Vista de inicio de sesión"""
-    if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
 
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        remember = request.form.get('remember', False)
-
-        if not username or not password:
-            flash('Por favor ingrese usuario y contraseña', 'error')
-            return redirect(url_for('main.login'))
-
-        user = User.query.filter_by(username=username).first()
-        if user and user.check_password(password):
-            # Si es diseñador, establecer sesión permanente 
-            if not user.is_admin and not user.is_supervisor:
-                user.permanent_session = True
-                session.permanent = True
-            login_user(user, remember=user.permanent_session)
-            log_activity('login', f"Login exitoso: {username}")
-            next_page = request.args.get('next')
-            return redirect(next_page if next_page else url_for('main.dashboard'))
-        
-        flash('Usuario o contraseña incorrectos', 'error')
-        log_activity('login_failed', f"Intento fallido de login: {username}")
-        return redirect(url_for('main.login'))
-
-    return render_template('login.html')
 
 # Nuevas rutas para mensajería
 

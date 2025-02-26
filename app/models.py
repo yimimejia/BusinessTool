@@ -7,55 +7,7 @@ import re
 import base64
 import json
 import random
-
-class Invoice(db.Model):
-    __tablename__ = 'invoices'
-    id = db.Column(db.Integer, primary_key=True)
-    job_id = db.Column(db.Integer, nullable=False)  # ID del trabajo relacionado
-    job_type = db.Column(db.String(20), nullable=False)  # 'job' o 'completed_job'
-    invoice_number = db.Column(db.String(50), unique=True, nullable=False)
-    total_amount = db.Column(db.Numeric(10, 2), nullable=False)
-    deposit_amount = db.Column(db.Numeric(10, 2), default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    issued_at = db.Column(db.DateTime)
-    qr_code = db.Column(db.String(100), unique=True)
-
-    def generate_qr_code(self):
-        if not self.qr_code:
-            unique_id = f"invoice-{self.id}-{self.invoice_number}-{int(datetime.utcnow().timestamp())}"
-            self.qr_code = base64.urlsafe_b64encode(unique_id.encode()).decode()
-        return self.qr_code
-
-    def get_job(self):
-        """Obtiene el trabajo relacionado basado en job_type"""
-        if self.job_type == 'job':
-            return Job.query.get(self.job_id)
-        elif self.job_type == 'completed_job':
-            return CompletedJob.query.get(self.job_id)
-        return None
-
-    @property
-    def remaining_amount(self):
-        """Calcula el monto restante"""
-        return float(self.total_amount or 0) - float(self.deposit_amount or 0)
-
-class WebAuthnCredential(db.Model):
-    __tablename__ = 'webauthn_credentials'
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    credential_id = db.Column(db.String(250), unique=True, nullable=False)
-    public_key = db.Column(db.Text, nullable=False)
-    sign_count = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_used_at = db.Column(db.DateTime)
-    name = db.Column(db.String(100))
-
-    def get_credential_data(self):
-        return {
-            'credentialId': self.credential_id,
-            'publicKey': self.public_key,
-            'signCount': self.sign_count,
-        }
+import urllib.parse
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -121,6 +73,55 @@ class User(UserMixin, db.Model):
 
     def get_pending_jobs(self):
         return Job.query.filter_by(designer_id=self.id, status='pending').all()
+
+class Invoice(db.Model):
+    __tablename__ = 'invoices'
+    id = db.Column(db.Integer, primary_key=True)
+    job_id = db.Column(db.Integer, nullable=False)  # ID del trabajo relacionado
+    job_type = db.Column(db.String(20), nullable=False)  # 'job' o 'completed_job'
+    invoice_number = db.Column(db.String(50), unique=True, nullable=False)
+    total_amount = db.Column(db.Numeric(10, 2), nullable=False)
+    deposit_amount = db.Column(db.Numeric(10, 2), default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    issued_at = db.Column(db.DateTime)
+    qr_code = db.Column(db.String(100), unique=True)
+
+    def generate_qr_code(self):
+        if not self.qr_code:
+            unique_id = f"invoice-{self.id}-{self.invoice_number}-{int(datetime.utcnow().timestamp())}"
+            self.qr_code = base64.urlsafe_b64encode(unique_id.encode()).decode()
+        return self.qr_code
+
+    def get_job(self):
+        """Obtiene el trabajo relacionado basado en job_type"""
+        if self.job_type == 'job':
+            return Job.query.get(self.job_id)
+        elif self.job_type == 'completed_job':
+            return CompletedJob.query.get(self.job_id)
+        return None
+
+    @property
+    def remaining_amount(self):
+        """Calcula el monto restante"""
+        return float(self.total_amount or 0) - float(self.deposit_amount or 0)
+
+class WebAuthnCredential(db.Model):
+    __tablename__ = 'webauthn_credentials'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    credential_id = db.Column(db.String(250), unique=True, nullable=False)
+    public_key = db.Column(db.Text, nullable=False)
+    sign_count = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_used_at = db.Column(db.DateTime)
+    name = db.Column(db.String(100))
+
+    def get_credential_data(self):
+        return {
+            'credentialId': self.credential_id,
+            'publicKey': self.public_key,
+            'signCount': self.sign_count,
+        }
 
 class Job(db.Model):
     __tablename__ = 'jobs'
@@ -413,5 +414,3 @@ class PendingJob(db.Model):
             total_amount=self.total_amount,
             deposit_amount=self.deposit_amount
         )
-
-import urllib.parse
