@@ -4,7 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate 
 from sqlalchemy.orm import DeclarativeBase
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytz
 import redis
 from flask_sse import sse
@@ -34,10 +34,6 @@ def create_app():
         "max_overflow": 5
     }
 
-    # Configure session
-    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
-    app.config['SESSION_TYPE'] = 'filesystem'
-
     # Configure upload folder
     app.config['UPLOAD_FOLDER'] = os.path.join(app.static_folder, 'uploads')
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -54,8 +50,6 @@ def create_app():
 
     # Configure login
     login_manager.login_view = 'main.login'
-    login_manager.login_message = 'Por favor inicie sesión para acceder a esta página'
-    login_manager.login_message_category = 'warning'
 
     # Register blueprints
     app.register_blueprint(sse, url_prefix='/stream')
@@ -88,8 +82,7 @@ def create_app():
                     username='admin',
                     name='Administrador',
                     is_admin=True,
-                    is_supervisor=False,
-                    is_designer=False
+                    can_edit=True
                 )
                 admin.set_password('admin123')
                 db.session.add(admin)
