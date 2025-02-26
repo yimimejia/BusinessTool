@@ -31,6 +31,15 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint('main', __name__)
 
+@bp.route('/')
+def index():
+    """Ruta principal"""
+    if current_user.is_authenticated:
+        logger.debug(f"Usuario autenticado redirigiendo a dashboard: {current_user.username}")
+        return redirect(url_for('main.dashboard'))
+    logger.debug("Usuario no autenticado redirigiendo a login")
+    return redirect(url_for('main.login'))
+
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     """Login route"""
@@ -53,21 +62,15 @@ def login():
             
             if user and user.check_password(password):
                 # Si es diseñador, establecer sesión permanente 
-                if not user.is_admin and not user.is_supervisor:
-                    user.permanent_session = True
-                    session.permanent = True
-                login_user(user, remember=user.permanent_session)
+                session.permanent = True
+                login_user(user, remember=True)
                 
                 # Log successful login
                 log_activity('login', f"Usuario {user.username} inició sesión")
                 logger.debug(f"Login exitoso para usuario: {username}")
                 
-                # Get the next page from args
-                next_page = request.args.get('next')
-                if not next_page or not next_page.startswith('/'):
-                    next_page = url_for('main.dashboard')
-                
-                return redirect(next_page)
+                # Redirigir al dashboard después del login exitoso
+                return redirect(url_for('main.dashboard'))
             else:
                 logger.warning(f"Credenciales incorrectas para usuario: {username}")
                 flash('Usuario o contraseña incorrectos', 'error')
@@ -79,6 +82,57 @@ def login():
             return redirect(url_for('main.login'))
 
     return render_template('login.html')
+
+@bp.route('/dashboard')
+@login_required
+def dashboard():
+    """Vista del dashboard con estadísticas por rol"""
+    try:
+        if current_user.is_admin or current_user.is_supervisor:
+            # Vista de administrador y supervisor
+            jobs = Job.query.order_by(Job.created_at.desc()).all()
+            pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
+            pending_verification_count = PendingJob.query.filter_by(pending_type='new_job').count()
+            pending_photos_count = PendingJob.query.filter_by(pending_type='photo_verification').count()
+
+            stats = {
+                'total_jobs': len(jobs),
+                'completed_jobs': CompletedJob.query.count(),
+                'pending_jobs': len(pending_jobs),
+                'designers_count': User.query.filter_by(is_designer=True).count(),
+                'pending_verification_count': pending_verification_count,
+                'pending_photos_count': pending_photos_count
+            }
+            
+            template = 'dashboard_admin.html' if current_user.is_admin else 'dashboard_supervisor.html'
+            return render_template(template, 
+                              jobs=jobs,
+                              pending_jobs=pending_jobs,
+                              stats=stats)
+        else:
+            # Vista de diseñador
+            jobs = Job.query.filter_by(designer_id=current_user.id).order_by(Job.created_at.desc()).all()
+            stats = {
+                'total_jobs': len(jobs),
+                'completed_jobs': CompletedJob.query.filter_by(designer_id=current_user.id).count(),
+                'pending_jobs': Job.query.filter_by(designer_id=current_user.id, status='pending').count(),
+                'delivered_jobs': DeliveredJob.query.filter_by(designer_id=current_user.id).count()
+            }
+            return render_template('dashboard_designer.html', jobs=jobs, stats=stats)
+    except Exception as e:
+        logger.error(f"Error al cargar dashboard: {str(e)}")
+        flash('Error al cargar el dashboard', 'error')
+        return redirect(url_for('main.login'))
+
+@bp.route('/logout')
+@login_required
+def logout():
+    """Logout route"""
+    username = current_user.username
+    logout_user()
+    logger.debug(f"Usuario {username} cerró sesión")
+    flash('Has cerrado sesión exitosamente', 'success')
+    return redirect(url_for('main.login'))
 
 @bp.context_processor
 def inject_urgent_jobs():
@@ -1329,41 +1383,7 @@ def search():
     return render_template('search_invoices.html', jobs=jobs, query=query)
 
 
-@bp.route('/dashboard')
-@login_required
-def dashboard():
-    """Vista del dashboard con estadísticas por rol"""
-    if current_user.is_admin or current_user.is_supervisor:
-        # Vista de administrador y supervisor
-        jobs = Job.query.order_by(Job.created_at.desc()).all()
-        pending_jobs = PendingJob.query.order_by(PendingJob.created_at.desc()).all()
-        pending_verification_count = PendingJob.query.filter_by(pending_type='new_job').count()
-        pending_photos_count = PendingJob.query.filter_by(pending_type='photo_verification').count()
 
-        stats = {
-            'total_jobs': len(jobs),
-            'completed_jobs': CompletedJob.query.count(),
-            'pending_jobs': len(pending_jobs),
-            'designers_count': User.query.filter_by(is_designer=True).count(),
-            'pending_verification_count': pending_verification_count,
-            'pending_photos_count': pending_photos_count
-        }
-        
-        template = 'dashboard_admin.html' if current_user.is_admin else 'dashboard_supervisor.html'
-        return render_template(template, 
-                          jobs=jobs,
-                          pending_jobs=pending_jobs,
-                          stats=stats)
-    else:
-        # Vista de diseñador
-        jobs = Job.query.filter_by(designer_id=current_user.id).order_by(Job.created_at.desc()).all()
-        stats = {
-            'total_jobs': len(jobs),
-            'completed_jobs': CompletedJob.query.filter_by(designer_id=current_user.id).count(),
-            'pending_jobs': Job.query.filter_by(designer_id=current_user.id, status='pending').count(),
-            'delivered_jobs': DeliveredJob.query.filter_by(designer_id=current_user.id).count()
-        }
-        return render_template('dashboard_designer.html', jobs=jobs, stats=stats)
 
 @bp.route('/manage-users')
 @login_required
@@ -2438,17 +2458,7 @@ def public_job(qr_code):
 
 
 
-@bp.route('/jobs/pending/verification', methods=['GET', 'POST'])
-@login_required
-@staff_required
-def pendingverification():
-    """Vista de trabajos pendientes por verificar"""
-    try:
-        jobs = PendingJob.query.filter_by(pending_type='new_job').all()
-        return render_template('pendingverification.html', jobs=jobs)
-    except Exception as e:
-        flash(f'Error al cargar trabajos pendientes: {str(e)}', 'error')
-        return redirect(url_for('main.dashboard'))
+
 
 @bp.route('/jobs/pending/photos')
 @login_required
@@ -2462,47 +2472,7 @@ def pending_photos():
         flash(f'Error al cargar fotos pendientes: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
 
-@bp.route('/jobs/<int:job_id>/approve', methods=['POST'])
-@login_required
-@staff_required
-def approve_pending_job(job_id):
-    """Aprobar un trabajo pendiente"""
-    try:
-        pending_job = PendingJob.query.get_or_404(job_id)
 
-        # Crear el trabajo completado
-        completed_job = CompletedJob(
-            original_job_id=pending_job.original_job_id,
-            description=pending_job.description,
-            designer_id=pending_job.designer_id,
-            registered_by_id=pending_job.registered_by_id,
-            invoice_number=pending_job.invoice_number,
-            client_name=pending_job.client_name,
-            phone_number=pending_job.phone_number,  # Fixed: changed from phonenumber to phone_number
-            total_amount=float(pending_job.total_amount or 0),
-            deposit_amount=float(pending_job.deposit_amount or 0),
-            completed_at=datetime.utcnow(),
-            tags=pending_job.tags
-        )
-
-        # Eliminar el trabajo pendiente y agregar el completado
-        db.session.delete(pending_job)
-        db.session.add(completed_job)
-        db.session.commit()
-
-        log_activity(
-            'trabajo_aprobado',
-            f"Trabajo aprobado: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
-        )
-
-        flash('Trabajo aprobado exitosamente', 'success')
-        return redirect(url_for('main.pending_verification'))
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error al aprobar trabajo pendiente: {str(e)}")
-        flash('Error al aprobar el trabajo. Por favor, inténtelo de nuevo.', 'error')
-        return redirect(url_for('main.pending_verification'))
 
 @bp.route('/jobs/<int:job_id>/approve', methods=['POST'])
 @login_required
