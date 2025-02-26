@@ -47,6 +47,7 @@
                             <th>Descripción</th>
                             <th>Cliente</th>
                             <th>Factura</th>
+                            <th>Diseñador</th>
                             <th>Estado</th>
                             <th>Acciones</th>
                         </tr>
@@ -62,6 +63,7 @@
                             <td>{{ job.description }}</td>
                             <td>{{ job.client_name }}</td>
                             <td>{{ job.invoice_number }}</td>
+                            <td>{{ job.designer.name }}</td>
                             <td>
                                 {% if job.is_completed %}
                                 <span class="badge bg-success">Completado</span>
@@ -71,7 +73,7 @@
                             </td>
                             <td>
                                 <div class="btn-group">
-                                    {% if current_user.is_staff %}
+                                    {% if current_user.is_staff or current_user.is_admin %}
                                     <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-sm btn-info">
                                         <i class="bi bi-pencil"></i>
                                     </a>
@@ -79,6 +81,11 @@
                                     {% if not job.is_completed %}
                                     <button class="btn btn-sm btn-success complete-job" data-job-id="{{ job.id }}">
                                         <i class="bi bi-check-circle"></i> Completar
+                                    </button>
+                                    {% endif %}
+                                    {% if current_user.is_admin %}
+                                    <button class="btn btn-sm btn-primary approve-job" data-job-id="{{ job.id }}">
+                                        <i class="bi bi-check2-circle"></i> Aprobar
                                     </button>
                                     {% endif %}
                                 </div>
@@ -127,6 +134,12 @@ $(document).ready(function() {
 
     // Configurar botones de completar
     $('.complete-job').click(function() {
+        currentJobId = $(this).data('job-id');
+        $('#completeModal').modal('show');
+    });
+
+    // Configurar botones de aprobar
+    $('.approve-job').click(function() {
         currentJobId = $(this).data('job-id');
         $('#completeModal').modal('show');
     });

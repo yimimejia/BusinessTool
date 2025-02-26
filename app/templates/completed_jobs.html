@@ -82,9 +82,9 @@
                                     </button>
                                 </form>
                                 {% if job.phone_number %}
-                                {%- set whatsapp_message = "Hola " + job.client_name + ", tu trabajo está listo" -%}
+                                {%- set mensaje = "Le hablamos de *FOTO VIDEO MOJICA* para informarle que su trabajo está listo. Puede ver su factura en el siguiente enlace: " + url_for('main.view_invoice_pdf', job_id=job.id, _external=True) -%}
                                 {%- set clean_phone = job.phone_number | replace('+', '') | replace('-', '') | replace(' ', '') -%}
-                                <a href="https://api.whatsapp.com/send?phone={{ clean_phone }}&text={{ whatsapp_message | urlencode }}" 
+                                <a href="https://wa.me/{{ clean_phone }}?text={{ mensaje | urlencode }}" 
                                    class="btn btn-sm btn-success" target="_blank">
                                     <i class="bi bi-whatsapp"></i> WhatsApp
                                 </a>
