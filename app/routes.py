@@ -87,16 +87,51 @@ def inject_urgent_jobs():
         return {'urgent_jobs': []}
         
     try:
-        # Buscar trabajos con la etiqueta "Urgente"
-        urgent_jobs = Job.query.filter(
-            Job.tags.ilike('%Urgente%'),
-            Job.status == 'pending'
-        ).order_by(Job.created_at.desc()).all()
-        
-        return {'urgent_jobs': urgent_jobs}
+        # Solo mostrar trabajos urgentes a admin y supervisores
+        if current_user.is_admin or current_user.is_supervisor:
+            # Buscar trabajos con la etiqueta "Urgente"
+            urgent_jobs = Job.query.filter(
+                Job.tags.ilike('%Urgente%'),
+                Job.status == 'pending'
+            ).order_by(Job.created_at.desc()).all()
+            
+            return {'urgent_jobs': urgent_jobs}
+        else:
+            return {'urgent_jobs': []}
+            
     except Exception as e:
         logger.error(f"Error al obtener trabajos urgentes: {str(e)}")
         return {'urgent_jobs': []}
+
+def notify_staff(message, title="Notificación"):
+    """Enviar notificación a admin y supervisores"""
+    try:
+        # Obtener todos los usuarios admin y supervisores
+        staff_users = User.query.filter(
+            or_(User.is_admin == True, User.is_supervisor == True)
+        ).all()
+
+        # Crear mensaje para cada usuario staff
+        for user in staff_users:
+            new_message = Message(
+                user_id=user.id,
+                title=title,
+                content=message,
+                is_read=False
+            )
+            db.session.add(new_message)
+        
+        db.session.commit()
+        
+        # Enviar notificación en tiempo real
+        sse.publish({
+            "message": message,
+            "type": "notification"
+        }, type='message')
+        
+    except Exception as e:
+        logger.error(f"Error al enviar notificación: {str(e)}")
+        db.session.rollback()
 
 @bp.route('/jobs/pending/new', methods=['GET', 'POST'])
 @login_required
@@ -129,6 +164,12 @@ def new_pending_job():
             
             db.session.add(pending_job)
             db.session.commit()
+            
+            # Enviar notificación a admin y supervisores
+            notify_staff(
+                f"Nuevo trabajo pendiente de aprobación - Cliente: {client_name}",
+                "Trabajo Pendiente"
+            )
             
             flash('Trabajo pendiente creado exitosamente', 'success')
             return redirect(url_for('main.dashboard'))
