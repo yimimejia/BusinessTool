@@ -20,6 +20,7 @@
             <th style="min-width: 150px;">Teléfono</th>
             <th>Descripción</th>
             <th>Fecha</th>
+            <th>Diseñador</th>
             <th>Registrado por</th>
             <th>Etiquetas</th>
             <th>Estado</th>
@@ -48,7 +49,8 @@
   </td>
   <td>{{ job.description }}</td>
   <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
-  <td>{{ job.registered_by.name }}</td>
+  <td>{{ job.designer.name if job.designer else 'No asignado' }}</td>
+  <td>{{ job.registered_by.name if job.registered_by else 'N/A' }}</td>
   <td>{{ job.tags }}</td>
   <td>
     <span class="badge bg-primary">{{ job.status }}</span>
