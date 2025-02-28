@@ -838,6 +838,54 @@ def delete_job(job_id):
         logger.error(f"Error al eliminar trabajo: {str(e)}")
         return jsonify({'success': False, 'message': 'Error al eliminar el trabajo'}), 500
 
+@bp.route('/search', methods=['GET'])
+@login_required
+def search_jobs():
+    """Búsqueda de trabajos"""
+    query = request.args.get('query', '').strip()
+    results = []
+    
+    if query:
+        try:
+            # Buscar en trabajos activos
+            active_jobs = Job.query.filter(
+                or_(
+                    Job.client_name.ilike(f'%{query}%'),
+                    Job.invoice_number.ilike(f'%{query}%'),
+                    Job.phone_number.ilike(f'%{query}%')
+                )
+            ).all()
+
+            # Buscar en trabajos completados
+            completed_jobs = CompletedJob.query.filter(
+                or_(
+                    CompletedJob.client_name.ilike(f'%{query}%'),
+                    CompletedJob.invoice_number.ilike(f'%{query}%'),
+                    CompletedJob.phone_number.ilike(f'%{query}%')
+                )
+            ).all()
+
+            # Combinar y procesar resultados  
+            for job in active_jobs + completed_jobs:
+                results.append({
+                    'id': job.id,
+                    'invoice_number': job.invoice_number,
+                    'client_name': job.client_name,
+                    'phone_number': job.phone_number,
+                    'total_amount': float(job.total_amount or 0),
+                    'deposit_amount': float(job.deposit_amount or 0),
+                    'created_at': job.created_at,
+                    'status': 'Completado' if isinstance(job, CompletedJob) else 'Pendiente'
+                })
+
+        except Exception as e:
+            logger.error(f"Error en búsqueda: {str(e)}")
+            flash('Error al realizar la búsqueda', 'error')
+            results = []
+
+    return render_template('search_invoices.html', results=results)
+
+
 @bp.route('/jobs/<int:job_id>/approve-with-pin', methods=['POST'])
 @login_required
 def approve_job_with_pin(job_id):
