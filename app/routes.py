@@ -886,64 +886,6 @@ def search_jobs():
     return render_template('search_invoices.html', results=results)
 
 
-@bp.route('/jobs/<int:job_id>/update', methods=['POST'])
-@login_required
-def update_job(job_id):
-    """Actualizar un trabajo"""
-    try:
-        job = Job.query.get_or_404(job_id)
-        
-        if not current_user.is_admin and not current_user.is_supervisor and job.designer_id != current_user.id:
-            flash('No tienes permiso para editar este trabajo', 'error')
-            return redirect(url_for('main.dashboard'))
-
-        # Actualizar campos básicos
-        job.client_name = request.form.get('client_name')
-        job.phone_number = request.form.get('phone_number')
-        job.description = request.form.get('description')
-        job.invoice_number = request.form.get('invoice_number')
-        
-        # Actualizar montos si están presentes
-        total_amount = request.form.get('total_amount')
-        deposit_amount = request.form.get('deposit_amount')
-        
-        if total_amount is not None:
-            try:
-                job.total_amount = float(total_amount)
-            except ValueError:
-                flash('El monto total debe ser un número válido', 'error')
-                return redirect(url_for('main.edit_job', job_id=job_id))
-                
-        if deposit_amount is not None:
-            try:
-                job.deposit_amount = float(deposit_amount)
-            except ValueError:
-                flash('El monto del abono debe ser un número válido', 'error')
-                return redirect(url_for('main.edit_job', job_id=job_id))
-
-        # Si es admin o supervisor, permitir cambiar el diseñador
-        if current_user.is_admin or current_user.is_supervisor:
-            designer_id = request.form.get('designer_id')
-            if designer_id:
-                job.designer_id = int(designer_id)
-
-        db.session.commit()
-        
-        log_activity(
-            'editar_trabajo',
-            f"Trabajo actualizado - Cliente: {job.client_name}, Factura: {job.invoice_number}"
-        )
-        
-        flash('Trabajo actualizado exitosamente', 'success')
-        return redirect(url_for('main.dashboard'))
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error al actualizar trabajo: {str(e)}")
-        flash('Error al actualizar el trabajo', 'error')
-        return redirect(url_for('main.edit_job', job_id=job_id))
-
-
 @bp.route('/jobs/<int:job_id>/approve-with-pin', methods=['POST'])
 @login_required
 def approve_job_with_pin(job_id):
