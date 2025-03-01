@@ -838,6 +838,51 @@ def delete_job(job_id):
         logger.error(f"Error al eliminar trabajo: {str(e)}")
         return jsonify({'success': False, 'message': 'Error al eliminar el trabajo'}), 500
 
+@bp.route('/jobs/<int:job_id>/edit', methods=['GET', 'POST'])
+@login_required
+@staff_required
+def edit_job(job_id):
+    """Editar un trabajo"""
+    try:
+        job = Job.query.get_or_404(job_id)
+        
+        if request.method == 'POST':
+            job.client_name = request.form.get('client_name')
+            job.phone_number = request.form.get('phone_number')
+            job.description = request.form.get('description')
+            job.invoice_number = request.form.get('invoice_number')
+            job.designer_id = request.form.get('designer_id', type=int)
+            job.total_amount = request.form.get('total_amount', type=float)
+            job.deposit_amount = request.form.get('deposit_amount', type=float)
+            job.tags = request.form.get('tags')
+
+            # Actualizar la factura asociada si existe
+            invoice = Invoice.query.filter_by(
+                job_id=job.id,
+                job_type='job'
+            ).first()
+            
+            if invoice:
+                invoice.total_amount = job.total_amount
+                invoice.deposit_amount = job.deposit_amount
+
+            try:
+                db.session.commit()
+                flash('Trabajo actualizado exitosamente', 'success')
+                return redirect(url_for('main.dashboard'))
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error al actualizar trabajo: {str(e)}")
+                flash('Error al actualizar el trabajo', 'error')
+
+        designers = User.query.filter_by(is_designer=True).all()
+        return render_template('edit_job.html', job=job, designers=designers)
+        
+    except Exception as e:
+        logger.error(f"Error en edición de trabajo: {str(e)}")
+        flash('Error al cargar el trabajo', 'error')
+        return redirect(url_for('main.dashboard'))
+
 @bp.route('/search', methods=['GET'])
 @login_required
 def search_jobs():
