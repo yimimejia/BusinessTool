@@ -838,79 +838,52 @@ def delete_job(job_id):
         logger.error(f"Error al eliminar trabajo: {str(e)}")
         return jsonify({'success': False, 'message': 'Error al eliminar el trabajo'}), 500
 
-@bp.route('/jobs/<int:job_id>/edit', methods=['GET', 'POST'])
+@bp.route('/search', methods=['GET'])
 @login_required
-@staff_required
-def edit_job(job_id):
-    """Editar un trabajo"""
-    try:
-        job = Job.query.get_or_404(job_id)
-        logger.info(f"Editando trabajo ID: {job_id}, Factura: {job.invoice_number}")
-        
-        if request.method == 'POST':
-            # Registrar valores anteriores para comparación
-            old_total = float(job.total_amount or 0)
-            old_deposit = float(job.deposit_amount or 0)
-            
-            # Actualizar trabajo
-            job.client_name = request.form.get('client_name')
-            job.phone_number = request.form.get('phone_number')
-            job.description = request.form.get('description')
-            job.invoice_number = request.form.get('invoice_number')
-            job.designer_id = request.form.get('designer_id', type=int)
-            
-            # Actualizar montos
-            new_total = request.form.get('total_amount', type=float)
-            new_deposit = request.form.get('deposit_amount', type=float)
-            
-            logger.debug(f"Montos anteriores - Total: {old_total}, Abono: {old_deposit}")
-            logger.debug(f"Nuevos montos - Total: {new_total}, Abono: {new_deposit}")
-            
-            job.total_amount = new_total
-            job.deposit_amount = new_deposit
-            job.tags = request.form.get('tags')
-
-            # Actualizar la factura asociada
-            invoice = Invoice.query.filter_by(
-                job_id=job.id,
-                job_type='job'
-            ).first()
-            
-            if invoice:
-                logger.info(f"Actualizando factura ID: {invoice.id}")
-                invoice.total_amount = new_total
-                invoice.deposit_amount = new_deposit
-                invoice.remaining_amount = new_total - new_deposit
-                logger.debug(f"Factura actualizada - Total: {invoice.total_amount}, Abono: {invoice.deposit_amount}")
-            else:
-                logger.warning(f"No se encontró factura para el trabajo {job_id}")
-
-            try:
-                db.session.commit()
-                logger.info(f"Trabajo y factura actualizados exitosamente")
-                
-                # Registrar la actividad
-                log_activity(
-                    'editar_trabajo',
-                    f"Trabajo editado - Cliente: {job.client_name}, " \
-                    f"Total anterior: ${old_total}, Nuevo total: ${new_total}, " \
-                    f"Abono anterior: ${old_deposit}, Nuevo abono: ${new_deposit}"
+def search_jobs():
+    """Búsqueda de trabajos"""
+    query = request.args.get('query', '').strip()
+    results = []
+    
+    if query:
+        try:
+            # Buscar en trabajos activos
+            active_jobs = Job.query.filter(
+                or_(
+                    Job.client_name.ilike(f'%{query}%'),
+                    Job.invoice_number.ilike(f'%{query}%'),
+                    Job.phone_number.ilike(f'%{query}%')
                 )
-                
-                flash('Trabajo actualizado exitosamente', 'success')
-                return redirect(url_for('main.dashboard'))
-            except Exception as e:
-                db.session.rollback()
-                logger.error(f"Error al actualizar trabajo: {str(e)}")
-                flash('Error al actualizar el trabajo', 'error')
-                
-        designers = User.query.filter_by(is_designer=True).all()
-        return render_template('edit_job.html', job=job, designers=designers)
-        
-    except Exception as e:
-        logger.error(f"Error en edición de trabajo: {str(e)}")
-        flash('Error al cargar el trabajo', 'error')
-        return redirect(url_for('main.dashboard'))
+            ).all()
+
+            # Buscar en trabajos completados
+            completed_jobs = CompletedJob.query.filter(
+                or_(
+                    CompletedJob.client_name.ilike(f'%{query}%'),
+                    CompletedJob.invoice_number.ilike(f'%{query}%'),
+                    CompletedJob.phone_number.ilike(f'%{query}%')
+                )
+            ).all()
+
+            # Combinar y procesar resultados  
+            for job in active_jobs + completed_jobs:
+                results.append({
+                    'id': job.id,
+                    'invoice_number': job.invoice_number,
+                    'client_name': job.client_name,
+                    'phone_number': job.phone_number,
+                    'total_amount': float(job.total_amount or 0),
+                    'deposit_amount': float(job.deposit_amount or 0),
+                    'created_at': job.created_at,
+                    'status': 'Completado' if isinstance(job, CompletedJob) else 'Pendiente'
+                })
+
+        except Exception as e:
+            logger.error(f"Error en búsqueda: {str(e)}")
+            flash('Error al realizar la búsqueda', 'error')
+            results = []
+
+    return render_template('search_invoices.html', results=results)
 
 
 @bp.route('/jobs/<int:job_id>/approve-with-pin', methods=['POST'])
