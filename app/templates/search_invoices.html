@@ -12,7 +12,7 @@
             <form method="GET" class="mb-4">
                 <div class="input-group">
                     <input type="text" name="query" class="form-control" 
-                           placeholder="Buscar por nombre de cliente, número de factura o teléfono..." 
+                           placeholder="Buscar por nombre de cliente o número de factura..." 
                            value="{{ request.args.get('query', '') }}">
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-search"></i> Buscar
@@ -27,7 +27,7 @@
                         <tr>
                             <th>Factura</th>
                             <th>Cliente</th>
-                            <th>Teléfono</th>
+                            <th>Descripción</th>
                             <th>Total</th>
                             <th>Abono</th>
                             <th>Restante</th>
@@ -41,10 +41,10 @@
                         <tr>
                             <td>{{ result.invoice_number }}</td>
                             <td>{{ result.client_name }}</td>
-                            <td>{{ result.phone_number }}</td>
-                            <td>${{ "%.2f"|format(result.total_amount|float) }}</td>
-                            <td>${{ "%.2f"|format(result.deposit_amount|float) }}</td>
-                            <td>${{ "%.2f"|format((result.total_amount|float - result.deposit_amount|float)) }}</td>
+                            <td>{{ result.description }}</td>
+                            <td>${{ "%.2f"|format(result.total_amount) }}</td>
+                            <td>${{ "%.2f"|format(result.deposit_amount) }}</td>
+                            <td>${{ "%.2f"|format(result.remaining_amount) }}</td>
                             <td>{{ result.created_at.strftime('%Y-%m-%d') }}</td>
                             <td>
                                 <span class="badge {% if result.status == 'Completado' %}bg-success{% else %}bg-warning{% endif %}">
@@ -76,15 +76,13 @@
 {% block scripts %}
 <script>
 $(document).ready(function() {
-    if ($('#invoicesTable').length) {
-        $('#invoicesTable').DataTable({
-            language: {
-                url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
-            },
-            order: [[6, 'desc']],  // Ordenar por fecha descendente
-            responsive: true
-        });
-    }
+    $('#invoicesTable').DataTable({
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+        },
+        order: [[6, 'desc']],  // Ordenar por fecha descendente
+        responsive: true
+    });
 });
 </script>
 {% endblock %}
