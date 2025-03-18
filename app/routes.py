@@ -141,8 +141,8 @@ def new_pending_job():
         description = request.form.get('description')
         client_name = request.form.get('client_name')
         phone_number = request.form.get('phone_number')
-        designer_id = current_user.id
-
+        designer_id = request.form.get('designer_id')
+        
         if not all([description, client_name, phone_number]):
             flash('Por favor complete todos los campos requeridos', 'error')
             return redirect(url_for('main.new_pending_job'))
@@ -152,35 +152,59 @@ def new_pending_job():
             if not phone_number.startswith('+1'):
                 phone_number = f'+1{phone_number}' if phone_number.startswith('1') else f'+1{phone_number}'
 
-            # Crear trabajo pendiente
-            pending_job = PendingJob(
-                description=description,
-                designer_id=designer_id,
-                registered_by_id=current_user.id,
-                client_name=client_name,
-                phone_number=phone_number,
-                pending_type='new_job'
-            )
+            # Si es admin o supervisor, crear trabajo directamente
+            if current_user.is_admin or current_user.is_supervisor:
+                active_job = Job(
+                    description=description,
+                    designer_id=designer_id,
+                    registered_by_id=current_user.id,
+                    invoice_number=request.form.get('invoice_number'),
+                    client_name=client_name,
+                    phone_number=phone_number,
+                    total_amount=request.form.get('total_amount'),
+                    deposit_amount=request.form.get('deposit_amount'),
+                    tags=request.form.get('tags'),
+                    status='pending'
+                )
+                
+                db.session.add(active_job)
+                db.session.commit()
+                
+                flash('Trabajo creado exitosamente', 'success')
+                
+            else:
+                # Crear trabajo pendiente para diseñadores
+                pending_job = PendingJob(
+                    description=description,
+                    designer_id=designer_id or current_user.id,
+                    registered_by_id=current_user.id,
+                    client_name=client_name,
+                    phone_number=phone_number,
+                    pending_type='new_job'
+                )
+                
+                db.session.add(pending_job)
+                db.session.commit()
+                
+                # Enviar notificación a admin y supervisores
+                notify_staff(
+                    f"Nuevo trabajo pendiente de aprobación - Cliente: {client_name}",
+                    "Trabajo Pendiente"
+                )
+                
+                flash('Trabajo pendiente creado exitosamente', 'success')
             
-            db.session.add(pending_job)
-            db.session.commit()
-            
-            # Enviar notificación a admin y supervisores
-            notify_staff(
-                f"Nuevo trabajo pendiente de aprobación - Cliente: {client_name}",
-                "Trabajo Pendiente"
-            )
-            
-            flash('Trabajo pendiente creado exitosamente', 'success')
             return redirect(url_for('main.dashboard'))
 
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error al crear trabajo pendiente: {str(e)}")
-            flash('Error al crear el trabajo pendiente', 'error')
+            logger.error(f"Error al crear trabajo: {str(e)}")
+            flash('Error al crear el trabajo', 'error')
             return redirect(url_for('main.new_pending_job'))
 
-    return render_template('new_pending_job.html')
+    # GET: mostrar formulario
+    designers = User.query.filter_by(is_designer=True).all() if current_user.is_admin or current_user.is_supervisor else []
+    return render_template('new_pending_job.html', designers=designers)
 
 def staff_required(f):
     """Decorator para requerir que el usuario sea admin o supervisor"""

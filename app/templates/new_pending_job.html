@@ -5,7 +5,7 @@
 {% block content %}
 <div class="card">
     <div class="card-header">
-        <h4 class="mb-0">Registrar Nuevo Trabajo Pendiente</h4>
+        <h4 class="mb-0">{% if current_user.is_admin or current_user.is_supervisor %}Registrar Nuevo Trabajo{% else %}Registrar Nuevo Trabajo Pendiente{% endif %}</h4>
     </div>
     <div class="card-body">
         <form method="POST" action="{{ url_for('main.new_pending_job') }}">
@@ -14,12 +14,42 @@
                     <label class="form-label">Descripción</label>
                     <textarea name="description" class="form-control" rows="3" required></textarea>
                 </div>
-                <input type="hidden" name="designer_id" value="{{ current_user.id }}">
-                <div class="col-md-4 mb-3">
+
+                {% if current_user.is_admin or current_user.is_supervisor %}
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Diseñador</label>
+                        <select name="designer_id" class="form-select" required>
+                            <option value="">Seleccionar diseñador...</option>
+                            {% for designer in designers %}
+                            <option value="{{ designer.id }}">{{ designer.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">No. Factura</label>
+                        <input type="text" name="invoice_number" class="form-control" required>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Etiquetas</label>
+                        <input type="text" name="tags" class="form-control" placeholder="Ej: Urgente">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Total</label>
+                        <input type="number" step="0.01" name="total_amount" class="form-control" required>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Abonado</label>
+                        <input type="number" step="0.01" name="deposit_amount" class="form-control">
+                    </div>
+                {% else %}
+                    <input type="hidden" name="designer_id" value="{{ current_user.id }}">
+                {% endif %}
+
+                <div class="col-md-{% if current_user.is_admin or current_user.is_supervisor %}3{% else %}4{% endif %} mb-3">
                     <label class="form-label">Cliente</label>
                     <input type="text" name="client_name" class="form-control" required>
                 </div>
-                <div class="col-md-4 mb-3">
+                <div class="col-md-{% if current_user.is_admin or current_user.is_supervisor %}3{% else %}4{% endif %} mb-3">
                     <label class="form-label">Teléfono</label>
                     <input type="tel" name="phone_number" class="form-control" required>
                     <small class="text-muted">Formato: +1-XXX-XXXXXXX</small>
@@ -27,7 +57,7 @@
             </div>
             <div class="text-end">
                 <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary me-2">Cancelar</a>
-                <button type="submit" class="btn btn-primary">Guardar Trabajo</button>
+                <button type="submit" class="btn btn-primary">{% if current_user.is_admin or current_user.is_supervisor %}Guardar Trabajo{% else %}Enviar para Aprobación{% endif %}</button>
             </div>
         </form>
     </div>
