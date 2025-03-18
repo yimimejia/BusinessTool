@@ -609,6 +609,27 @@ def reject_pending_job(job_id):
         flash('Error al procesar la solicitud', 'error')
         return redirect(url_for('main.pending_verification'))
 
+@bp.route('/jobs/pending/verification')
+@login_required
+@staff_required
+def pending_verification():
+    """Ver trabajos pendientes de verificación"""
+    try:
+        # Obtener trabajos pendientes
+        jobs = PendingJob.query.filter_by(pending_type='new_job').order_by(PendingJob.created_at.desc()).all()
+        
+        # Registrar actividad
+        log_activity(
+            'ver_trabajos_pendientes',
+            f"Usuario {current_user.username} accedió a la verificación de trabajos"
+        )
+        
+        return render_template('pending_verification.html', jobs=jobs)
+    except Exception as e:
+        logger.error(f"Error al obtener trabajos pendientes: {str(e)}")
+        flash('Error al cargar los trabajos pendientes', 'error')
+        return redirect(url_for('main.dashboard'))
+
 @bp.route('/jobs/<int:job_id>/approve', methods=['GET'])
 @login_required
 @staff_required
