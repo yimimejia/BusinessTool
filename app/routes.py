@@ -841,7 +841,7 @@ def delete_job(job_id):
 @bp.route('/search', methods=['GET'])
 @login_required
 def search_jobs():
-    """Búsqueda de trabajos"""
+    """Búsqueda de trabajos""" 
     query = request.args.get('query', '').strip()
     results = []
     
@@ -851,11 +851,11 @@ def search_jobs():
             active_jobs = Job.query.filter(
                 or_(
                     Job.client_name.ilike(f'%{query}%'),
-                    Job.invoice_number.ilike(f'%{query}%'),
+                    Job.invoice_number.ilike(f'%{query}%'), 
                     Job.phone_number.ilike(f'%{query}%')
                 )
             ).all()
-
+            
             # Buscar en trabajos completados
             completed_jobs = CompletedJob.query.filter(
                 or_(
@@ -864,8 +864,8 @@ def search_jobs():
                     CompletedJob.phone_number.ilike(f'%{query}%')
                 )
             ).all()
-
-            # Combinar y procesar resultados  
+            
+            # Combinar y procesar resultados
             for job in active_jobs + completed_jobs:
                 results.append({
                     'id': job.id,
@@ -877,13 +877,14 @@ def search_jobs():
                     'created_at': job.created_at,
                     'status': 'Completado' if isinstance(job, CompletedJob) else 'Pendiente'
                 })
-
+                
         except Exception as e:
             logger.error(f"Error en búsqueda: {str(e)}")
             flash('Error al realizar la búsqueda', 'error')
             results = []
-
-    return render_template('search_invoices.html', results=results)
+    
+    # Renderizar template con resultados
+    return render_template('search_invoices.html', results=results, query=query)
 
 
 @bp.route('/jobs/<int:job_id>/approve-with-pin', methods=['POST'])
