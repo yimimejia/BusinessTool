@@ -581,6 +581,34 @@ def cleanup_temp_files(*file_paths):
         except Exception as e:
             logger.error(f"Error eliminando archivo temporal {file_path}: {str(e)}")
 
+@bp.route('/jobs/<int:job_id>/reject', methods=['POST'])
+@login_required
+@staff_required
+def reject_pending_job(job_id):
+    """Rechazar un trabajo pendiente"""
+    try:
+        # Obtener el trabajo pendiente
+        pending_job = PendingJob.query.get_or_404(job_id)
+        
+        # Registrar el rechazo
+        log_activity(
+            'rechazar_trabajo',
+            f"Trabajo rechazado - Cliente: {pending_job.client_name}"
+        )
+
+        # Eliminar el trabajo pendiente
+        db.session.delete(pending_job)
+        db.session.commit()
+
+        flash('Trabajo rechazado exitosamente', 'success')
+        return redirect(url_for('main.pending_verification'))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al rechazar trabajo: {str(e)}")
+        flash('Error al procesar la solicitud', 'error')
+        return redirect(url_for('main.pending_verification'))
+
 @bp.route('/jobs/<int:job_id>/approve', methods=['GET'])
 @login_required
 @staff_required
@@ -2599,28 +2627,6 @@ def approve_job(job_id):
         logging.error(f"Error al aprobar trabajo: {str(e)}")
         return jsonify({'success': False, 'message': 'Error al procesar la solicitud'})
 
-@bp.route('/jobs/pending/<int:job_id>/reject', methods=['POST'])
-@login_required
-@staff_required
-def reject_pending_job(job_id):
-    """Rechazar un trabajo pendiente"""
-    pending_job = PendingJob.query.get_or_404(job_id)
-
-    try:
-        log_activity(
-            'trabajo_rechazado',
-            f"Trabajo rechazado para {pending_job.client_name} (Factura: {pending_job.invoice_number})"
-        )
-
-        db.session.delete(pending_job)
-        db.session.commit()
-
-        flash('Trabajo rechazado', 'warning')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error al rechazar el trabajo: {str(e)}', 'error')
-
-    return redirect(url_for('main.pending_jobs'))
 
 @bp.route('/jobs/public/<string:qr_code>')
 def verify_job_qr(qr_code):
