@@ -756,29 +756,36 @@ def reject_pending_photos(job_id):
 @staff_required
 def inventory():
     """Vista principal del inventario"""
-    categories = Category.query.order_by(Category.name).all()
-    # Si no hay categorías, crear una por defecto
-    if not categories:
-        default_category = Category(
-            name="General",
-            description="Categoría general para artículos sin clasificar",
-            created_by_id=current_user.id
-        )
-        try:
-            db.session.add(default_category)
-            db.session.commit()
-            categories = [default_category]
-        except Exception as e:
-            logger.error(f"Error creando categoría por defecto: {str(e)}")
-            db.session.rollback()
-            categories = []
-    
-    # Agrupar items por categoría
-    items_by_category = {}
-    for category in categories:
-        items_by_category[category] = InventoryItem.query.filter_by(category_id=category.id).order_by(InventoryItem.name).all()
-    
-    return render_template('inventory/index.html', categories=categories, items_by_category=items_by_category)
+    try:
+        categories = Category.query.order_by(Category.name).all()
+        # Si no hay categorías, crear una por defecto
+        if not categories:
+            default_category = Category(
+                name="General",
+                description="Categoría general para artículos sin clasificar",
+                created_by_id=current_user.id
+            )
+            try:
+                db.session.add(default_category)
+                db.session.commit()
+                categories = [default_category]
+            except Exception as e:
+                logger.error(f"Error creando categoría por defecto: {str(e)}")
+                db.session.rollback()
+                categories = []
+        
+        # Agrupar items por categoría usando un join explícito
+        items_by_category = {}
+        for category in categories:
+            items = InventoryItem.query.filter_by(category_id=category.id).order_by(InventoryItem.name).all()
+            items_by_category[category] = items
+        
+        return render_template('inventory/index.html', categories=categories, items_by_category=items_by_category)
+        
+    except Exception as e:
+        logger.error(f"Error cargando inventario: {str(e)}")
+        flash('Error al cargar el inventario', 'error')
+        return redirect(url_for('main.dashboard'))
 
 @bp.route('/inventory/add', methods=['GET', 'POST'])
 @login_required
@@ -816,14 +823,16 @@ def add_inventory_item():
                     flash(f'El artículo "{item_data["name"]}" ya existe en la categoría {category.name}', 'warning')
                     continue
                 
+                # Crear el nuevo artículo con la categoría asignada
                 item = InventoryItem(
                     name=item_data['name'],
                     description=item_data['description'],
                     quantity=item_data['quantity'],
                     minimum_quantity=item_data['minimum_quantity'],
-                    category_id=category.id,
+                    category_id=category.id,  # Asignar la categoría directamente
                     created_by_id=current_user.id
                 )
+                
                 db.session.add(item)
                 
                 # Registrar la transacción inicial si hay cantidad
@@ -836,13 +845,14 @@ def add_inventory_item():
                         created_by_id=current_user.id
                     )
                     db.session.add(transaction)
-                
-                items_added += 1
+                    items_added += 1
             
             if items_added > 0:
                 db.session.commit()
                 flash(f'{items_added} artículos agregados exitosamente a la categoría {category.name}', 'success')
                 return redirect(url_for('main.inventory'))
+            else:
+                flash('No se agregaron artículos nuevos', 'info')
             
         except Exception as e:
             db.session.rollback()
