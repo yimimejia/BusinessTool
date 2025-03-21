@@ -33,14 +33,20 @@
                             <td>{{ job.registered_by.name }}</td>
                             <td>{{ job.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                             <td>
-                                <a href="{{ url_for('main.approve_job_form', job_id=job.id) }}" class="btn btn-success btn-sm">
-                                    <i class="bi bi-check-circle"></i> Aprobar
-                                </a>
-                                <button type="button" class="btn btn-danger btn-sm" 
-                                        data-bs-toggle="modal" 
-                                        data-bs-target="#rejectModal{{ job.id }}">
-                                    <i class="bi bi-x-circle"></i> Rechazar
-                                </button>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('main.approve_job_form', job_id=job.id) }}" 
+                                       class="btn btn-success btn-sm">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </a>
+                                    <form method="POST" 
+                                          action="{{ url_for('main.reject_job', job_id=job.id) }}" 
+                                          style="display: inline-block;"
+                                          onsubmit="return confirm('¿Está seguro que desea rechazar este trabajo?');">
+                                        <button type="submit" class="btn btn-danger btn-sm ms-1">
+                                            <i class="bi bi-x-circle"></i> Rechazar
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                         {% endif %}
@@ -56,4 +62,13 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    $(document).ready(function() {
+        initializeDataTable('#pendingVerificationTable');
+    });
+</script>
 {% endblock %}
