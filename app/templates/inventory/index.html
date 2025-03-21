@@ -24,9 +24,23 @@
         </div>
     </div>
 
+    <!-- Buscador -->
+    <div class="mb-4">
+        <div class="input-group">
+            <span class="input-group-text bg-primary text-white">
+                <i class="bi bi-search"></i>
+            </span>
+            <input type="text" class="form-control form-control-lg" id="searchInput" 
+                   placeholder="Buscar artículos..." onkeyup="filterItems()">
+            <button type="button" class="btn btn-outline-secondary" onclick="clearSearch()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    </div>
+
     {% if categories %}
         {% for category in categories %}
-        <div class="mb-5">
+        <div class="mb-5 category-section" id="category-{{ category.id }}">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h3 class="mb-0">
                     <i class="bi bi-folder"></i> {{ category.name }}
@@ -37,7 +51,7 @@
             {% if items_by_category[category] %}
             <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
                 {% for item in items_by_category[category] %}
-                <div class="col">
+                <div class="col item-card" data-item-name="{{ item.name.lower() }}" data-category="{{ category.name.lower() }}">
                     <div class="card h-100 {% if item.quantity <= item.minimum_quantity %}border-danger{% endif %} shadow hover-shadow">
                         <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
                             <h5 class="card-title mb-0">{{ item.name }}</h5>
@@ -126,6 +140,11 @@
         <i class="bi bi-info-circle"></i> No hay categorías definidas.
     </div>
     {% endif %}
+
+    <!-- Mensaje cuando no hay resultados -->
+    <div id="noResults" class="alert alert-info text-center" style="display: none;">
+        <i class="bi bi-search"></i> No se encontraron artículos que coincidan con la búsqueda.
+    </div>
 </div>
 
 <!-- Modal para ajuste masivo -->
@@ -236,6 +255,42 @@ function saveBulkAdjustments() {
         document.body.appendChild(form);
         form.submit();
     }
+}
+
+function filterItems() {
+    const searchText = document.getElementById('searchInput').value.toLowerCase();
+    const items = document.querySelectorAll('.item-card');
+    const categories = document.querySelectorAll('.category-section');
+    let found = false;
+
+    categories.forEach(category => {
+        let categoryHasVisibleItems = false;
+        const categoryItems = category.querySelectorAll('.item-card');
+
+        categoryItems.forEach(item => {
+            const itemName = item.dataset.itemName;
+            const categoryName = item.dataset.category;
+            const matchName = itemName.includes(searchText);
+            const matchCategory = categoryName.includes(searchText);
+
+            if (matchName || matchCategory) {
+                item.style.display = '';
+                categoryHasVisibleItems = true;
+                found = true;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        category.style.display = categoryHasVisibleItems ? '' : 'none';
+    });
+
+    document.getElementById('noResults').style.display = found ? 'none' : 'block';
+}
+
+function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    filterItems();
 }
 
 // Inicializar tooltips
