@@ -12,6 +12,9 @@
             <a href="{{ url_for('main.add_inventory_item') }}" class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> Nuevo Artículo
             </a>
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#bulkAdjustModal">
+                <i class="bi bi-box-arrow-in-down"></i> Añadir a Inventario
+            </button>
             <a href="{{ url_for('main.inventory_transactions') }}" class="btn btn-info">
                 <i class="bi bi-clock-history"></i> Historial
             </a>
@@ -22,45 +25,39 @@
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
         {% for item in items %}
         <div class="col">
-            <div class="card h-100 {% if item.quantity <= item.minimum_quantity %}border-danger{% endif %} shadow-sm">
-                <div class="card-header bg-transparent">
+            <div class="card h-100 {% if item.quantity <= item.minimum_quantity %}border-danger{% endif %} shadow hover-shadow">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">{{ item.name }}</h5>
+                    <button type="button" class="btn btn-sm btn-outline-primary" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#editStockModal{{ item.id }}">
+                        <i class="bi bi-pencil"></i>
+                    </button>
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
                         <p class="card-text text-muted">{{ item.description or 'Sin descripción' }}</p>
                     </div>
-                    <div class="text-center mb-3">
-                        <h3 class="mb-0 {% if item.quantity <= item.minimum_quantity %}text-danger{% else %}text-success{% endif %}">
-                            {{ item.quantity }}
-                        </h3>
-                        <small class="text-muted">en existencia</small>
+                    <div class="text-center mb-4">
+                        <div class="stock-display p-3 rounded-3 {% if item.quantity <= item.minimum_quantity %}bg-danger text-white{% else %}bg-success text-white{% endif %}">
+                            <h2 class="display-4 mb-0">{{ item.quantity }}</h2>
+                            <small>en existencia</small>
+                        </div>
                         {% if item.quantity <= item.minimum_quantity %}
-                        <div class="alert alert-danger mt-2 mb-0 py-1">
-                            <small><i class="bi bi-exclamation-triangle"></i> Stock bajo</small>
+                        <div class="alert alert-danger mt-3 mb-0 py-2">
+                            <i class="bi bi-exclamation-triangle-fill"></i> Stock bajo
                         </div>
                         {% endif %}
                     </div>
-                    <div class="d-flex justify-content-center gap-2 mb-3">
-                        <button type="button" class="btn btn-outline-success" 
-                                onclick="quickAdjust('{{ item.id }}', 1)">
-                            <i class="bi bi-plus-lg"></i>
-                        </button>
-                        <button type="button" class="btn btn-outline-danger" 
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-lg btn-danger" 
                                 onclick="quickAdjust('{{ item.id }}', -1)"
                                 {% if item.quantity <= 0 %}disabled{% endif %}>
-                            <i class="bi bi-dash-lg"></i>
-                        </button>
-                    </div>
-                    <div class="text-center">
-                        <button type="button" class="btn btn-primary btn-sm" 
-                                data-bs-toggle="modal" 
-                                data-bs-target="#adjustModal{{ item.id }}">
-                            <i class="bi bi-pencil"></i> Ajuste Manual
+                            <i class="bi bi-dash-circle-fill"></i> Retirar Unidad
                         </button>
                     </div>
                 </div>
-                <div class="card-footer bg-transparent">
+                <div class="card-footer bg-transparent text-center">
                     <small class="text-muted">
                         Actualizado: {{ item.updated_at.strftime('%Y-%m-%d %H:%M') }}
                     </small>
@@ -68,32 +65,30 @@
             </div>
         </div>
 
-        <!-- Modal para ajuste manual -->
-        <div class="modal fade" id="adjustModal{{ item.id }}" tabindex="-1">
+        <!-- Modal para editar stock -->
+        <div class="modal fade" id="editStockModal{{ item.id }}" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Ajustar {{ item.name }}</h5>
+                        <h5 class="modal-title">Editar Stock - {{ item.name }}</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <form method="POST" action="{{ url_for('main.adjust_inventory', item_id=item.id) }}">
                         <div class="modal-body">
                             <div class="mb-3">
-                                <label class="form-label">Tipo de Ajuste</label>
-                                <select name="type" class="form-select" required>
-                                    <option value="entrada">Entrada</option>
-                                    <option value="salida">Salida</option>
-                                </select>
+                                <label class="form-label">Cantidad Actual</label>
+                                <input type="number" class="form-control form-control-lg" readonly value="{{ item.quantity }}">
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Cantidad</label>
-                                <input type="number" name="quantity" class="form-control" 
-                                       min="1" value="1" required>
+                                <label class="form-label">Nueva Cantidad</label>
+                                <input type="number" name="new_quantity" class="form-control form-control-lg" 
+                                       min="0" value="{{ item.quantity }}" required>
+                                <input type="hidden" name="type" value="adjustment">
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Descripción</label>
+                                <label class="form-label">Motivo del Ajuste</label>
                                 <textarea name="description" class="form-control" rows="2" 
-                                          placeholder="Opcional: Agregar detalles del ajuste"></textarea>
+                                          placeholder="Opcional: Razón del cambio de cantidad"></textarea>
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -113,12 +108,76 @@
     {% endif %}
 </div>
 
+<!-- Modal para ajuste masivo -->
+<div class="modal fade" id="bulkAdjustModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Añadir a Inventario</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Artículo</th>
+                                <th>Stock Actual</th>
+                                <th>Nueva Cantidad</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ item.name }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>
+                                    <input type="number" class="form-control" 
+                                           name="quantity_{{ item.id }}" 
+                                           value="{{ item.quantity }}" min="0">
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="saveBulkAdjustments()">
+                    Guardar Cambios
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Form oculto para ajustes rápidos -->
 <form id="quickAdjustForm" method="POST" style="display: none;">
     <input type="hidden" name="type" id="quickAdjustType">
     <input type="hidden" name="quantity" value="1">
-    <input type="hidden" name="description" value="Ajuste rápido">
+    <input type="hidden" name="description" value="Retiro de unidad">
 </form>
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .hover-shadow:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+        transition: all .3s ease;
+    }
+    .stock-display {
+        transition: all .3s ease;
+    }
+    .card {
+        transition: all .3s ease;
+    }
+    .btn-lg {
+        padding: 1rem;
+    }
+</style>
 {% endblock %}
 
 {% block scripts %}
@@ -128,7 +187,28 @@ function quickAdjust(itemId, amount) {
     const form = document.getElementById('quickAdjustForm');
     form.action = `/inventory/${itemId}/adjust`;
     form.querySelector('#quickAdjustType').value = amount > 0 ? 'entrada' : 'salida';
-    if (confirm('¿Confirmar ajuste?')) {
+    if (confirm('¿Confirmar retiro de unidad?')) {
+        form.submit();
+    }
+}
+
+function saveBulkAdjustments() {
+    if (confirm('¿Confirmar actualización de inventario?')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for("main.bulk_adjust_inventory") }}';
+
+        const inputs = document.querySelectorAll('input[name^="quantity_"]');
+        inputs.forEach(input => {
+            const itemId = input.name.split('_')[1];
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = input.name;
+            hiddenInput.value = input.value;
+            form.appendChild(hiddenInput);
+        });
+
+        document.body.appendChild(form);
         form.submit();
     }
 }
