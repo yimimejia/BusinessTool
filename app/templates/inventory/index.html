@@ -41,119 +41,124 @@
     {% if categories %}
         {% for category in categories %}
         <div class="mb-5 category-section" id="category-{{ category.id }}">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h3 class="mb-0">
-                    <i class="bi bi-folder"></i> {{ category.name }}
+            <div class="category-header d-flex justify-content-between align-items-center mb-3 p-3 rounded bg-dark cursor-pointer"
+                 onclick="toggleCategory({{ category.id }})">
+                <h3 class="mb-0 d-flex align-items-center gap-2">
+                    <i class="bi bi-folder-fill text-primary"></i>
+                    {{ category.name }}
+                    <i class="bi bi-chevron-down category-icon"></i>
                 </h3>
                 <small class="text-muted">{{ category.description }}</small>
             </div>
 
-            {% if items_by_category[category] %}
-            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
-                {% for item in items_by_category[category] %}
-                <div class="col item-card" data-item-name="{{ item.name.lower() }}" data-category="{{ category.name.lower() }}">
-                    <div class="card h-100 {% if item.quantity <= item.minimum_quantity %}border-danger{% endif %} shadow hover-shadow">
-                        <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
-                            <h5 class="card-title mb-0">{{ item.name }}</h5>
-                            <div class="btn-group">
-                                <button type="button" class="btn btn-sm btn-outline-primary" 
-                                        data-bs-toggle="modal" 
-                                        data-bs-target="#editStockModal{{ item.id }}">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-danger" 
-                                        onclick="confirmDelete({{ item.id }}, '{{ item.name }}')">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <p class="card-text text-muted">{{ item.description or 'Sin descripción' }}</p>
-                            </div>
-                            <div class="text-center mb-4">
-                                <div class="stock-display p-3 rounded-3 {% if item.quantity <= item.minimum_quantity %}bg-danger text-white{% else %}bg-success text-white{% endif %}">
-                                    <h2 class="display-4 mb-0">{{ item.quantity }}</h2>
-                                    <small>en existencia</small>
+            <div class="category-content" id="category-content-{{ category.id }}">
+                {% if items_by_category[category] %}
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+                    {% for item in items_by_category[category] %}
+                    <div class="col item-card" data-item-name="{{ item.name.lower() }}" data-category="{{ category.name.lower() }}">
+                        <div class="card h-100 {% if item.quantity <= item.minimum_quantity %}border-danger{% endif %} shadow hover-shadow">
+                            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">{{ item.name }}</h5>
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#editStockModal{{ item.id }}">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                                            onclick="confirmDelete({{ item.id }}, '{{ item.name }}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
                                 </div>
-                                {% if item.quantity <= item.minimum_quantity %}
-                                <div class="alert alert-danger mt-3 mb-0 py-2">
-                                    <i class="bi bi-exclamation-triangle-fill"></i> Stock bajo
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <p class="card-text text-muted">{{ item.description or 'Sin descripción' }}</p>
                                 </div>
-                                {% endif %}
+                                <div class="text-center mb-4">
+                                    <div class="stock-display p-3 rounded-3 {% if item.quantity <= item.minimum_quantity %}bg-danger text-white{% else %}bg-success text-white{% endif %}">
+                                        <h2 class="display-4 mb-0">{{ item.quantity }}</h2>
+                                        <small>en existencia</small>
+                                    </div>
+                                    {% if item.quantity <= item.minimum_quantity %}
+                                    <div class="alert alert-danger mt-3 mb-0 py-2">
+                                        <i class="bi bi-exclamation-triangle-fill"></i> Stock bajo
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="d-grid">
+                                    <button type="button" class="btn btn-lg btn-danger" 
+                                            onclick="quickAdjust('{{ item.id }}', -1)"
+                                            {% if item.quantity <= 0 %}disabled{% endif %}>
+                                        <i class="bi bi-dash-circle-fill"></i> Retirar Unidad
+                                    </button>
+                                </div>
                             </div>
-                            <div class="d-grid">
-                                <button type="button" class="btn btn-lg btn-danger" 
-                                        onclick="quickAdjust('{{ item.id }}', -1)"
-                                        {% if item.quantity <= 0 %}disabled{% endif %}>
-                                    <i class="bi bi-dash-circle-fill"></i> Retirar Unidad
-                                </button>
+                            <div class="card-footer bg-transparent text-center">
+                                <small class="text-muted">
+                                    Actualizado: {{ item.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                                </small>
                             </div>
-                        </div>
-                        <div class="card-footer bg-transparent text-center">
-                            <small class="text-muted">
-                                Actualizado: {{ item.updated_at.strftime('%Y-%m-%d %H:%M') }}
-                            </small>
                         </div>
                     </div>
-                </div>
 
-                <!-- Modal para editar stock -->
-                <div class="modal fade" id="editStockModal{{ item.id }}" tabindex="-1">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Editar Artículo - {{ item.name }}</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <!-- Modal para editar stock -->
+                    <div class="modal fade" id="editStockModal{{ item.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Editar Artículo - {{ item.name }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('main.adjust_inventory', item_id=item.id) }}">
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Nombre del Artículo</label>
+                                            <input type="text" name="name" class="form-control form-control-lg" 
+                                                   value="{{ item.name }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Descripción</label>
+                                            <textarea name="description" class="form-control" rows="2">{{ item.description }}</textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Cantidad Mínima</label>
+                                            <input type="number" name="minimum_quantity" class="form-control form-control-lg" 
+                                                   value="{{ item.minimum_quantity }}" min="0" required>
+                                            <small class="text-muted">Alerta cuando el stock sea igual o menor a esta cantidad</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Cantidad Actual</label>
+                                            <input type="number" class="form-control form-control-lg" readonly value="{{ item.quantity }}">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Nueva Cantidad</label>
+                                            <input type="number" name="new_quantity" class="form-control form-control-lg" 
+                                                   min="0" value="{{ item.quantity }}" required>
+                                            <input type="hidden" name="type" value="adjustment">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Motivo del Ajuste</label>
+                                            <textarea name="description" class="form-control" rows="2" 
+                                                      placeholder="Opcional: Razón del cambio de cantidad"></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                                    </div>
+                                </form>
                             </div>
-                            <form method="POST" action="{{ url_for('main.adjust_inventory', item_id=item.id) }}">
-                                <div class="modal-body">
-                                    <div class="mb-3">
-                                        <label class="form-label">Nombre del Artículo</label>
-                                        <input type="text" name="name" class="form-control form-control-lg" 
-                                               value="{{ item.name }}" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Descripción</label>
-                                        <textarea name="description" class="form-control" rows="2">{{ item.description }}</textarea>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Cantidad Mínima</label>
-                                        <input type="number" name="minimum_quantity" class="form-control form-control-lg" 
-                                               value="{{ item.minimum_quantity }}" min="0" required>
-                                        <small class="text-muted">Alerta cuando el stock sea igual o menor a esta cantidad</small>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Cantidad Actual</label>
-                                        <input type="number" class="form-control form-control-lg" readonly value="{{ item.quantity }}">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Nueva Cantidad</label>
-                                        <input type="number" name="new_quantity" class="form-control form-control-lg" 
-                                               min="0" value="{{ item.quantity }}" required>
-                                        <input type="hidden" name="type" value="adjustment">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Motivo del Ajuste</label>
-                                        <textarea name="description" class="form-control" rows="2" 
-                                                  placeholder="Opcional: Razón del cambio de cantidad"></textarea>
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
-                                </div>
-                            </form>
                         </div>
                     </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> No hay artículos en esta categoría.
+                </div>
+                {% endif %}
             </div>
-            {% else %}
-            <div class="alert alert-info">
-                <i class="bi bi-info-circle"></i> No hay artículos en esta categoría.
-            </div>
-            {% endif %}
         </div>
         {% endfor %}
     {% else %}
@@ -268,12 +273,61 @@
     .btn-lg {
         padding: 1rem;
     }
+    .category-header {
+        transition: all .3s ease;
+        cursor: pointer;
+    }
+    .category-header:hover {
+        background-color: #2a2f35 !important;
+    }
+    .category-icon {
+        transition: transform .3s ease;
+    }
+    .category-header.collapsed .category-icon {
+        transform: rotate(-90deg);
+    }
+    .category-content {
+        transition: all .3s ease;
+        overflow: hidden;
+    }
+    .category-content.collapsed {
+        display: none;
+    }
 </style>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
+function toggleCategory(categoryId) {
+    const header = document.querySelector(`#category-${categoryId} .category-header`);
+    const content = document.getElementById(`category-content-${categoryId}`);
+    const icon = header.querySelector('.category-icon');
+
+    header.classList.toggle('collapsed');
+    content.classList.toggle('collapsed');
+
+    // Guardar estado en localStorage
+    const isCollapsed = content.classList.contains('collapsed');
+    localStorage.setItem(`category-${categoryId}-collapsed`, isCollapsed);
+}
+
+// Restaurar estado de las categorías al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    const categories = document.querySelectorAll('.category-section');
+    categories.forEach(category => {
+        const categoryId = category.id.split('-')[1];
+        const isCollapsed = localStorage.getItem(`category-${categoryId}-collapsed`) === 'true';
+
+        if (isCollapsed) {
+            const header = category.querySelector('.category-header');
+            const content = document.getElementById(`category-content-${categoryId}`);
+            header.classList.add('collapsed');
+            content.classList.add('collapsed');
+        }
+    });
+});
+
 function quickAdjust(itemId, amount) {
     const form = document.getElementById('quickAdjustForm');
     form.action = `/inventory/${itemId}/adjust`;
@@ -283,25 +337,14 @@ function quickAdjust(itemId, amount) {
     }
 }
 
-function saveBulkAdjustments() {
-    if (confirm('¿Confirmar actualización de inventario?')) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '{{ url_for("main.bulk_adjust_inventory") }}';
+function confirmDelete(itemId, itemName) {
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    const deleteForm = document.getElementById('deleteForm');
+    const deleteItemName = document.getElementById('deleteItemName');
 
-        const inputs = document.querySelectorAll('input[name^="quantity_"]');
-        inputs.forEach(input => {
-            const itemId = input.name.split('_')[1];
-            const hiddenInput = document.createElement('input');
-            hiddenInput.type = 'hidden';
-            hiddenInput.name = input.name;
-            hiddenInput.value = input.value;
-            form.appendChild(hiddenInput);
-        });
-
-        document.body.appendChild(form);
-        form.submit();
-    }
+    deleteForm.action = `/inventory/${itemId}/delete`;
+    deleteItemName.textContent = itemName;
+    deleteModal.show();
 }
 
 function filterItems() {
@@ -340,17 +383,6 @@ function clearSearch() {
     filterItems();
 }
 
-function confirmDelete(itemId, itemName) {
-    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
-    const deleteForm = document.getElementById('deleteForm');
-    const deleteItemName = document.getElementById('deleteItemName');
-
-    deleteForm.action = `/inventory/${itemId}/delete`;
-    deleteItemName.textContent = itemName;
-    deleteModal.show();
-}
-
-
 // Inicializar tooltips
 document.addEventListener('DOMContentLoaded', function() {
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
@@ -358,5 +390,26 @@ document.addEventListener('DOMContentLoaded', function() {
         return new bootstrap.Tooltip(tooltipTriggerEl)
     });
 });
+
+function saveBulkAdjustments() {
+    if (confirm('¿Confirmar actualización de inventario?')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for("main.bulk_adjust_inventory") }}';
+
+        const inputs = document.querySelectorAll('input[name^="quantity_"]');
+        inputs.forEach(input => {
+            const itemId = input.name.split('_')[1];
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = input.name;
+            hiddenInput.value = input.value;
+            form.appendChild(hiddenInput);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
 </script>
 {% endblock %}
