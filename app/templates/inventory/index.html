@@ -4,111 +4,141 @@
 
 {% block content %}
 <div class="container">
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h4 class="mb-0">Inventario</h4>
-            <div>
-                <a href="{{ url_for('main.add_inventory_item') }}" class="btn btn-primary">
-                    <i class="bi bi-plus-circle"></i> Nuevo Artículo
-                </a>
-                <a href="{{ url_for('main.inventory_transactions') }}" class="btn btn-info">
-                    <i class="bi bi-clock-history"></i> Ver Transacciones
-                </a>
-            </div>
-        </div>
-        <div class="card-body">
-            {% if items %}
-            <div class="table-responsive">
-                <table class="table table-hover" id="inventoryTable">
-                    <thead>
-                        <tr>
-                            <th>Nombre</th>
-                            <th>Descripción</th>
-                            <th>Cantidad</th>
-                            <th>Mínimo</th>
-                            <th>Última Actualización</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in items %}
-                        <tr>
-                            <td>{{ item.name }}</td>
-                            <td>{{ item.description or '' }}</td>
-                            <td>
-                                <span class="badge {% if item.quantity <= item.minimum_quantity %}bg-danger{% else %}bg-success{% endif %}">
-                                    {{ item.quantity }}
-                                </span>
-                            </td>
-                            <td>{{ item.minimum_quantity }}</td>
-                            <td>{{ item.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                            <td>
-                                <button type="button" class="btn btn-primary btn-sm" 
-                                        data-bs-toggle="modal" 
-                                        data-bs-target="#adjustModal{{ item.id }}">
-                                    <i class="bi bi-pencil"></i> Ajustar
-                                </button>
-                            </td>
-                        </tr>
-
-                        <!-- Modal para ajustar inventario -->
-                        <div class="modal fade" id="adjustModal{{ item.id }}" tabindex="-1">
-                            <div class="modal-dialog">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title">Ajustar {{ item.name }}</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <form method="POST" action="{{ url_for('main.adjust_inventory', item_id=item.id) }}">
-                                        <div class="modal-body">
-                                            <div class="mb-3">
-                                                <label class="form-label">Tipo de Ajuste</label>
-                                                <select name="type" class="form-select" required>
-                                                    <option value="entrada">Entrada</option>
-                                                    <option value="salida">Salida</option>
-                                                </select>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Cantidad</label>
-                                                <input type="number" name="quantity" class="form-control" 
-                                                       min="1" required>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Descripción</label>
-                                                <textarea name="description" class="form-control" rows="2"></textarea>
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                            <button type="submit" class="btn btn-primary">Guardar</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="alert alert-info">
-                No hay artículos en el inventario.
-            </div>
-            {% endif %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="bi bi-box-seam"></i> Inventario
+        </h2>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('main.add_inventory_item') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Nuevo Artículo
+            </a>
+            <a href="{{ url_for('main.inventory_transactions') }}" class="btn btn-info">
+                <i class="bi bi-clock-history"></i> Historial
+            </a>
         </div>
     </div>
+
+    {% if items %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+        {% for item in items %}
+        <div class="col">
+            <div class="card h-100 {% if item.quantity <= item.minimum_quantity %}border-danger{% endif %} shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="card-title mb-0">{{ item.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <p class="card-text text-muted">{{ item.description or 'Sin descripción' }}</p>
+                    </div>
+                    <div class="text-center mb-3">
+                        <h3 class="mb-0 {% if item.quantity <= item.minimum_quantity %}text-danger{% else %}text-success{% endif %}">
+                            {{ item.quantity }}
+                        </h3>
+                        <small class="text-muted">en existencia</small>
+                        {% if item.quantity <= item.minimum_quantity %}
+                        <div class="alert alert-danger mt-2 mb-0 py-1">
+                            <small><i class="bi bi-exclamation-triangle"></i> Stock bajo</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex justify-content-center gap-2 mb-3">
+                        <button type="button" class="btn btn-outline-success" 
+                                onclick="quickAdjust('{{ item.id }}', 1)">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" 
+                                onclick="quickAdjust('{{ item.id }}', -1)"
+                                {% if item.quantity <= 0 %}disabled{% endif %}>
+                            <i class="bi bi-dash-lg"></i>
+                        </button>
+                    </div>
+                    <div class="text-center">
+                        <button type="button" class="btn btn-primary btn-sm" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#adjustModal{{ item.id }}">
+                            <i class="bi bi-pencil"></i> Ajuste Manual
+                        </button>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <small class="text-muted">
+                        Actualizado: {{ item.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para ajuste manual -->
+        <div class="modal fade" id="adjustModal{{ item.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Ajustar {{ item.name }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST" action="{{ url_for('main.adjust_inventory', item_id=item.id) }}">
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Tipo de Ajuste</label>
+                                <select name="type" class="form-select" required>
+                                    <option value="entrada">Entrada</option>
+                                    <option value="salida">Salida</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Cantidad</label>
+                                <input type="number" name="quantity" class="form-control" 
+                                       min="1" value="1" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Descripción</label>
+                                <textarea name="description" class="form-control" rows="2" 
+                                          placeholder="Opcional: Agregar detalles del ajuste"></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Guardar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> No hay artículos en el inventario.
+    </div>
+    {% endif %}
 </div>
+
+<!-- Form oculto para ajustes rápidos -->
+<form id="quickAdjustForm" method="POST" style="display: none;">
+    <input type="hidden" name="type" id="quickAdjustType">
+    <input type="hidden" name="quantity" value="1">
+    <input type="hidden" name="description" value="Ajuste rápido">
+</form>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
-    $(document).ready(function() {
-        $('#inventoryTable').DataTable({
-            language: {
-                url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
-            }
-        });
+function quickAdjust(itemId, amount) {
+    const form = document.getElementById('quickAdjustForm');
+    form.action = `/inventory/${itemId}/adjust`;
+    form.querySelector('#quickAdjustType').value = amount > 0 ? 'entrada' : 'salida';
+    if (confirm('¿Confirmar ajuste?')) {
+        form.submit();
+    }
+}
+
+// Inicializar tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
     });
+});
 </script>
 {% endblock %}
