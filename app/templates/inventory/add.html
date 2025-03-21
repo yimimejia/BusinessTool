@@ -4,38 +4,56 @@
 
 {% block content %}
 <div class="container">
-    <div class="card">
-        <div class="card-header">
-            <h4>Agregar Nuevo Artículo</h4>
-        </div>
-        <div class="card-body">
-            <form method="POST">
-                <div class="mb-3">
-                    <label class="form-label">Nombre</label>
-                    <input type="text" name="name" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Descripción</label>
-                    <textarea name="description" class="form-control" rows="3"></textarea>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Cantidad Inicial</label>
-                    <input type="number" name="quantity" class="form-control" value="0" min="0" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Cantidad Mínima</label>
-                    <input type="number" name="minimum_quantity" class="form-control" value="0" min="0" required>
-                    <small class="text-muted">Se mostrará una alerta cuando el stock sea igual o menor a esta cantidad</small>
-                </div>
-                <div class="d-grid gap-2">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-save"></i> Guardar
-                    </button>
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="bi bi-box-plus"></i> Nuevo Artículo
+                    </h4>
                     <a href="{{ url_for('main.inventory') }}" class="btn btn-secondary">
                         <i class="bi bi-arrow-left"></i> Volver
                     </a>
                 </div>
-            </form>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label">Categoría</label>
+                            <select name="category_id" class="form-select" required>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Nombre del Artículo</label>
+                            <input type="text" name="name" class="form-control" required 
+                                   placeholder="Ej: Cámara, Trípode, Memoria SD">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Descripción</label>
+                            <textarea name="description" class="form-control" rows="3" 
+                                    placeholder="Descripción opcional del artículo"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Cantidad Inicial</label>
+                            <input type="number" name="quantity" class="form-control" 
+                                   value="0" min="0" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Cantidad Mínima</label>
+                            <input type="number" name="minimum_quantity" class="form-control" 
+                                   value="1" min="0" required>
+                            <small class="text-muted">Se mostrará una alerta cuando el stock sea igual o menor a esta cantidad</small>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-save"></i> Guardar Artículo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 </div>

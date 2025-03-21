@@ -9,6 +9,9 @@
             <i class="bi bi-box-seam"></i> Inventario
         </h2>
         <div class="d-flex gap-2">
+            <a href="{{ url_for('main.add_category') }}" class="btn btn-primary">
+                <i class="bi bi-folder-plus"></i> Nueva Categoría
+            </a>
             <a href="{{ url_for('main.add_inventory_item') }}" class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> Nuevo Artículo
             </a>
@@ -21,89 +24,106 @@
         </div>
     </div>
 
-    {% if items %}
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
-        {% for item in items %}
-        <div class="col">
-            <div class="card h-100 {% if item.quantity <= item.minimum_quantity %}border-danger{% endif %} shadow hover-shadow">
-                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">{{ item.name }}</h5>
-                    <button type="button" class="btn btn-sm btn-outline-primary" 
-                            data-bs-toggle="modal" 
-                            data-bs-target="#editStockModal{{ item.id }}">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <p class="card-text text-muted">{{ item.description or 'Sin descripción' }}</p>
-                    </div>
-                    <div class="text-center mb-4">
-                        <div class="stock-display p-3 rounded-3 {% if item.quantity <= item.minimum_quantity %}bg-danger text-white{% else %}bg-success text-white{% endif %}">
-                            <h2 class="display-4 mb-0">{{ item.quantity }}</h2>
-                            <small>en existencia</small>
-                        </div>
-                        {% if item.quantity <= item.minimum_quantity %}
-                        <div class="alert alert-danger mt-3 mb-0 py-2">
-                            <i class="bi bi-exclamation-triangle-fill"></i> Stock bajo
-                        </div>
-                        {% endif %}
-                    </div>
-                    <div class="d-grid">
-                        <button type="button" class="btn btn-lg btn-danger" 
-                                onclick="quickAdjust('{{ item.id }}', -1)"
-                                {% if item.quantity <= 0 %}disabled{% endif %}>
-                            <i class="bi bi-dash-circle-fill"></i> Retirar Unidad
-                        </button>
-                    </div>
-                </div>
-                <div class="card-footer bg-transparent text-center">
-                    <small class="text-muted">
-                        Actualizado: {{ item.updated_at.strftime('%Y-%m-%d %H:%M') }}
-                    </small>
-                </div>
+    {% if categories %}
+        {% for category in categories %}
+        <div class="mb-5">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">
+                    <i class="bi bi-folder"></i> {{ category.name }}
+                </h3>
+                <small class="text-muted">{{ category.description }}</small>
             </div>
-        </div>
 
-        <!-- Modal para editar stock -->
-        <div class="modal fade" id="editStockModal{{ item.id }}" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Editar Stock - {{ item.name }}</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            {% if items_by_category[category] %}
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+                {% for item in items_by_category[category] %}
+                <div class="col">
+                    <div class="card h-100 {% if item.quantity <= item.minimum_quantity %}border-danger{% endif %} shadow hover-shadow">
+                        <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">{{ item.name }}</h5>
+                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#editStockModal{{ item.id }}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <p class="card-text text-muted">{{ item.description or 'Sin descripción' }}</p>
+                            </div>
+                            <div class="text-center mb-4">
+                                <div class="stock-display p-3 rounded-3 {% if item.quantity <= item.minimum_quantity %}bg-danger text-white{% else %}bg-success text-white{% endif %}">
+                                    <h2 class="display-4 mb-0">{{ item.quantity }}</h2>
+                                    <small>en existencia</small>
+                                </div>
+                                {% if item.quantity <= item.minimum_quantity %}
+                                <div class="alert alert-danger mt-3 mb-0 py-2">
+                                    <i class="bi bi-exclamation-triangle-fill"></i> Stock bajo
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="d-grid">
+                                <button type="button" class="btn btn-lg btn-danger" 
+                                        onclick="quickAdjust('{{ item.id }}', -1)"
+                                        {% if item.quantity <= 0 %}disabled{% endif %}>
+                                    <i class="bi bi-dash-circle-fill"></i> Retirar Unidad
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-transparent text-center">
+                            <small class="text-muted">
+                                Actualizado: {{ item.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                            </small>
+                        </div>
                     </div>
-                    <form method="POST" action="{{ url_for('main.adjust_inventory', item_id=item.id) }}">
-                        <div class="modal-body">
-                            <div class="mb-3">
-                                <label class="form-label">Cantidad Actual</label>
-                                <input type="number" class="form-control form-control-lg" readonly value="{{ item.quantity }}">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Nueva Cantidad</label>
-                                <input type="number" name="new_quantity" class="form-control form-control-lg" 
-                                       min="0" value="{{ item.quantity }}" required>
-                                <input type="hidden" name="type" value="adjustment">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Motivo del Ajuste</label>
-                                <textarea name="description" class="form-control" rows="2" 
-                                          placeholder="Opcional: Razón del cambio de cantidad"></textarea>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="submit" class="btn btn-primary">Guardar</button>
-                        </div>
-                    </form>
                 </div>
+
+                <!-- Modal para editar stock -->
+                <div class="modal fade" id="editStockModal{{ item.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Editar Stock - {{ item.name }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <form method="POST" action="{{ url_for('main.adjust_inventory', item_id=item.id) }}">
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Cantidad Actual</label>
+                                        <input type="number" class="form-control form-control-lg" readonly value="{{ item.quantity }}">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Nueva Cantidad</label>
+                                        <input type="number" name="new_quantity" class="form-control form-control-lg" 
+                                               min="0" value="{{ item.quantity }}" required>
+                                        <input type="hidden" name="type" value="adjustment">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Motivo del Ajuste</label>
+                                        <textarea name="description" class="form-control" rows="2" 
+                                                  placeholder="Opcional: Razón del cambio de cantidad"></textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                    <button type="submit" class="btn btn-primary">Guardar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No hay artículos en esta categoría.
+            </div>
+            {% endif %}
         </div>
         {% endfor %}
-    </div>
     {% else %}
     <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i> No hay artículos en el inventario.
+        <i class="bi bi-info-circle"></i> No hay categorías definidas.
     </div>
     {% endif %}
 </div>
@@ -117,30 +137,35 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="table-responsive">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Artículo</th>
-                                <th>Stock Actual</th>
-                                <th>Nueva Cantidad</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in items %}
-                            <tr>
-                                <td>{{ item.name }}</td>
-                                <td>{{ item.quantity }}</td>
-                                <td>
-                                    <input type="number" class="form-control" 
-                                           name="quantity_{{ item.id }}" 
-                                           value="{{ item.quantity }}" min="0">
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                {% for category in categories %}
+                <div class="mb-4">
+                    <h6 class="border-bottom pb-2">{{ category.name }}</h6>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Artículo</th>
+                                    <th>Stock Actual</th>
+                                    <th>Nueva Cantidad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in items_by_category[category] %}
+                                <tr>
+                                    <td>{{ item.name }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>
+                                        <input type="number" class="form-control" 
+                                               name="quantity_{{ item.id }}" 
+                                               value="{{ item.quantity }}" min="0">
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+                {% endfor %}
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>

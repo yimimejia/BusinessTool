@@ -753,17 +753,40 @@ def reject_pending_photos(job_id):
 
 @bp.route('/inventory')
 @login_required
-@staff_required  # Solo admin y supervisores
+@staff_required
 def inventory():
     """Vista principal del inventario"""
-    items = InventoryItem.query.order_by(InventoryItem.name).all()
-    return render_template('inventory/index.html', items=items)
+    categories = Category.query.order_by(Category.name).all()
+    # Si no hay categorías, crear una por defecto
+    if not categories:
+        default_category = Category(
+            name="General",
+            description="Categoría general para artículos sin clasificar",
+            created_by_id=current_user.id
+        )
+        try:
+            db.session.add(default_category)
+            db.session.commit()
+            categories = [default_category]
+        except Exception as e:
+            logger.error(f"Error creando categoría por defecto: {str(e)}")
+            db.session.rollback()
+            categories = []
+    
+    # Agrupar items por categoría
+    items_by_category = {}
+    for category in categories:
+        items_by_category[category] = InventoryItem.query.filter_by(category_id=category.id).order_by(InventoryItem.name).all()
+    
+    return render_template('inventory/index.html', categories=categories, items_by_category=items_by_category)
 
 @bp.route('/inventory/add', methods=['GET', 'POST'])
 @login_required
 @staff_required
 def add_inventory_item():
     """Agregar nuevo artículo al inventario"""
+    categories = Category.query.order_by(Category.name).all()
+    
     if request.method == 'POST':
         try:
             item = InventoryItem(
@@ -771,6 +794,7 @@ def add_inventory_item():
                 description=request.form.get('description'),
                 quantity=int(request.form['quantity']),
                 minimum_quantity=int(request.form.get('minimum_quantity', 0)),
+                category_id=int(request.form['category_id']),
                 created_by_id=current_user.id
             )
             db.session.add(item)
@@ -795,7 +819,7 @@ def add_inventory_item():
             logger.error(f"Error al agregar artículo: {str(e)}")
             flash('Error al agregar el artículo', 'error')
             
-    return render_template('inventory/add.html')
+    return render_template('inventory/add.html', categories=categories)
 
 @bp.route('/inventory/bulk-adjust', methods=['POST'])
 @login_required
@@ -919,6 +943,29 @@ def inventory_transactions():
         .order_by(InventoryTransaction.created_at.desc())\
         .all()
     return render_template('inventory/transactions.html', transactions=transactions)
+
+@bp.route('/categories/add', methods=['GET', 'POST'])
+@login_required
+@staff_required
+def add_category():
+    """Agregar nueva categoría"""
+    if request.method == 'POST':
+        try:
+            category = Category(
+                name=request.form['name'],
+                description=request.form.get('description'),
+                created_by_id=current_user.id
+            )
+            db.session.add(category)
+            db.session.commit()
+            flash('Categoría agregada exitosamente', 'success')
+            return redirect(url_for('main.inventory'))
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error al agregar categoría: {str(e)}")
+            flash('Error al agregar la categoría', 'error')
+    
+    return render_template('inventory/add_category.html')
 
 def save_photos_to_job_folder(job_id, photos):
     """Guardar fotos en la carpeta del trabajo específico"""

@@ -423,6 +423,17 @@ class PendingJob(db.Model):
             deposit_amount=self.deposit_amount
         )
 
+class Category(db.Model):
+    __tablename__ = 'categories'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+    items = db.relationship('InventoryItem', backref='category', lazy='dynamic')
+    created_by = db.relationship('User', backref='created_categories')
+
 class InventoryItem(db.Model):
     __tablename__ = 'inventory_items'
     id = db.Column(db.Integer, primary_key=True)
@@ -430,6 +441,7 @@ class InventoryItem(db.Model):
     description = db.Column(db.Text)
     quantity = db.Column(db.Integer, default=0)
     minimum_quantity = db.Column(db.Integer, default=0)  # Para alertas de stock bajo
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
