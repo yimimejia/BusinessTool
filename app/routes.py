@@ -5,7 +5,7 @@ from functools import wraps
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy import or_, desc, literal_column
 from app import db
-from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, PendingJob, Message, Invoice, InventoryItem, InventoryTransaction
+from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, PendingJob, Message, Invoice, InventoryItem, InventoryTransaction, Category
 from app.utils.notifications import send_notification
 from flask_sse import sse
 from datetime import datetime, timedelta
