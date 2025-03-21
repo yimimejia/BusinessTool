@@ -178,29 +178,43 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Añadir a Inventario</h5>
+                <h5 class="modal-title">
+                    <i class="bi bi-box-arrow-in-down"></i> Añadir a Inventario
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 {% for category in categories %}
                 <div class="mb-4">
-                    <h6 class="border-bottom pb-2">{{ category.name }}</h6>
+                    <h6 class="border-bottom pb-2">
+                        <i class="bi bi-folder-fill text-primary"></i> {{ category.name }}
+                    </h6>
                     <div class="table-responsive">
                         <table class="table">
                             <thead>
                                 <tr>
                                     <th>Artículo</th>
-                                    <th>Stock Actual</th>
-                                    <th>Nueva Cantidad</th>
+                                    <th style="width: 120px;">Stock Actual</th>
+                                    <th style="width: 150px;">Nueva Cantidad</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for item in items_by_category[category] %}
                                 <tr>
-                                    <td>{{ item.name }}</td>
-                                    <td>{{ item.quantity }}</td>
                                     <td>
-                                        <input type="number" class="form-control" 
+                                        <strong>{{ item.name }}</strong>
+                                        {% if item.description %}
+                                        <br>
+                                        <small class="text-muted">{{ item.description }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge {% if item.quantity <= item.minimum_quantity %}bg-danger{% else %}bg-success{% endif %}">
+                                            {{ item.quantity }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-lg" 
                                                name="quantity_{{ item.id }}" 
                                                value="{{ item.quantity }}" min="0">
                                     </td>
@@ -215,7 +229,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-success" onclick="saveBulkAdjustments()">
-                    Guardar Cambios
+                    <i class="bi bi-save"></i> Guardar Cambios
                 </button>
             </div>
         </div>

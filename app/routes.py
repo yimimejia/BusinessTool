@@ -827,6 +827,7 @@ def add_inventory_item():
 def bulk_adjust_inventory():
     """Ajustar cantidades de múltiples artículos"""
     try:
+        items_updated = 0
         # Procesar cada artículo
         for key, value in request.form.items():
             if key.startswith('quantity_'):
@@ -836,7 +837,9 @@ def bulk_adjust_inventory():
                 item = InventoryItem.query.get_or_404(item_id)
                 old_quantity = item.quantity
                 
+                # Solo registrar si hay cambio
                 if new_quantity != old_quantity:
+                    # Calcular la diferencia
                     difference = new_quantity - old_quantity
                     transaction_type = 'entrada' if difference > 0 else 'salida'
                     
@@ -851,14 +854,19 @@ def bulk_adjust_inventory():
                     
                     item.quantity = new_quantity
                     db.session.add(transaction)
+                    items_updated += 1
         
-        db.session.commit()
-        flash('Inventario actualizado exitosamente', 'success')
+        if items_updated > 0:
+            db.session.commit()
+            flash(f'{items_updated} artículos actualizados exitosamente', 'success')
+        else:
+            flash('No se realizaron cambios en el inventario', 'info')
+        
         return redirect(url_for('main.inventory'))
         
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error al ajustar inventario: {str(e)}")
+        logger.error(f"Error en ajuste masivo de inventario: {str(e)}")
         flash('Error al actualizar el inventario', 'error')
         return redirect(url_for('main.inventory'))
 
