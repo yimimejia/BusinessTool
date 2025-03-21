@@ -459,6 +459,38 @@ def log_activity(action, details=None):
     except Exception as e:
         logger.error(f"Error al registrar actividad: {str(e)}")
 
+@bp.route('/jobs/<int:job_id>/reject', methods=['POST'])
+@login_required
+@staff_required
+def reject_job(job_id):
+    """Rechazar un trabajo pendiente"""
+    try:
+        # Obtener el trabajo pendiente
+        pending_job = PendingJob.query.get_or_404(job_id)
+        
+        if pending_job.pending_type != 'new_job':
+            flash('Tipo de trabajo pendiente incorrecto', 'error')
+            return redirect(url_for('main.pending_verification'))
+
+        # Registrar el rechazo
+        log_activity(
+            'rechazar_trabajo',
+            f"Trabajo rechazado - Cliente: {pending_job.client_name}"
+        )
+        
+        # Eliminar el trabajo pendiente
+        db.session.delete(pending_job)
+        db.session.commit()
+        
+        flash('Trabajo rechazado exitosamente', 'success')
+        return redirect(url_for('main.pending_verification'))
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al rechazar trabajo: {str(e)}")
+        flash('Error al procesar la solicitud', 'error')
+        return redirect(url_for('main.pending_verification'))
+
 @bp.route('/jobs/<int:job_id>/send-photos', methods=['POST'])
 @login_required
 @retry_on_db_error()
@@ -480,18 +512,24 @@ def send_job_photos(job_id):
         upload_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], str(job_id))
         os.makedirs(upload_folder, exist_ok=True)
 
-        # Guardar las fotos
+        # Procesar fotos en lotes para evitar límites de memoria
         photo_paths = []
-        for photo in photos:
-            if photo and photo.filename:
-                filename = secure_filename(photo.filename)
-                filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}"
-                photo_path = os.path.join('uploads', str(job_id), filename)
-                full_path = os.path.join(current_app.static_folder, photo_path)
+        batch_size = 50  # Aumentar el tamaño del lote
+        
+        for i in range(0, len(photos), batch_size):
+            batch = photos[i:i + batch_size]
+            for photo in batch:
+                if photo and photo.filename:
+                    filename = secure_filename(photo.filename)
+                    filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}"
+                    photo_path = os.path.join('uploads', str(job_id), filename)
+                    full_path = os.path.join(current_app.static_folder, photo_path)
 
-                # Guardar la imagen original
-                photo.save(full_path)
-                photo_paths.append(photo_path)
+                    # Optimizar imagen antes de guardar
+                    img = Image.open(photo)
+                    img.thumbnail((1920, 1920))  # Redimensionar si es muy grande
+                    img.save(full_path, optimize=True, quality=85)
+                    photo_paths.append(photo_path)
 
         # Crear un PendingJob para la verificación de fotos
         pending_job = PendingJob(
