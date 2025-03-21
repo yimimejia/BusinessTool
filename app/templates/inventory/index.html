@@ -40,21 +40,20 @@
 
     {% if categories %}
         {% for category in categories %}
-        <div class="mb-4 category-section" id="category-{{ category.id }}">
-            <div class="category-header d-flex justify-content-between align-items-center p-3 rounded bg-dark cursor-pointer"
+        <div class="mb-5 category-section" id="category-{{ category.id }}">
+            <div class="category-header d-flex justify-content-between align-items-center mb-3 p-3 rounded bg-dark cursor-pointer"
                  onclick="toggleCategory({{ category.id }})">
                 <h3 class="mb-0 d-flex align-items-center gap-2">
                     <i class="bi bi-folder-fill text-primary"></i>
                     {{ category.name }}
-                    <span class="badge bg-secondary ms-2">{{ items_by_category[category]|length }}</span>
                     <i class="bi bi-chevron-down category-icon"></i>
                 </h3>
                 <small class="text-muted">{{ category.description }}</small>
             </div>
 
-            <div class="category-content collapsed" id="category-content-{{ category.id }}">
+            <div class="category-content" id="category-content-{{ category.id }}">
                 {% if items_by_category[category] %}
-                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4 mt-3">
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
                     {% for item in items_by_category[category] %}
                     <div class="col item-card" data-item-name="{{ item.name.lower() }}" data-category="{{ category.name.lower() }}">
                         <div class="card h-100 {% if item.quantity <= item.minimum_quantity %}border-danger{% endif %} shadow hover-shadow">
@@ -102,10 +101,60 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Modal para editar stock -->
+                    <div class="modal fade" id="editStockModal{{ item.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Editar Artículo - {{ item.name }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('main.adjust_inventory', item_id=item.id) }}">
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Nombre del Artículo</label>
+                                            <input type="text" name="name" class="form-control form-control-lg" 
+                                                   value="{{ item.name }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Descripción</label>
+                                            <textarea name="description" class="form-control" rows="2">{{ item.description }}</textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Cantidad Mínima</label>
+                                            <input type="number" name="minimum_quantity" class="form-control form-control-lg" 
+                                                   value="{{ item.minimum_quantity }}" min="0" required>
+                                            <small class="text-muted">Alerta cuando el stock sea igual o menor a esta cantidad</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Cantidad Actual</label>
+                                            <input type="number" class="form-control form-control-lg" readonly value="{{ item.quantity }}">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Nueva Cantidad</label>
+                                            <input type="number" name="new_quantity" class="form-control form-control-lg" 
+                                                   min="0" value="{{ item.quantity }}" required>
+                                            <input type="hidden" name="type" value="adjustment">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Motivo del Ajuste</label>
+                                            <textarea name="description" class="form-control" rows="2" 
+                                                      placeholder="Opcional: Razón del cambio de cantidad"></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="alert alert-info mt-3">
+                <div class="alert alert-info">
                     <i class="bi bi-info-circle"></i> No hay artículos en esta categoría.
                 </div>
                 {% endif %}
@@ -229,6 +278,15 @@
         box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
         transition: all .3s ease;
     }
+    .stock-display {
+        transition: all .3s ease;
+    }
+    .card {
+        transition: all .3s ease;
+    }
+    .btn-lg {
+        padding: 1rem;
+    }
     .category-header {
         transition: all .3s ease;
         cursor: pointer;
@@ -243,18 +301,11 @@
         transform: rotate(-90deg);
     }
     .category-content {
-        display: block;
-        transition: max-height 0.3s ease-out;
-        max-height: 2000px;
+        transition: all .3s ease;
         overflow: hidden;
     }
     .category-content.collapsed {
-        max-height: 0;
-        padding: 0;
-        margin: 0;
-    }
-    .cursor-pointer {
-        cursor: pointer;
+        display: none;
     }
 </style>
 {% endblock %}
@@ -262,17 +313,6 @@
 {% block scripts %}
 {{ super() }}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Colapsar todas las categorías inicialmente
-    const categories = document.querySelectorAll('.category-section');
-    categories.forEach(category => {
-        const header = category.querySelector('.category-header');
-        const content = category.querySelector('.category-content');
-        header.classList.add('collapsed');
-        content.classList.add('collapsed');
-    });
-});
-
 function toggleCategory(categoryId) {
     const header = document.querySelector(`#category-${categoryId} .category-header`);
     const content = document.getElementById(`category-content-${categoryId}`);
@@ -285,6 +325,22 @@ function toggleCategory(categoryId) {
     const isCollapsed = content.classList.contains('collapsed');
     localStorage.setItem(`category-${categoryId}-collapsed`, isCollapsed);
 }
+
+// Restaurar estado de las categorías al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    const categories = document.querySelectorAll('.category-section');
+    categories.forEach(category => {
+        const categoryId = category.id.split('-')[1];
+        const isCollapsed = localStorage.getItem(`category-${categoryId}-collapsed`) === 'true';
+
+        if (isCollapsed) {
+            const header = category.querySelector('.category-header');
+            const content = document.getElementById(`category-content-${categoryId}`);
+            header.classList.add('collapsed');
+            content.classList.add('collapsed');
+        }
+    });
+});
 
 function quickAdjust(itemId, amount) {
     const form = document.getElementById('quickAdjustForm');
@@ -341,6 +397,7 @@ function clearSearch() {
     filterItems();
 }
 
+// Inicializar tooltips
 document.addEventListener('DOMContentLoaded', function() {
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
     var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
