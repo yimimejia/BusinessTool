@@ -35,12 +35,10 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint('main', __name__)
 
-@bp.route('/api/inventory/quick-remove/<string:item_code>', methods=['GET'])
-def api_quick_remove_item(item_code):
+@bp.route('/api/inventory/quick-remove/FVM-<int:item_id>', methods=['GET'])
+def api_quick_remove_item(item_id):
     """API pública para retirar una unidad mediante QR"""
     try:
-        # Decodificar el código del artículo
-        item_id = int(item_code.replace('FVM-', ''))
         item = InventoryItem.query.get_or_404(item_id)
         
         if item.quantity <= 0:
@@ -828,10 +826,10 @@ def generate_inventory_qr_pdf():
         
         for item in items:
             # Generar código único para el artículo
-            item_code = f'FVM-{item.id}'
+            item_code = f"FVM-{item.id}"
             
             # Generar URL para el QR - usar URL pública
-            qr_url = url_for('main.api_quick_remove_item', item_code=item_code, _external=True)
+            qr_url = url_for('main.api_quick_remove_item', item_id=item.id, _external=True)
             
             # Generar código QR
             qr = qrcode.QRCode(
