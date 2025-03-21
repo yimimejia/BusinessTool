@@ -52,8 +52,8 @@ def login():
             user = User.query.filter_by(username=username).first()
             
             if user and user.check_password(password):
-                # Si es diseñador, establecer sesión permanente 
-                if not user.is_admin and not user.is_supervisor:
+                # Mantener sesión permanente para diseñadores y supervisores, pero no para admin
+                if not user.is_admin:
                     user.permanent_session = True
                     session.permanent = True
                 login_user(user, remember=user.permanent_session)
