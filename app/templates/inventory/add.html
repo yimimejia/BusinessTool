@@ -1,54 +1,74 @@
 {% extends "base.html" %}
 
-{% block title %}Agregar Artículo{% endblock %}
+{% block title %}Agregar Artículos{% endblock %}
 
 {% block content %}
 <div class="container">
     <div class="row justify-content-center">
-        <div class="col-md-8">
+        <div class="col-md-10">
             <div class="card shadow">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">
-                        <i class="bi bi-box-plus"></i> Nuevo Artículo
+                        <i class="bi bi-box-plus"></i> Nuevos Artículos
                     </h4>
                     <a href="{{ url_for('main.inventory') }}" class="btn btn-secondary">
                         <i class="bi bi-arrow-left"></i> Volver
                     </a>
                 </div>
                 <div class="card-body">
-                    <form method="POST">
+                    <form method="POST" id="itemsForm">
                         <div class="mb-3">
                             <label class="form-label">Categoría</label>
-                            <select name="category_id" class="form-select" required>
+                            <select name="category_id" class="form-select" required id="categorySelect">
                                 {% for category in categories %}
                                 <option value="{{ category.id }}">{{ category.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">Nombre del Artículo</label>
-                            <input type="text" name="name" class="form-control" required 
-                                   placeholder="Ej: Cámara, Trípode, Memoria SD">
+
+                        <div id="itemsContainer">
+                            <!-- Aquí se agregarán dinámicamente los campos de artículos -->
+                            <div class="item-entry border rounded p-3 mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="mb-0">Artículo #1</h5>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeItem(this)" disabled>
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Nombre del Artículo</label>
+                                        <input type="text" name="items[0][name]" class="form-control" required 
+                                               placeholder="Ej: Cámara, Trípode, Memoria SD">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Cantidad Inicial</label>
+                                        <input type="number" name="items[0][quantity]" class="form-control" 
+                                               value="0" min="0" required>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Cantidad Mínima</label>
+                                        <input type="number" name="items[0][minimum_quantity]" class="form-control" 
+                                               value="1" min="0" required>
+                                        <small class="text-muted">Alerta cuando el stock sea igual o menor a esta cantidad</small>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Descripción</label>
+                                        <textarea name="items[0][description]" class="form-control" rows="2" 
+                                                placeholder="Descripción opcional del artículo"></textarea>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">Descripción</label>
-                            <textarea name="description" class="form-control" rows="3" 
-                                    placeholder="Descripción opcional del artículo"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Cantidad Inicial</label>
-                            <input type="number" name="quantity" class="form-control" 
-                                   value="0" min="0" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Cantidad Mínima</label>
-                            <input type="number" name="minimum_quantity" class="form-control" 
-                                   value="1" min="0" required>
-                            <small class="text-muted">Se mostrará una alerta cuando el stock sea igual o menor a esta cantidad</small>
-                        </div>
-                        <div class="d-grid gap-2">
+
+                        <div class="d-flex justify-content-between align-items-center mt-4">
+                            <button type="button" class="btn btn-outline-success" onclick="addNewItem()">
+                                <i class="bi bi-plus-circle"></i> Agregar Otro Artículo
+                            </button>
                             <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="bi bi-save"></i> Guardar Artículo
+                                <i class="bi bi-save"></i> Guardar Artículos
                             </button>
                         </div>
                     </form>
@@ -57,4 +77,87 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+let itemCount = 1;
+
+function addNewItem() {
+    itemCount++;
+    const container = document.getElementById('itemsContainer');
+    const newItem = document.createElement('div');
+    newItem.className = 'item-entry border rounded p-3 mb-3';
+    newItem.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Artículo #${itemCount}</h5>
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeItem(this)">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Nombre del Artículo</label>
+                <input type="text" name="items[${itemCount-1}][name]" class="form-control" required 
+                       placeholder="Ej: Cámara, Trípode, Memoria SD">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Cantidad Inicial</label>
+                <input type="number" name="items[${itemCount-1}][quantity]" class="form-control" 
+                       value="0" min="0" required>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Cantidad Mínima</label>
+                <input type="number" name="items[${itemCount-1}][minimum_quantity]" class="form-control" 
+                       value="1" min="0" required>
+                <small class="text-muted">Alerta cuando el stock sea igual o menor a esta cantidad</small>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Descripción</label>
+                <textarea name="items[${itemCount-1}][description]" class="form-control" rows="2" 
+                        placeholder="Descripción opcional del artículo"></textarea>
+            </div>
+        </div>
+    `;
+    container.appendChild(newItem);
+
+    // Habilitar todos los botones de eliminar si hay más de un artículo
+    if (itemCount > 1) {
+        const deleteButtons = document.querySelectorAll('.item-entry button');
+        deleteButtons.forEach(button => button.disabled = false);
+    }
+}
+
+function removeItem(button) {
+    if (itemCount > 1) {
+        const itemEntry = button.closest('.item-entry');
+        itemEntry.remove();
+        itemCount--;
+
+        // Actualizar los números de los artículos
+        const items = document.querySelectorAll('.item-entry');
+        items.forEach((item, index) => {
+            item.querySelector('h5').textContent = `Artículo #${index + 1}`;
+
+            // Actualizar los nombres de los campos
+            const inputs = item.querySelectorAll('input, textarea');
+            inputs.forEach(input => {
+                const fieldName = input.name.split('][')[1].replace(']', '');
+                input.name = `items[${index}][${fieldName}]`;
+            });
+        });
+
+        // Deshabilitar el botón de eliminar si solo queda un artículo
+        if (itemCount === 1) {
+            const lastDeleteButton = document.querySelector('.item-entry button');
+            if (lastDeleteButton) {
+                lastDeleteButton.disabled = true;
+            }
+        }
+    }
+}
+</script>
 {% endblock %}

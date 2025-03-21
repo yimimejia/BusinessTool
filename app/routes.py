@@ -784,40 +784,58 @@ def inventory():
 @login_required
 @staff_required
 def add_inventory_item():
-    """Agregar nuevo artículo al inventario"""
+    """Agregar nuevos artículos al inventario"""
     categories = Category.query.order_by(Category.name).all()
     
     if request.method == 'POST':
         try:
-            item = InventoryItem(
-                name=request.form['name'],
-                description=request.form.get('description'),
-                quantity=int(request.form['quantity']),
-                minimum_quantity=int(request.form.get('minimum_quantity', 0)),
-                category_id=int(request.form['category_id']),
-                created_by_id=current_user.id
-            )
-            db.session.add(item)
+            category_id = int(request.form['category_id'])
+            items_data = []
             
-            # Registrar la transacción inicial
-            if item.quantity > 0:
-                transaction = InventoryTransaction(
-                    item=item,
-                    quantity=item.quantity,
-                    transaction_type='entrada',
-                    description='Inventario inicial',
+            # Procesar los datos de los artículos
+            i = 0
+            while f'items[{i}][name]' in request.form:
+                items_data.append({
+                    'name': request.form[f'items[{i}][name]'],
+                    'description': request.form.get(f'items[{i}][description]'),
+                    'quantity': int(request.form[f'items[{i}][quantity]']),
+                    'minimum_quantity': int(request.form[f'items[{i}][minimum_quantity]'])
+                })
+                i += 1
+            
+            items_added = 0
+            for item_data in items_data:
+                item = InventoryItem(
+                    name=item_data['name'],
+                    description=item_data['description'],
+                    quantity=item_data['quantity'],
+                    minimum_quantity=item_data['minimum_quantity'],
+                    category_id=category_id,
                     created_by_id=current_user.id
                 )
-                db.session.add(transaction)
+                db.session.add(item)
+                
+                # Registrar la transacción inicial si hay cantidad
+                if item.quantity > 0:
+                    transaction = InventoryTransaction(
+                        item=item,
+                        quantity=item.quantity,
+                        transaction_type='entrada',
+                        description='Inventario inicial',
+                        created_by_id=current_user.id
+                    )
+                    db.session.add(transaction)
+                
+                items_added += 1
             
             db.session.commit()
-            flash('Artículo agregado exitosamente', 'success')
+            flash(f'{items_added} artículos agregados exitosamente', 'success')
             return redirect(url_for('main.inventory'))
             
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error al agregar artículo: {str(e)}")
-            flash('Error al agregar el artículo', 'error')
+            logger.error(f"Error al agregar artículos: {str(e)}")
+            flash('Error al agregar los artículos', 'error')
             
     return render_template('inventory/add.html', categories=categories)
 
