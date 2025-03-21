@@ -3,17 +3,17 @@
 {% block title %}Escanear QR{% endblock %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card">
+            <div class="card shadow">
                 <div class="card-header">
                     <h4 class="mb-0">
                         <i class="bi bi-qr-code-scan"></i> Escanear Código QR
                     </h4>
                 </div>
-                <div class="card-body p-4">
-                    <div class="text-center">
+                <div class="card-body">
+                    <div class="text-center mb-3">
                         <div id="reader" class="mb-3"></div>
                         <div id="result"></div>
                     </div>
@@ -34,7 +34,7 @@
 function onScanSuccess(decodedText, decodedResult) {
     // Detener el escáner
     html5QrcodeScanner.clear();
-
+    
     // Redirigir a la URL del código QR
     window.location.href = decodedText;
 }

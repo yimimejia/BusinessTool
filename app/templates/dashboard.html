@@ -8,6 +8,17 @@
         ¡Bienvenido!
     </div>
 
+    <div class="mb-4">
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('main.inventory') }}" class="btn btn-primary">
+                <i class="bi bi-box-seam"></i> Inventario
+            </a>
+            <a href="{{ url_for('main.qr_scanner') }}" class="btn btn-primary">
+                <i class="bi bi-qr-code-scan"></i> Escanear QR
+            </a>
+        </div>
+    </div>
+
     <div class="stats-panel mb-4">
         <div class="row">
             <div class="col-md-4">

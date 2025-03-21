@@ -35,6 +35,40 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint('main', __name__)
 
+@bp.route('/inventory/quick-remove/<int:item_id>', methods=['GET'])
+@login_required
+def quick_remove_item(item_id):
+    """Retirar una unidad al escanear el código QR"""
+    try:
+        item = InventoryItem.query.get_or_404(item_id)
+        
+        if item.quantity <= 0:
+            flash('No hay unidades disponibles para retirar', 'error')
+            return redirect(url_for('main.inventory'))
+        
+        # Retirar una unidad
+        item.quantity -= 1
+        
+        # Registrar transacción
+        transaction = InventoryTransaction(
+            item=item,
+            quantity=1,
+            transaction_type='salida',
+            description='Retiro por código QR',
+            created_by_id=current_user.id
+        )
+        db.session.add(transaction)
+        db.session.commit()
+        
+        flash(f'Se retiró una unidad de {item.name}', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error en retiro rápido por QR: {str(e)}")
+        flash('Error al procesar el retiro', 'error')
+        
+    return redirect(url_for('main.inventory'))
+
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     """Login route"""
@@ -852,39 +886,7 @@ def generate_inventory_qr_pdf():
         flash('Error al generar el PDF', 'error')
         return redirect(url_for('main.inventory'))
 
-@bp.route('/inventory/quick-remove/<int:item_id>', methods=['GET'])
-@login_required
-def quick_remove_item(item_id):
-    """Retirar una unidad al escanear el código QR"""
-    try:
-        item = InventoryItem.query.get_or_404(item_id)
-        
-        if item.quantity <= 0:
-            flash('No hay unidades disponibles para retirar', 'error')
-            return redirect(url_for('main.inventory'))
-        
-        # Retirar una unidad
-        item.quantity -= 1
-        
-        # Registrar transacción
-        transaction = InventoryTransaction(
-            item=item,
-            quantity=1,
-            transaction_type='salida',
-            description='Retiro por código QR',
-            created_by_id=current_user.id
-        )
-        db.session.add(transaction)
-        db.session.commit()
-        
-        flash(f'Se retiró una unidad de {item.name}', 'success')
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error en retiro rápido por QR: {str(e)}")
-        flash('Error al procesar el retiro', 'error')
-        
-    return redirect(url_for('main.inventory'))
+
 
 @bp.route('/inventory')
 @login_required
