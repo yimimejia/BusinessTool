@@ -399,9 +399,13 @@ def get_job_invoice_data(job_id=None, qr_code=None):
             )
             
             try:
+                # Generar token de acceso y establecer expiración
+                invoice.access_token = secrets.token_urlsafe(32)
+                invoice.token_expiry = datetime.utcnow() + timedelta(days=30)
+                
                 db.session.add(invoice)
                 db.session.commit()
-                logger.info("Nueva factura creada exitosamente")
+                logger.info("Nueva factura creada exitosamente con token")
             except Exception as e:
                 logger.error(f"Error al crear factura: {str(e)}")
                 db.session.rollback()
@@ -687,7 +691,8 @@ def process_pending_job(job_id):
         logger.info(f"Trabajo creado con QR: {active_job.qr_code}")
         
         flash('Trabajo aprobado exitosamente', 'success')
-        return redirect(url_for('main.pending_jobs'))
+        # Redirigir a la vista de factura para enviar al cliente
+        return redirect(url_for('main.send_whatsapp_invoice', job_id=active_job.id))
 
     except Exception as e:
         db.session.rollback()
@@ -808,6 +813,42 @@ def save_photos_to_job_folder(job_id, photos):
     except Exception as e:
         logger.error(f"Error al guardar fotos: {str(e)}")
         raise
+
+@bp.route('/invoices/<token>', methods=['GET'])
+def public_invoice_view(token):
+    """Vista pública de factura usando token"""
+    try:
+        # Buscar factura por token
+        invoice = Invoice.query.filter_by(access_token=token).first()
+        if not invoice or not invoice.is_valid_token():
+            logger.warning(f"Token de factura inválido o expirado: {token}")
+            return render_template('error.html', message='Enlace de factura no válido o expirado')
+
+        # Obtener trabajo asociado
+        job = Job.query.get(invoice.job_id) if invoice.job_type == 'job' else CompletedJob.query.get(invoice.job_id)
+        if not job:
+            logger.error(f"Trabajo no encontrado para factura {invoice.invoice_number}")
+            return render_template('error.html', message='Trabajo no encontrado')
+
+        # Generar datos de factura
+        job, qr_code_image, total_amount, deposit_amount, remaining_amount = get_job_invoice_data(job_id=job.id)
+        if not job:
+            logger.error(f"Error obteniendo datos de factura para trabajo {invoice.job_id}")
+            return render_template('error.html', message='Error al generar la factura')
+        
+        logger.info(f"Mostrando factura pública {invoice.invoice_number} para {job.client_name}")
+        return render_template(
+            'invoice_view.html',
+            job=job,
+            qr_image=qr_code_image,
+            total_amount=total_amount,
+            deposit_amount=deposit_amount,
+            remaining_amount=remaining_amount,
+            is_public=True
+        )
+    except Exception as e:
+        logger.error(f"Error mostrando factura pública: {str(e)}")
+        return render_template('error.html', message='Error al mostrar la factura')
 
 @bp.route('/photos/view/<token>')
 def view_approved_photos(token):

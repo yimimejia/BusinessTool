@@ -85,6 +85,14 @@ class Invoice(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     issued_at = db.Column(db.DateTime)
     qr_code = db.Column(db.String(100), unique=True)
+    access_token = db.Column(db.String(100), unique=True)
+    token_expiry = db.Column(db.DateTime)
+
+    def is_valid_token(self):
+        """Verifica si el token de acceso es válido"""
+        if not self.access_token or not self.token_expiry:
+            return False
+        return datetime.utcnow() <= self.token_expiry
 
     def generate_qr_code(self):
         if not self.qr_code:
