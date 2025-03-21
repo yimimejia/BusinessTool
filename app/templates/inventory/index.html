@@ -24,19 +24,28 @@
         </div>
     </div>
 
-    <!-- Buscador -->
+    <!-- Buscador y Filtros -->
     <div class="mb-4">
-        <div class="input-group">
-            <span class="input-group-text bg-primary text-white">
-                <i class="bi bi-search"></i>
-            </span>
-            <input type="text" class="form-control form-control-lg" id="searchInput" 
-                   placeholder="Buscar artículos..." onkeyup="filterItems()">
-            <button type="button" class="btn btn-outline-secondary" onclick="clearSearch()">
-                <i class="bi bi-x-lg"></i>
+        <div class="d-flex gap-2">
+            <div class="input-group flex-grow-1">
+                <span class="input-group-text bg-primary text-white">
+                    <i class="bi bi-search"></i>
+                </span>
+                <input type="text" class="form-control form-control-lg" id="searchInput" 
+                       placeholder="Buscar artículos..." onkeyup="filterItems()">
+                <button type="button" class="btn btn-outline-secondary" onclick="clearSearch()">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <button type="button" class="btn btn-danger btn-lg" id="showLowStockBtn" onclick="toggleLowStock()">
+                <i class="bi bi-exclamation-triangle"></i> Ver Stock Bajo
             </button>
         </div>
     </div>
+
+    <!-- Buscador -->
+    <div class="mb-4">
+        </div>
 
     {% if categories %}
         {% for category in categories %}
@@ -307,6 +316,12 @@
     .category-content.collapsed {
         display: none;
     }
+    .show-low-stock .item-card {
+        display: none !important;
+    }
+    .show-low-stock .item-card.low-stock {
+        display: block !important;
+    }
 </style>
 {% endblock %}
 
@@ -361,6 +376,28 @@ function confirmDelete(itemId, itemName) {
     deleteModal.show();
 }
 
+let showingLowStock = false;
+
+function toggleLowStock() {
+    const container = document.querySelector('.container');
+    const btn = document.getElementById('showLowStockBtn');
+    showingLowStock = !showingLowStock;
+
+    if (showingLowStock) {
+        container.classList.add('show-low-stock');
+        btn.classList.remove('btn-danger');
+        btn.classList.add('btn-outline-danger');
+        btn.innerHTML = '<i class="bi bi-eye-slash"></i> Mostrar Todo';
+    } else {
+        container.classList.remove('show-low-stock');
+        btn.classList.add('btn-danger');
+        btn.classList.remove('btn-outline-danger');
+        btn.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Ver Stock Bajo';
+    }
+
+    filterItems(); // Aplicar filtros actuales
+}
+
 function filterItems() {
     const searchText = document.getElementById('searchInput').value.toLowerCase();
     const items = document.querySelectorAll('.item-card');
@@ -376,8 +413,22 @@ function filterItems() {
             const categoryName = item.dataset.category;
             const matchName = itemName.includes(searchText);
             const matchCategory = categoryName.includes(searchText);
+            const isLowStock = item.querySelector('.card').classList.contains('border-danger');
 
-            if (matchName || matchCategory) {
+            // Marcar items con stock bajo
+            if (isLowStock) {
+                item.classList.add('low-stock');
+            } else {
+                item.classList.remove('low-stock');
+            }
+
+            // Aplicar filtros
+            let shouldShow = (matchName || matchCategory);
+            if (showingLowStock) {
+                shouldShow = shouldShow && isLowStock;
+            }
+
+            if (shouldShow) {
                 item.style.display = '';
                 categoryHasVisibleItems = true;
                 found = true;
