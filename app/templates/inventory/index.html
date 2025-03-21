@@ -40,6 +40,9 @@
             <button type="button" class="btn btn-danger btn-lg" id="showLowStockBtn" onclick="toggleLowStock()">
                 <i class="bi bi-exclamation-triangle"></i> Ver Stock Bajo
             </button>
+            <button type="button" class="btn btn-success btn-lg" onclick="sendInventoryWhatsApp()">
+                <i class="bi bi-whatsapp"></i> Enviar Inventario
+            </button>
         </div>
     </div>
 
@@ -475,6 +478,57 @@ function saveBulkAdjustments() {
         document.body.appendChild(form);
         form.submit();
     }
+}
+
+function sendInventoryWhatsApp() {
+    let message = "*INVENTARIO FOTO VIDEO MOJICA*\n\n";
+    const container = document.querySelector('.container');
+    const isLowStockView = container.classList.contains('show-low-stock');
+
+    // Iterar sobre las categorías
+    document.querySelectorAll('.category-section').forEach(category => {
+        const categoryName = category.querySelector('h3').textContent.trim();
+        let categoryItems = [];
+
+        // Obtener artículos de la categoría
+        category.querySelectorAll('.item-card').forEach(itemCard => {
+            const isVisible = window.getComputedStyle(itemCard).display !== 'none';
+            if (!isVisible) return;
+
+            const name = itemCard.querySelector('.card-title').textContent;
+            const quantity = itemCard.querySelector('.display-4').textContent;
+            const isLowStock = itemCard.querySelector('.card').classList.contains('border-danger');
+
+            // Solo incluir si estamos en vista general o si es bajo stock en vista filtrada
+            if (!isLowStockView || (isLowStockView && isLowStock)) {
+                categoryItems.push({
+                    name,
+                    quantity,
+                    isLowStock
+                });
+            }
+        });
+
+        // Si hay artículos en esta categoría, agregarlos al mensaje
+        if (categoryItems.length > 0) {
+            message += `\n📁 *${categoryName}*\n`;
+            categoryItems.forEach(item => {
+                const stockEmoji = item.isLowStock ? "⚠️" : "✅";
+                message += `${stockEmoji} ${item.name}: ${item.quantity}\n`;
+            });
+        }
+    });
+
+    // Agregar nota de bajo stock si estamos en esa vista
+    if (isLowStockView) {
+        message += "\n⚠️ *Solo se muestran artículos con stock bajo*";
+    }
+
+    message += "\n\n¡Gracias por su atención!";
+
+    // Crear URL de WhatsApp
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
 }
 </script>
 {% endblock %}
