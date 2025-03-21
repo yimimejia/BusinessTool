@@ -35,39 +35,47 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint('main', __name__)
 
-@bp.route('/inventory/quick-remove/<int:item_id>', methods=['GET'])
-@login_required
-def quick_remove_item(item_id):
-    """Retirar una unidad al escanear el código QR"""
+@bp.route('/api/inventory/quick-remove/<string:item_code>', methods=['GET'])
+def api_quick_remove_item(item_code):
+    """API pública para retirar una unidad mediante QR"""
     try:
+        # Decodificar el código del artículo
+        item_id = int(item_code.replace('FVM-', ''))
         item = InventoryItem.query.get_or_404(item_id)
         
         if item.quantity <= 0:
-            flash('No hay unidades disponibles para retirar', 'error')
-            return redirect(url_for('main.inventory'))
+            return jsonify({
+                'success': False,
+                'message': 'No hay unidades disponibles para retirar'
+            }), 400
         
         # Retirar una unidad
         item.quantity -= 1
         
-        # Registrar transacción
+        # Registrar transacción con timestamp
         transaction = InventoryTransaction(
             item=item,
             quantity=1,
             transaction_type='salida',
-            description='Retiro por código QR',
-            created_by_id=current_user.id
+            description=f'Retiro por QR - {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}',
+            created_by_id=None  # No registrar usuario
         )
         db.session.add(transaction)
         db.session.commit()
         
-        flash(f'Se retiró una unidad de {item.name}', 'success')
+        return jsonify({
+            'success': True,
+            'message': f'Se retiró una unidad de {item.name}',
+            'new_quantity': item.quantity
+        })
         
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error en retiro rápido por QR: {str(e)}")
-        flash('Error al procesar el retiro', 'error')
-        
-    return redirect(url_for('main.inventory'))
+        return jsonify({
+            'success': False,
+            'message': 'Error al procesar el retiro'
+        }), 500
 
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -819,8 +827,11 @@ def generate_inventory_qr_pdf():
         current_row = []
         
         for item in items:
-            # Generar URL para el QR
-            qr_url = url_for('main.quick_remove_item', item_id=item.id, _external=True)
+            # Generar código único para el artículo
+            item_code = f'FVM-{item.id}'
+            
+            # Generar URL para el QR - usar URL pública
+            qr_url = url_for('main.api_quick_remove_item', item_code=item_code, _external=True)
             
             # Generar código QR
             qr = qrcode.QRCode(
@@ -844,7 +855,7 @@ def generate_inventory_qr_pdf():
             cell = Table([
                 [qr_image],
                 [Paragraph(f"<b>{item.name}</b>", styles['Normal'])],
-                [Paragraph(f"Escanear para retirar", styles['Italic'])]
+                [Paragraph(f"Código: {item_code}", styles['Italic'])]
             ], colWidths=[200])
             
             current_row.append(cell)
@@ -860,17 +871,19 @@ def generate_inventory_qr_pdf():
             data.append(current_row)
         
         # Crear tabla principal
-        table = Table(data, colWidths=[250] * items_per_row, rowHeights=[250] * len(data))
-        table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 10),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-        ]))
+        if data:
+            table = Table(data, colWidths=[250] * items_per_row, rowHeights=[250] * len(data))
+            table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 10),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+                ('TOPPADDING', (0, 0), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ]))
+            elements.append(table)
         
-        elements.append(table)
+        # Generar PDF
         doc.build(elements)
         
         # Preparar respuesta
@@ -885,7 +898,6 @@ def generate_inventory_qr_pdf():
         logger.error(f"Error generando PDF de códigos QR: {str(e)}")
         flash('Error al generar el PDF', 'error')
         return redirect(url_for('main.inventory'))
-
 
 
 @bp.route('/inventory')

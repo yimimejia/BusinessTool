@@ -455,8 +455,8 @@ class InventoryTransaction(db.Model):
     quantity = db.Column(db.Integer, nullable=False)  # Positivo para entradas, negativo para salidas
     transaction_type = db.Column(db.String(20), nullable=False)  # 'entrada' o 'salida'
     description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)  # Agregado índice
+    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # Ahora es opcional
 
     item = db.relationship('InventoryItem', backref='transactions')
-    created_by = db.relationship('User')
+    created_by = db.relationship('User', backref='inventory_transactions')
