@@ -790,6 +790,7 @@ def add_inventory_item():
     if request.method == 'POST':
         try:
             category_id = int(request.form['category_id'])
+            category = Category.query.get_or_404(category_id)
             items_data = []
             
             # Procesar los datos de los artículos
@@ -805,12 +806,22 @@ def add_inventory_item():
             
             items_added = 0
             for item_data in items_data:
+                # Verificar que el artículo no exista ya en esta categoría
+                existing_item = InventoryItem.query.filter_by(
+                    name=item_data['name'],
+                    category_id=category.id
+                ).first()
+                
+                if existing_item:
+                    flash(f'El artículo "{item_data["name"]}" ya existe en la categoría {category.name}', 'warning')
+                    continue
+                
                 item = InventoryItem(
                     name=item_data['name'],
                     description=item_data['description'],
                     quantity=item_data['quantity'],
                     minimum_quantity=item_data['minimum_quantity'],
-                    category_id=category_id,
+                    category_id=category.id,
                     created_by_id=current_user.id
                 )
                 db.session.add(item)
@@ -821,16 +832,17 @@ def add_inventory_item():
                         item=item,
                         quantity=item.quantity,
                         transaction_type='entrada',
-                        description='Inventario inicial',
+                        description=f'Inventario inicial - Categoría: {category.name}',
                         created_by_id=current_user.id
                     )
                     db.session.add(transaction)
                 
                 items_added += 1
             
-            db.session.commit()
-            flash(f'{items_added} artículos agregados exitosamente', 'success')
-            return redirect(url_for('main.inventory'))
+            if items_added > 0:
+                db.session.commit()
+                flash(f'{items_added} artículos agregados exitosamente a la categoría {category.name}', 'success')
+                return redirect(url_for('main.inventory'))
             
         except Exception as e:
             db.session.rollback()
