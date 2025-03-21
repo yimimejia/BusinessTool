@@ -5,7 +5,7 @@ from functools import wraps
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy import or_, desc, literal_column
 from app import db
-from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, PendingJob, Message, Invoice
+from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, PendingJob, Message, Invoice, InventoryItem, InventoryTransaction
 from app.utils.notifications import send_notification
 from flask_sse import sse
 from datetime import datetime, timedelta
@@ -741,50 +741,107 @@ def reject_pending_photos(job_id):
         logger.error(f"Error al rechazar fotos: {str(e)}")
         flash('Error al procesar la solicitud', 'error')
         return redirect(url_for('main.jobs_pending_photos'))
+
+@bp.route('/inventory')
+@login_required
+@staff_required  # Solo admin y supervisores
+def inventory():
+    """Vista principal del inventario"""
+    items = InventoryItem.query.order_by(InventoryItem.name).all()
+    return render_template('inventory/index.html', items=items)
+
+@bp.route('/inventory/add', methods=['GET', 'POST'])
+@login_required
+@staff_required
+def add_inventory_item():
+    """Agregar nuevo artículo al inventario"""
+    if request.method == 'POST':
+        try:
+            item = InventoryItem(
+                name=request.form['name'],
+                description=request.form.get('description'),
+                quantity=int(request.form['quantity']),
+                minimum_quantity=int(request.form.get('minimum_quantity', 0)),
+                created_by_id=current_user.id
+            )
+            db.session.add(item)
+            
+            # Registrar la transacción inicial
+            if item.quantity > 0:
+                transaction = InventoryTransaction(
+                    item=item,
+                    quantity=item.quantity,
+                    transaction_type='entrada',
+                    description='Inventario inicial',
+                    created_by_id=current_user.id
+                )
+                db.session.add(transaction)
+            
+            db.session.commit()
+            flash('Artículo agregado exitosamente', 'success')
+            return redirect(url_for('main.inventory'))
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error al agregar artículo: {str(e)}")
+            flash('Error al agregar el artículo', 'error')
+            
+    return render_template('inventory/add.html')
+
+@bp.route('/inventory/<int:item_id>/adjust', methods=['POST'])
+@login_required
+@staff_required
+def adjust_inventory(item_id):
+    """Ajustar cantidad de un artículo"""
+    try:
+        item = InventoryItem.query.get_or_404(item_id)
+        quantity = int(request.form['quantity'])
+        transaction_type = request.form['type']
         
-        # Crear enlace para ver las fotos
-        photos_url = url_for('main.view_approved_photos', 
-                        token=token, 
-                        _external=True)
-
-        # Preparar mensaje de WhatsApp
-        clean_phone = re.sub(r'[^\d+]', '', job.phone_number)
-        if not clean_phone.startswith('+'):
-            if clean_phone.startswith('1'):
-                clean_phone = '+' + clean_phone
-            else:
-                clean_phone = '+1' + clean_phone
-        whatsapp_phone = clean_phone.replace('+', '')
+        if transaction_type not in ['entrada', 'salida']:
+            flash('Tipo de transacción inválido', 'error')
+            return redirect(url_for('main.inventory'))
+            
+        # Validar que hay suficiente stock para salidas
+        if transaction_type == 'salida':
+            if abs(quantity) > item.quantity:
+                flash('No hay suficiente stock disponible', 'error')
+                return redirect(url_for('main.inventory'))
+            quantity = -abs(quantity)  # Hacer el número negativo para salidas
+            
+        # Actualizar cantidad
+        item.quantity += quantity
         
-        whatsapp_message = f"""*FOTO VIDEO MOJICA*
-¡Sus fotos están listas!
-
-Cliente: {job.client_name}
-Factura: {job.invoice_number}
-
-Para ver y descargar sus fotos, use este enlace (válido por 48 horas):
-{photos_url}
-
-¡Gracias por su preferencia!"""
-
-        # Eliminar el trabajo pendiente después de preparar todo
-        db.session.delete(pending_job)
-        db.session.commit()
-
-        log_activity(
-            'fotos_aprobadas',
-            f"Fotos aprobadas y enlace enviado - Trabajo #{job.id}, Cliente: {job.client_name}"
+        # Registrar transacción
+        transaction = InventoryTransaction(
+            item=item,
+            quantity=quantity,
+            transaction_type=transaction_type,
+            description=request.form.get('description'),
+            created_by_id=current_user.id
         )
-
-        # Redirigir a WhatsApp con el mensaje
-        whatsapp_url = f"https://wa.me/{whatsapp_phone}?text={urllib.parse.quote(whatsapp_message)}"
-        return redirect(whatsapp_url)
-
+        db.session.add(transaction)
+        db.session.commit()
+        
+        flash('Inventario actualizado exitosamente', 'success')
+        
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error al aprobar fotos: {str(e)}")
-        flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
-        return redirect(url_for('main.jobs_pending_photos'))
+        logger.error(f"Error al ajustar inventario: {str(e)}")
+        flash('Error al actualizar el inventario', 'error')
+        
+    return redirect(url_for('main.inventory'))
+
+@bp.route('/inventory/transactions')
+@login_required
+@staff_required
+def inventory_transactions():
+    """Ver historial de transacciones"""
+    transactions = InventoryTransaction.query\
+        .join(InventoryItem)\
+        .order_by(InventoryTransaction.created_at.desc())\
+        .all()
+    return render_template('inventory/transactions.html', transactions=transactions)
 
 def save_photos_to_job_folder(job_id, photos):
     """Guardar fotos en la carpeta del trabajo específico"""

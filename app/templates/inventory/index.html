@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Inventario{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Inventario</h4>
+            <div>
+                <a href="{{ url_for('main.add_inventory_item') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Nuevo Artículo
+                </a>
+                <a href="{{ url_for('main.inventory_transactions') }}" class="btn btn-info">
+                    <i class="bi bi-clock-history"></i> Ver Transacciones
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if items %}
+            <div class="table-responsive">
+                <table class="table table-hover" id="inventoryTable">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Descripción</th>
+                            <th>Cantidad</th>
+                            <th>Mínimo</th>
+                            <th>Última Actualización</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>{{ item.name }}</td>
+                            <td>{{ item.description or '' }}</td>
+                            <td>
+                                <span class="badge {% if item.quantity <= item.minimum_quantity %}bg-danger{% else %}bg-success{% endif %}">
+                                    {{ item.quantity }}
+                                </span>
+                            </td>
+                            <td>{{ item.minimum_quantity }}</td>
+                            <td>{{ item.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                <button type="button" class="btn btn-primary btn-sm" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#adjustModal{{ item.id }}">
+                                    <i class="bi bi-pencil"></i> Ajustar
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- Modal para ajustar inventario -->
+                        <div class="modal fade" id="adjustModal{{ item.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Ajustar {{ item.name }}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <form method="POST" action="{{ url_for('main.adjust_inventory', item_id=item.id) }}">
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">Tipo de Ajuste</label>
+                                                <select name="type" class="form-select" required>
+                                                    <option value="entrada">Entrada</option>
+                                                    <option value="salida">Salida</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Cantidad</label>
+                                                <input type="number" name="quantity" class="form-control" 
+                                                       min="1" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Descripción</label>
+                                                <textarea name="description" class="form-control" rows="2"></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                            <button type="submit" class="btn btn-primary">Guardar</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                No hay artículos en el inventario.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    $(document).ready(function() {
+        $('#inventoryTable').DataTable({
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -422,3 +422,29 @@ class PendingJob(db.Model):
             total_amount=self.total_amount,
             deposit_amount=self.deposit_amount
         )
+
+class InventoryItem(db.Model):
+    __tablename__ = 'inventory_items'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    quantity = db.Column(db.Integer, default=0)
+    minimum_quantity = db.Column(db.Integer, default=0)  # Para alertas de stock bajo
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+    created_by = db.relationship('User', backref='inventory_items')
+
+class InventoryTransaction(db.Model):
+    __tablename__ = 'inventory_transactions'
+    id = db.Column(db.Integer, primary_key=True)
+    item_id = db.Column(db.Integer, db.ForeignKey('inventory_items.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)  # Positivo para entradas, negativo para salidas
+    transaction_type = db.Column(db.String(20), nullable=False)  # 'entrada' o 'salida'
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+    item = db.relationship('InventoryItem', backref='transactions')
+    created_by = db.relationship('User')

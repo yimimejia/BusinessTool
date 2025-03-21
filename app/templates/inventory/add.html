@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Agregar Artículo{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h4>Agregar Nuevo Artículo</h4>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="form-label">Nombre</label>
+                    <input type="text" name="name" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Descripción</label>
+                    <textarea name="description" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Cantidad Inicial</label>
+                    <input type="number" name="quantity" class="form-control" value="0" min="0" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Cantidad Mínima</label>
+                    <input type="number" name="minimum_quantity" class="form-control" value="0" min="0" required>
+                    <small class="text-muted">Se mostrará una alerta cuando el stock sea igual o menor a esta cantidad</small>
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Guardar
+                    </button>
+                    <a href="{{ url_for('main.inventory') }}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
