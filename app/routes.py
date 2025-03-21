@@ -831,13 +831,82 @@ def add_inventory_item():
             db.session.commit()
             flash(f'{items_added} artículos agregados exitosamente', 'success')
             return redirect(url_for('main.inventory'))
-            
+
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error al agregar artículos: {str(e)}")
             flash('Error al agregar los artículos', 'error')
-            
+
     return render_template('inventory/add.html', categories=categories)
+            
+@bp.route('/inventory/<int:item_id>/adjust', methods=['POST'])
+@login_required
+@staff_required
+def adjust_inventory(item_id):
+    """Ajustar cantidad y detalles de un artículo"""
+    try:
+        item = InventoryItem.query.get_or_404(item_id)
+        
+        # Manejar retiro rápido y ajustes normales
+        if 'type' in request.form and request.form['type'] == 'salida':
+            quantity = int(request.form['quantity'])
+            
+            # Validar que hay suficiente stock
+            if quantity > item.quantity:
+                flash('No hay suficiente stock disponible', 'error')
+                return redirect(url_for('main.inventory'))
+                
+            # Actualizar cantidad
+            item.quantity -= quantity
+            
+            # Registrar transacción
+            transaction = InventoryTransaction(
+                item=item,
+                quantity=quantity,
+                transaction_type='salida',
+                description=request.form.get('description', 'Retiro rápido'),
+                created_by_id=current_user.id
+            )
+            db.session.add(transaction)
+            
+        else:
+            # Actualizar información básica del artículo
+            if 'name' in request.form:
+                item.name = request.form['name']
+            if 'description' in request.form:
+                item.description = request.form.get('description')
+            if 'minimum_quantity' in request.form:
+                item.minimum_quantity = int(request.form['minimum_quantity'])
+            
+            # Manejar ajuste de cantidad si es necesario
+            if 'new_quantity' in request.form:
+                new_quantity = int(request.form['new_quantity'])
+                old_quantity = item.quantity
+                
+                if new_quantity != old_quantity:
+                    difference = new_quantity - old_quantity
+                    transaction_type = 'entrada' if difference > 0 else 'salida'
+                    
+                    transaction = InventoryTransaction(
+                        item=item,
+                        quantity=abs(difference),
+                        transaction_type=transaction_type,
+                        description=request.form.get('description', 'Ajuste manual'),
+                        created_by_id=current_user.id
+                    )
+                    
+                    item.quantity = new_quantity
+                    db.session.add(transaction)
+        
+        db.session.commit()
+        flash('Artículo actualizado exitosamente', 'success')
+        return redirect(url_for('main.inventory'))
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al actualizar artículo: {str(e)}")
+        flash('Error al actualizar el artículo', 'error')
+        return redirect(url_for('main.inventory'))
 
 @bp.route('/inventory/bulk-adjust', methods=['POST'])
 @login_required
@@ -889,52 +958,7 @@ def bulk_adjust_inventory():
         return redirect(url_for('main.inventory'))
 
 
-@bp.route('/inventory/<int:item_id>/adjust', methods=['POST'])
-@login_required
-@staff_required
-def adjust_inventory(item_id):
-    """Ajustar cantidad y detalles de un artículo"""
-    try:
-        item = InventoryItem.query.get_or_404(item_id)
-        
-        # Actualizar información básica del artículo
-        if 'name' in request.form:
-            item.name = request.form['name']
-        if 'description' in request.form:
-            item.description = request.form.get('description')
-        if 'minimum_quantity' in request.form:
-            item.minimum_quantity = int(request.form['minimum_quantity'])
-            
-        # Manejar ajuste de cantidad si es necesario
-        if 'new_quantity' in request.form:
-            new_quantity = int(request.form['new_quantity'])
-            old_quantity = item.quantity
-            
-            if new_quantity != old_quantity:
-                difference = new_quantity - old_quantity
-                transaction_type = 'entrada' if difference > 0 else 'salida'
-                
-                # Registrar transacción
-                transaction = InventoryTransaction(
-                    item=item,
-                    quantity=abs(difference),
-                    transaction_type=transaction_type,
-                    description=request.form.get('description', 'Ajuste manual'),
-                    created_by_id=current_user.id
-                )
-                
-                item.quantity = new_quantity
-                db.session.add(transaction)
-        
-        db.session.commit()
-        flash('Artículo actualizado exitosamente', 'success')
-        return redirect(url_for('main.inventory'))
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error al actualizar artículo: {str(e)}")
-        flash('Error al actualizar el artículo', 'error')
-        return redirect(url_for('main.inventory'))
+
 
 
 @bp.route('/inventory/<int:item_id>/delete', methods=['POST'])

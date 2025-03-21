@@ -100,7 +100,7 @@
                                 </div>
                                 <div class="d-grid">
                                     <button type="button" class="btn btn-lg btn-danger" 
-                                            onclick="quickAdjust('{{ item.id }}', -1)"
+                                            onclick="quickAdjust('{{ item.id }}')"
                                             {% if item.quantity <= 0 %}disabled{% endif %}>
                                         <i class="bi bi-dash-circle-fill"></i> Retirar Unidad
                                     </button>
@@ -276,9 +276,9 @@
 
 <!-- Form oculto para ajustes rápidos -->
 <form id="quickAdjustForm" method="POST" style="display: none;">
-    <input type="hidden" name="type" id="quickAdjustType">
+    <input type="hidden" name="type" value="salida">
     <input type="hidden" name="quantity" value="1">
-    <input type="hidden" name="description" value="Retiro de unidad">
+    <input type="hidden" name="description" value="Retiro rápido de unidad">
 </form>
 {% endblock %}
 
@@ -360,10 +360,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-function quickAdjust(itemId, amount) {
+function quickAdjust(itemId) {
     const form = document.getElementById('quickAdjustForm');
     form.action = `/inventory/${itemId}/adjust`;
-    form.querySelector('#quickAdjustType').value = amount > 0 ? 'entrada' : 'salida';
+
     if (confirm('¿Confirmar retiro de unidad?')) {
         form.submit();
     }
