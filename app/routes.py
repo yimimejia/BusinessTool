@@ -247,6 +247,14 @@ Le enviamos su factura:
 🔸 Restante: RD${float(remaining_amount):.2f}
 
 ¡Gracias por su preferencia!"""
+
+        # Procesar número de teléfono para WhatsApp
+        clean_phone = re.sub(r'[^\d]', '', job.phone_number)
+        if not clean_phone.startswith('1'):
+            clean_phone = '1' + clean_phone
+            
+        # Crear enlace de WhatsApp
+        whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(whatsapp_message)}"
         
         return render_template(
             'invoice_view.html',
@@ -255,7 +263,8 @@ Le enviamos su factura:
             total_amount=total_amount,
             deposit_amount=deposit_amount,
             remaining_amount=remaining_amount,
-            whatsapp_message=whatsapp_message
+            whatsapp_message=whatsapp_message,
+            whatsapp_url=whatsapp_url
         )
     except Exception as e:
         logger.error(f"Error al mostrar factura: {str(e)}")
@@ -692,7 +701,7 @@ def process_pending_job(job_id):
         
         flash('Trabajo aprobado exitosamente', 'success')
         # Redirigir a la vista de factura para enviar al cliente
-        return redirect(url_for('main.send_whatsapp_invoice', job_id=active_job.id))
+        return redirect(url_for('main.view_invoice_pdf', job_id=active_job.id))
 
     except Exception as e:
         db.session.rollback()
