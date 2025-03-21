@@ -55,11 +55,17 @@
                     <div class="card h-100 {% if item.quantity <= item.minimum_quantity %}border-danger{% endif %} shadow hover-shadow">
                         <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
                             <h5 class="card-title mb-0">{{ item.name }}</h5>
-                            <button type="button" class="btn btn-sm btn-outline-primary" 
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#editStockModal{{ item.id }}">
-                                <i class="bi bi-pencil"></i>
-                            </button>
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-sm btn-outline-primary" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#editStockModal{{ item.id }}">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                        onclick="confirmDelete({{ item.id }}, '{{ item.name }}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="card-body">
                             <div class="mb-3">
@@ -196,6 +202,32 @@
     </div>
 </div>
 
+<!-- Modal de Eliminación -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro que desea eliminar el artículo "<span id="deleteItemName"></span>"?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> Esta acción no se puede deshacer.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="deleteForm" method="POST">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Eliminar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Form oculto para ajustes rápidos -->
 <form id="quickAdjustForm" method="POST" style="display: none;">
     <input type="hidden" name="type" id="quickAdjustType">
@@ -292,6 +324,17 @@ function clearSearch() {
     document.getElementById('searchInput').value = '';
     filterItems();
 }
+
+function confirmDelete(itemId, itemName) {
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    const deleteForm = document.getElementById('deleteForm');
+    const deleteItemName = document.getElementById('deleteItemName');
+
+    deleteForm.action = `/inventory/${itemId}/delete`;
+    deleteItemName.textContent = itemName;
+    deleteModal.show();
+}
+
 
 // Inicializar tooltips
 document.addEventListener('DOMContentLoaded', function() {

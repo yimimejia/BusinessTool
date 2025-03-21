@@ -836,34 +836,62 @@ def bulk_adjust_inventory():
                 item = InventoryItem.query.get_or_404(item_id)
                 old_quantity = item.quantity
                 
-                # Solo registrar si hay cambio
                 if new_quantity != old_quantity:
-                    # Calcular la diferencia
                     difference = new_quantity - old_quantity
                     transaction_type = 'entrada' if difference > 0 else 'salida'
-                    
-                    # Actualizar cantidad
-                    item.quantity = new_quantity
                     
                     # Registrar transacción
                     transaction = InventoryTransaction(
                         item=item,
                         quantity=abs(difference),
                         transaction_type=transaction_type,
-                        description=f'Ajuste masivo de inventario',
+                        description='Ajuste masivo de inventario',
                         created_by_id=current_user.id
                     )
+                    
+                    item.quantity = new_quantity
                     db.session.add(transaction)
         
         db.session.commit()
         flash('Inventario actualizado exitosamente', 'success')
+        return redirect(url_for('main.inventory'))
         
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error en ajuste masivo de inventario: {str(e)}")
+        logger.error(f"Error al ajustar inventario: {str(e)}")
         flash('Error al actualizar el inventario', 'error')
+        return redirect(url_for('main.inventory'))
+
+
+@bp.route('/inventory/<int:item_id>/delete', methods=['POST'])
+@login_required
+@staff_required
+def delete_inventory_item(item_id):
+    """Eliminar un artículo del inventario"""
+    try:
+        item = InventoryItem.query.get_or_404(item_id)
         
-    return redirect(url_for('main.inventory'))
+        # Registrar la eliminación
+        log_activity(
+            'eliminar_articulo',
+            f"Artículo eliminado - {item.name} (ID: {item.id})"
+        )
+        
+        # Eliminar transacciones relacionadas
+        InventoryTransaction.query.filter_by(item_id=item.id).delete()
+        
+        # Eliminar el artículo
+        db.session.delete(item)
+        db.session.commit()
+        
+        flash('Artículo eliminado exitosamente', 'success')
+        return redirect(url_for('main.inventory'))
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al eliminar artículo: {str(e)}")
+        flash('Error al eliminar el artículo', 'error')
+        return redirect(url_for('main.inventory'))
 
 @bp.route('/inventory/<int:item_id>/adjust', methods=['POST'])
 @login_required
@@ -910,10 +938,8 @@ def adjust_inventory(item_id):
                     return redirect(url_for('main.inventory'))
                 quantity = -quantity  # Hacer el número negativo para salidas
                 
-            # Actualizar cantidad
+            # Actualizar cantidad y registrar transacción
             item.quantity += quantity
-            
-            # Registrar transacción
             transaction = InventoryTransaction(
                 item=item,
                 quantity=abs(quantity),
@@ -925,13 +951,13 @@ def adjust_inventory(item_id):
             
         db.session.commit()
         flash('Inventario actualizado exitosamente', 'success')
+        return redirect(url_for('main.inventory'))
         
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error al ajustar inventario: {str(e)}")
         flash('Error al actualizar el inventario', 'error')
-        
-    return redirect(url_for('main.inventory'))
+        return redirect(url_for('main.inventory'))
 
 @bp.route('/inventory/transactions')
 @login_required
