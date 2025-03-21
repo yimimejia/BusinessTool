@@ -20,6 +20,8 @@
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle"></i> Apunte la cámara hacia el código QR del artículo para retirar una unidad.
                     </div>
+                    <!-- Mensajes de estado -->
+                    <div id="statusMessage" class="alert" style="display: none;"></div>
                 </div>
             </div>
         </div>
@@ -31,16 +33,50 @@
 {{ super() }}
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-function onScanSuccess(decodedText, decodedResult) {
-    // Detener el escáner
-    html5QrcodeScanner.clear();
-    
-    // Redirigir a la URL del código QR
-    window.location.href = decodedText;
+function showStatus(message, type = 'info') {
+    const statusDiv = document.getElementById('statusMessage');
+    statusDiv.className = `alert alert-${type}`;
+    statusDiv.textContent = message;
+    statusDiv.style.display = 'block';
+}
+
+function handleScanResult(response) {
+    if (response.success) {
+        showStatus(response.message, 'success');
+        setTimeout(() => {
+            window.location.href = response.redirect;
+        }, 2000);
+    } else {
+        showStatus(response.message, 'danger');
+        // Reiniciar el escáner después de 3 segundos
+        setTimeout(() => {
+            showStatus('Listo para escanear', 'info');
+            html5QrcodeScanner.render(onScanSuccess, onScanError);
+        }, 3000);
+    }
+}
+
+async function onScanSuccess(decodedText, decodedResult) {
+    // Detener el escáner temporalmente
+    html5QrcodeScanner.pause();
+
+    try {
+        showStatus('Procesando...', 'info');
+        const response = await fetch(decodedText);
+        const data = await response.json();
+        handleScanResult(data);
+    } catch (error) {
+        console.error('Error:', error);
+        showStatus('Error al procesar el código QR', 'danger');
+        // Reiniciar el escáner después de 3 segundos
+        setTimeout(() => {
+            showStatus('Listo para escanear', 'info');
+            html5QrcodeScanner.render(onScanSuccess, onScanError);
+        }, 3000);
+    }
 }
 
 function onScanError(errorMessage) {
-    // Manejar errores si es necesario
     console.error(errorMessage);
 }
 
@@ -55,6 +91,9 @@ let html5QrcodeScanner = new Html5QrcodeScanner(
     }
 );
 html5QrcodeScanner.render(onScanSuccess, onScanError);
+
+// Mostrar mensaje inicial
+showStatus('Listo para escanear', 'info');
 </script>
 
 <style>

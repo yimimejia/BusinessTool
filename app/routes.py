@@ -39,9 +39,11 @@ bp = Blueprint('main', __name__)
 def api_quick_remove_item(item_id):
     """API pública para retirar una unidad mediante QR"""
     try:
+        logger.info(f"Intento de retiro rápido para item_id: {item_id}")
         item = InventoryItem.query.get_or_404(item_id)
         
         if item.quantity <= 0:
+            logger.warning(f"Stock insuficiente para item {item.name} (ID: {item_id})")
             return jsonify({
                 'success': False,
                 'message': 'No hay unidades disponibles para retirar'
@@ -61,18 +63,20 @@ def api_quick_remove_item(item_id):
         db.session.add(transaction)
         db.session.commit()
         
+        logger.info(f"Retiro exitoso: {item.name} (ID: {item_id}), nueva cantidad: {item.quantity}")
         return jsonify({
             'success': True,
             'message': f'Se retiró una unidad de {item.name}',
-            'new_quantity': item.quantity
+            'new_quantity': item.quantity,
+            'redirect': url_for('main.inventory', _external=True)
         })
         
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error en retiro rápido por QR: {str(e)}")
+        logger.error(f"Error en retiro rápido por QR para item_id {item_id}: {str(e)}")
         return jsonify({
             'success': False,
-            'message': 'Error al procesar el retiro'
+            'message': 'Error al procesar el retiro, por favor intente nuevamente'
         }), 500
 
 @bp.route('/login', methods=['GET', 'POST'])
