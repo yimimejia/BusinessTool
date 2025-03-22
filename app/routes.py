@@ -54,6 +54,9 @@ def print_inventory_qr_codes():
             if item.category.name not in items_by_category:
                 items_by_category[item.category.name] = []
             
+            # Debug log
+            logger.debug(f"Procesando item: {item.name}, Categoría: {item.category.name}")
+            
             # Generar código QR
             qr = qrcode.QRCode(
                 version=1,
@@ -74,9 +77,13 @@ def print_inventory_qr_codes():
             qr_img.save(buffered, format="PNG")
             qr_code = base64.b64encode(buffered.getvalue()).decode()
             
-            # Agregar item con su código QR y nombre compuesto (categoría - nombre)
+            # Crear nombre compuesto (categoría - nombre)
+            item_name = f"{item.name} - {item.category.name}"
+            logger.debug(f"Nombre compuesto generado: {item_name}")
+            
+            # Agregar item con su código QR y nombre compuesto
             items_by_category[item.category.name].append({
-                'name': f"{item.name} ({item.category.name})",
+                'name': item_name,
                 'qr_code': qr_code
             })
 
