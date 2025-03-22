@@ -77,11 +77,12 @@ def print_inventory_qr_codes():
             qr_img.save(buffered, format="PNG")
             qr_code = base64.b64encode(buffered.getvalue()).decode()
             
-            # Agregar item con su código QR
+            # Agregar item con su código QR y categoría
             items_by_category[item.category.name].append({
                 'name': item.name,
                 'qr_code': qr_code,
-                'dimensions': f"{item.width}x{item.height}" if hasattr(item, 'width') and hasattr(item, 'height') else None
+                'dimensions': f"{item.width}x{item.height}" if hasattr(item, 'width') and hasattr(item, 'height') else None,
+                'category': item.category.name  # Agregar la categoría al diccionario
             })
 
         return render_template('inventory/print_qr_codes.html', items_by_category=items_by_category)
