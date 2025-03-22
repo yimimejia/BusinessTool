@@ -26,8 +26,9 @@ from weasyprint import HTML
 from pdf2image import convert_from_path
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Image as RLImage
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Image as RLImage, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+import traceback
 from flask import send_file
 
 # Configurar logging
@@ -704,6 +705,62 @@ def cleanup_temp_files(*file_paths):
                 os.remove(file_path)
         except Exception as e:
             logger.error(f"Error eliminando archivo temporal {file_path}: {str(e)}")
+
+
+@bp.route('/inventory/test-basic-pdf', methods=['GET'])
+@login_required
+@staff_required
+def test_basic_pdf():
+    """Generar un PDF básico de prueba"""
+    buffer = None
+    try:
+        logger.info("Iniciando generación de PDF básico de prueba")
+        
+        # Crear un PDF temporal
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Agregar un título simple
+        elements.append(Paragraph("PDF de Prueba", styles['Title']))
+        elements.append(Paragraph("Este es un PDF de prueba básico", styles['Normal']))
+        
+        # Crear una tabla simple
+        data = [['Columna 1', 'Columna 2'], ['Dato 1', 'Dato 2']]
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('GRID', (0,0), (-1,-1), 1, colors.black)
+        ]))
+        elements.append(table)
+        
+        logger.info("Construyendo PDF básico...")
+        doc.build(elements)
+        logger.info("PDF básico generado exitosamente")
+        
+        buffer.seek(0)
+        return send_file(
+            buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name='test_basico.pdf'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error generando PDF básico: {str(e)}")
+        logger.error(traceback.format_exc())
+        flash('Error al generar el PDF de prueba', 'error')
+        return redirect(url_for('main.inventory'))
+        
+    finally:
+        if buffer:
+            try:
+                buffer.close()
+            except Exception as e:
+                logger.error(f"Error cerrando buffer: {str(e)}")
+
+
 
 @bp.route('/jobs/<int:job_id>/send-whatsapp-notification', methods=['GET'])
 @login_required
@@ -3571,4 +3628,163 @@ def generate_invoice_view(qr_code=None):
     except Exception as e:
         logger.error(f"Error generando vista de factura: {str(e)}")
         return "Error al generar la vista de factura", 500
+
+@bp.route('/inventory/generate-qr-pdf', methods=['GET'])
+@login_required
+@staff_required
+def generate_inventory_qr_pdf():
+    """Generar PDF con códigos QR del inventario agrupados por categoría"""
+    buffer = None
+    temp_buffers = []
+    
+    try:
+        logger.info("Iniciando generación de PDF de códigos QR")
+        
+        # Crear un PDF temporal
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Estilo para el título de la categoría
+        title_style = ParagraphStyle(
+            'CategoryTitle',
+            parent=styles['Heading1'],
+            fontSize=20,
+            spaceAfter=20,
+            backColor=colors.lightgrey,
+            borderPadding=10
+        )
+        
+        # Obtener todas las categorías y sus items
+        categories = Category.query.order_by(Category.name).all()
+        logger.info(f"Procesando {len(categories)} categorías")
+        
+        for i, category in enumerate(categories):
+            try:
+                logger.info(f"Procesando categoría: {category.name}")
+                items = InventoryItem.query.filter_by(category_id=category.id).order_by(InventoryItem.name).all()
+                
+                if not items:
+                    logger.info(f"No hay items en la categoría {category.name}")
+                    continue
+                
+                # Agregar título de la categoría
+                elements.append(Paragraph(category.name, title_style))
+                
+                # Preparar datos para la tabla
+                table_data = []
+                current_row = []
+                
+                for item in items:
+                    try:
+                        # Generar URL para el QR
+                        qr_url = url_for('main.api_quick_remove_item', item_id=item.id, _external=True)
+                        
+                        # Generar QR code
+                        qr = qrcode.QRCode(
+                            version=1,
+                            error_correction=qrcode.constants.ERROR_CORRECT_L,
+                            box_size=3,
+                            border=1
+                        )
+                        qr.add_data(qr_url)
+                        qr.make(fit=True)
+                        
+                        # Convertir a imagen
+                        temp_buffer = io.BytesIO()
+                        qr_img = qr.make_image(fill_color="black", back_color="white")
+                        qr_img.save(temp_buffer, format='PNG')
+                        temp_buffer.seek(0)
+                        temp_buffers.append(temp_buffer)
+                        
+                        # Crear celda con QR y texto
+                        cell_content = [
+                            RLImage(temp_buffer, width=60, height=60),
+                            Paragraph(f"{item.name}<br/>FVM-{item.id}",
+                                     ParagraphStyle('ItemName',
+                                                  parent=styles['Normal'],
+                                                  fontSize=8,
+                                                  alignment=1))
+                        ]
+                        
+                        current_row.append(cell_content)
+                        
+                        if len(current_row) == 5:  # 5 columnas
+                            table_data.append(current_row)
+                            current_row = []
+                            
+                    except Exception as item_error:
+                        logger.error(f"Error procesando item {item.id}: {str(item_error)}")
+                        continue
+                
+                # Agregar última fila si tiene items
+                if current_row:
+                    while len(current_row) < 5:
+                        current_row.append(['', ''])
+                    table_data.append(current_row)
+                
+                if table_data:
+                    # Crear tabla
+                    table = Table(table_data, colWidths=[110]*5)
+                    table.setStyle(TableStyle([
+                        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                        ('TOPPADDING', (0,0), (-1,-1), 3),
+                        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+                    ]))
+                    
+                    elements.append(table)
+                    
+                    # Agregar salto de página solo si no es la última categoría
+                    if i < len(categories) - 1:
+                        elements.append(PageBreak())
+                        
+            except Exception as category_error:
+                logger.error(f"Error procesando categoría {category.name}: {str(category_error)}")
+                continue
+        
+        if not elements:
+            logger.warning("No se encontraron elementos para generar el PDF")
+            flash('No hay artículos para generar códigos QR', 'warning')
+            return redirect(url_for('main.inventory'))
+        
+        logger.info("Construyendo PDF...")
+        try:
+            doc.build(elements)
+        except Exception as build_error:
+            logger.error(f"Error en doc.build: {str(build_error)}")
+            logger.error(traceback.format_exc())
+            raise
+        
+        logger.info("PDF generado exitosamente")
+        buffer.seek(0)
+        
+        return send_file(
+            buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'codigos_qr_inventario_{datetime.now().strftime("%Y%m%d")}.pdf'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error general generando PDF: {str(e)}")
+        logger.error(traceback.format_exc())
+        flash('Error al generar el PDF de códigos QR', 'error')
+        return redirect(url_for('main.inventory'))
+        
+    finally:
+        # Limpiar recursos
+        logger.info("Limpiando recursos")
+        for temp_buffer in temp_buffers:
+            try:
+                temp_buffer.close()
+            except Exception as e:
+                logger.error(f"Error cerrando buffer temporal: {str(e)}")
+                
+        if buffer:
+            try:
+                buffer.close()
+            except Exception as e:
+                logger.error(f"Error cerrando buffer principal: {str(e)}")
 
