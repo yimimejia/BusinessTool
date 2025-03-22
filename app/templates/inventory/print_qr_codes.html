@@ -10,11 +10,11 @@
         <div class="qr-grid">
             {% for item in items %}
             <div class="qr-item">
+                <div class="item-category">{{ category }}</div>
                 <img src="data:image/png;base64,{{ item.qr_code }}" alt="QR {{ item.name }}" class="qr-code">
                 {% if item.dimensions %}
                 <div class="item-dimensions">{{ item.dimensions }}</div>
                 {% endif %}
-                <div class="item-code">Código: {{ item.code }}</div>
                 <div class="item-name">{{ item.name }}</div>
             </div>
             {% endfor %}
@@ -56,17 +56,19 @@
         border: 1px solid #dee2e6;
         border-radius: 2px;
     }
+    .item-category {
+        font-size: 7px;
+        margin-bottom: 1px;
+        font-weight: bold;
+        color: #0d6efd;
+        text-transform: uppercase;
+    }
     .qr-code {
         width: 60px;
         height: 60px;
         margin-bottom: 1px;
     }
     .item-dimensions {
-        font-size: 7px;
-        margin-top: 1px;
-        font-style: italic;
-    }
-    .item-code {
         font-size: 7px;
         margin-top: 1px;
         font-style: italic;

@@ -77,16 +77,11 @@ def print_inventory_qr_codes():
             qr_img.save(buffered, format="PNG")
             qr_code = base64.b64encode(buffered.getvalue()).decode()
             
-            # Crear nombre compuesto (nombre • categoría)
-            item_name = f"{item.name} • {item.category.name}"
-            logger.debug(f"Nombre compuesto generado: {item_name}")
-            
-            # Agregar item con su código QR y nombre compuesto
+            # Agregar item con su código QR
             items_by_category[item.category.name].append({
-                'name': item_name,
+                'name': item.name,
                 'qr_code': qr_code,
-                'dimensions': f"{item.width}x{item.height}" if hasattr(item, 'width') and hasattr(item, 'height') else None,
-                'code': f"FVM-{item.id}"  # Agregar código identificador
+                'dimensions': f"{item.width}x{item.height}" if hasattr(item, 'width') and hasattr(item, 'height') else None
             })
 
         return render_template('inventory/print_qr_codes.html', items_by_category=items_by_category)
