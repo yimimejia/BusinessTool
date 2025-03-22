@@ -256,8 +256,34 @@ def new_pending_job():
             if not phone_number.startswith('+1'):
                 phone_number = f'+1{phone_number}' if phone_number.startswith('1') else f'+1{phone_number}'
 
+            # Si es diseñador, SIEMPRE crear trabajo pendiente para verificación
+            if current_user.is_designer:
+                pending_job = PendingJob(
+                    description=description,
+                    designer_id=designer_id or current_user.id,
+                    registered_by_id=current_user.id,
+                    client_name=client_name,
+                    phone_number=phone_number,
+                    pending_type='new_job',
+                    invoice_number=request.form.get('invoice_number'),
+                    total_amount=request.form.get('total_amount'),
+                    deposit_amount=request.form.get('deposit_amount'),
+                    tags=request.form.get('tags')
+                )
+                
+                db.session.add(pending_job)
+                db.session.commit()
+                
+                # Enviar notificación a admin y supervisores
+                notify_staff(
+                    f"Nuevo trabajo pendiente de aprobación - Cliente: {client_name}",
+                    "Trabajo Pendiente"
+                )
+                
+                flash('Trabajo enviado para verificación', 'success')
+                
             # Si es admin o supervisor, crear trabajo directamente
-            if current_user.is_admin or current_user.is_supervisor:
+            elif current_user.is_admin or current_user.is_supervisor:
                 active_job = Job(
                     description=description,
                     designer_id=designer_id,
@@ -275,28 +301,6 @@ def new_pending_job():
                 db.session.commit()
                 
                 flash('Trabajo creado exitosamente', 'success')
-                
-            else:
-                # Crear trabajo pendiente para diseñadores
-                pending_job = PendingJob(
-                    description=description,
-                    designer_id=designer_id or current_user.id,
-                    registered_by_id=current_user.id,
-                    client_name=client_name,
-                    phone_number=phone_number,
-                    pending_type='new_job'
-                )
-                
-                db.session.add(pending_job)
-                db.session.commit()
-                
-                # Enviar notificación a admin y supervisores
-                notify_staff(
-                    f"Nuevo trabajo pendiente de aprobación - Cliente: {client_name}",
-                    "Trabajo Pendiente"
-                )
-                
-                flash('Trabajo pendiente creado exitosamente', 'success')
             
             return redirect(url_for('main.dashboard'))
 
