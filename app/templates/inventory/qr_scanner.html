@@ -3,17 +3,17 @@
 {% block title %}Escanear QR{% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="container py-4">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card shadow">
+            <div class="card">
                 <div class="card-header">
                     <h4 class="mb-0">
                         <i class="bi bi-qr-code-scan"></i> Escanear Código QR
                     </h4>
                 </div>
-                <div class="card-body">
-                    <div class="text-center mb-3">
+                <div class="card-body p-4">
+                    <div class="text-center">
                         <div id="reader" class="mb-3"></div>
                         <div id="result"></div>
                     </div>
@@ -40,35 +40,36 @@ function showStatus(message, type = 'info') {
     statusDiv.style.display = 'block';
 }
 
-function handleScanResult(response) {
-    if (response.success) {
-        showStatus(response.message, 'success');
-        setTimeout(() => {
-            window.location.href = response.redirect;
-        }, 2000);
-    } else {
-        showStatus(response.message, 'danger');
-        // Reiniciar el escáner después de 3 segundos
-        setTimeout(() => {
-            showStatus('Listo para escanear', 'info');
-            html5QrcodeScanner.resume();
-        }, 3000);
-    }
-}
-
 async function onScanSuccess(decodedText, decodedResult) {
     try {
         showStatus('Procesando...', 'info');
+
+        // Detener temporalmente el escáner
+        html5QrcodeScanner.pause();
+
         const response = await fetch(decodedText);
         if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);
         }
+
         const data = await response.json();
-        handleScanResult(data);
+
+        if (data.success) {
+            showStatus(`${data.message}`, 'success');
+            setTimeout(() => {
+                // Redirigir usando window.location.replace para evitar problemas con la descarga
+                window.location.replace(data.redirect);
+            }, 2000);
+        } else {
+            showStatus(data.message, 'danger');
+            setTimeout(() => {
+                showStatus('Listo para escanear', 'info');
+                html5QrcodeScanner.resume();
+            }, 3000);
+        }
     } catch (error) {
         console.error('Error:', error);
         showStatus('Error al procesar el código QR. Por favor, intente nuevamente.', 'danger');
-        // Reiniciar el escáner después de 3 segundos
         setTimeout(() => {
             showStatus('Listo para escanear', 'info');
             html5QrcodeScanner.resume();
