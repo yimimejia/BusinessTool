@@ -84,7 +84,9 @@ def print_inventory_qr_codes():
             # Agregar item con su código QR y nombre compuesto
             items_by_category[item.category.name].append({
                 'name': item_name,
-                'qr_code': qr_code
+                'qr_code': qr_code,
+                'dimensions': f"{item.width}x{item.height}" if hasattr(item, 'width') and hasattr(item, 'height') else None,
+                'code': f"FVM-{item.id}"  # Agregar código identificador
             })
 
         return render_template('inventory/print_qr_codes.html', items_by_category=items_by_category)
