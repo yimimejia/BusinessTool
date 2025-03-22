@@ -19,22 +19,12 @@
                     {% if new_quantity is defined %}
                     <p class="text-muted mb-4">Cantidad restante: {{ new_quantity }} unidades</p>
                     {% endif %}
-                    <div class="mt-4">
-                        <a href="{{ redirect_url }}" class="btn btn-primary">
-                            <i class="bi bi-arrow-left"></i> Volver al Inventario
-                        </a>
-                    </div>
                     {% else %}
                     <div class="mb-4">
                         <i class="bi bi-exclamation-circle text-danger" style="font-size: 4rem;"></i>
                     </div>
                     <h3 class="text-danger mb-4">No se pudo completar el retiro</h3>
                     <p class="lead mb-4">{{ message }}</p>
-                    <div class="mt-4">
-                        <a href="{{ redirect_url }}" class="btn btn-primary">
-                            <i class="bi bi-arrow-left"></i> Volver al Inventario
-                        </a>
-                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -82,4 +72,17 @@
     }
 }
 </style>
+
+<script>
+// Redirección automática después de mostrar el mensaje
+{% if success %}
+setTimeout(function() {
+    window.location.replace("{{ redirect_url }}");
+}, 3000);  // Redirigir después de 3 segundos
+{% else %}
+setTimeout(function() {
+    window.location.replace("{{ redirect_url }}");
+}, 5000);  // Redirigir después de 5 segundos en caso de error
+{% endif %}
+</script>
 {% endblock %}
