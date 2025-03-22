@@ -35,6 +35,58 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint('main', __name__)
 
+@bp.route('/inventory/print-qr-codes')
+@login_required
+def print_inventory_qr_codes():
+    """Generar página para imprimir códigos QR del inventario agrupados por categoría"""
+    try:
+        # Obtener todos los items agrupados por categoría
+        items = (
+            InventoryItem.query
+            .join(Category)
+            .order_by(Category.name, InventoryItem.name)
+            .all()
+        )
+
+        # Agrupar items por categoría
+        items_by_category = {}
+        for item in items:
+            if item.category.name not in items_by_category:
+                items_by_category[item.category.name] = []
+            
+            # Generar código QR
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=4,  # Reducido aún más para hacer el código más compacto
+                border=1     # Borde mínimo para maximizar espacio
+            )
+            
+            # Usar FVM- como prefijo para mantener consistencia
+            qr.add_data(url_for('main.api_quick_remove_item', item_id=item.id, _external=True))
+            qr.make(fit=True)
+            
+            # Generar la imagen del QR
+            qr_img = qr.make_image(fill_color="black", back_color="white")
+            
+            # Convertir la imagen a base64
+            buffered = io.BytesIO()
+            qr_img.save(buffered, format="PNG")
+            qr_code = base64.b64encode(buffered.getvalue()).decode()
+            
+            # Agregar item con su código QR
+            items_by_category[item.category.name].append({
+                'name': item.name,
+                'qr_code': qr_code
+            })
+
+        return render_template('inventory/print_qr_codes.html', items_by_category=items_by_category)
+        
+    except Exception as e:
+        logger.error(f"Error generando códigos QR: {str(e)}")
+        flash('Error al generar códigos QR', 'error')
+        return redirect(url_for('main.inventory'))
+
 @bp.route('/api/inventory/quick-remove/FVM-<int:item_id>', methods=['GET'])
 def api_quick_remove_item(item_id):
     """API pública para retirar una unidad mediante QR"""

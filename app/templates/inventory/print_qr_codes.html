@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Imprimir Códigos QR{% endblock %}
+
+{% block content %}
+<div class="qr-print-container">
+    {% for category, items in items_by_category.items() %}
+    <div class="category-section">
+        <h3 class="category-title">{{ category }}</h3>
+        <div class="qr-grid">
+            {% for item in items %}
+            <div class="qr-item">
+                <img src="data:image/png;base64,{{ item.qr_code }}" alt="QR {{ item.name }}" class="qr-code">
+                <div class="item-name">{{ item.name }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+@media print {
+    body {
+        margin: 0;
+        padding: 0;
+    }
+    .qr-print-container {
+        padding: 5px;
+    }
+    .category-section {
+        break-inside: avoid;
+        margin-bottom: 15px;
+    }
+    .category-title {
+        font-size: 18px;
+        margin-bottom: 5px;
+        padding: 3px 5px;
+        background: #f8f9fa;
+        border-left: 4px solid #0d6efd;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .qr-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 5px;
+    }
+    .qr-item {
+        text-align: center;
+        padding: 3px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+    }
+    .qr-code {
+        width: 80px;
+        height: 80px;
+        margin-bottom: 2px;
+    }
+    .item-name {
+        font-size: 10px;
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding: 0 2px;
+    }
+}
+</style>
+{% endblock %}
