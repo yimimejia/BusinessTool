@@ -25,6 +25,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from weasyprint import HTML
 from pdf2image import convert_from_path
 from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Image as RLImage
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from flask import send_file
@@ -885,26 +886,32 @@ def generate_inventory_qr_pdf():
         category_style = ParagraphStyle(
             'CategoryStyle',
             parent=styles['Heading1'],
-            fontSize=16,
+            fontSize=18,
             spaceAfter=20,
-            alignment=1  # Centrado
+            alignment=1,  # Centrado
+            backColor=colors.lightgrey,
+            borderColor=colors.black,
+            borderWidth=1,
+            borderPadding=5
         )
         
         # Obtener todas las categorías y sus items
         categories = Category.query.order_by(Category.name).all()
         
         for category in categories:
-            # Agregar título de la categoría
-            elements.append(Paragraph(category.name, category_style))
-            
             # Obtener items de la categoría
             items = InventoryItem.query.filter_by(category_id=category.id).order_by(InventoryItem.name).all()
             
             if not items:
                 continue
-                
+            
             # Crear tabla para los códigos QR (4 columnas)
             qr_data = []
+            
+            # Agregar encabezado de categoría como primera fila
+            header_row = [[Paragraph(category.name, category_style), '', '', '']]
+            qr_data.extend(header_row)
+            
             current_row = []
             
             for item in items:
@@ -915,8 +922,8 @@ def generate_inventory_qr_pdf():
                 qr = qrcode.QRCode(
                     version=1,
                     error_correction=qrcode.constants.ERROR_CORRECT_L,
-                    box_size=6,  # Reducido de 10 a 6
-                    border=2     # Reducido de 5 a 2
+                    box_size=6,  # Tamaño reducido
+                    border=2     # Borde reducido
                 )
                 qr.add_data(qr_url)
                 qr.make(fit=True)
@@ -949,15 +956,28 @@ def generate_inventory_qr_pdf():
             
             # Crear tabla con los códigos QR
             if qr_data:
-                table = Table(qr_data, colWidths=[135]*4, repeatRows=1)
+                table = Table(qr_data, colWidths=[135]*4)
                 table.setStyle(TableStyle([
-                    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                    ('TOPPADDING', (0,0), (-1,-1), 5),
-                    ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+                    # Estilo para el encabezado de categoría
+                    ('SPAN', (0,0), (3,0)),  # Combinar celdas del encabezado
+                    ('BACKGROUND', (0,0), (3,0), colors.lightgrey),
+                    ('TEXTCOLOR', (0,0), (3,0), colors.black),
+                    ('ALIGN', (0,0), (3,0), 'CENTER'),
+                    ('FONTSIZE', (0,0), (3,0), 18),
+                    ('BOTTOMPADDING', (0,0), (3,0), 10),
+                    ('TOPPADDING', (0,0), (3,0), 10),
+                    # Estilo para las celdas de contenido
+                    ('ALIGN', (0,1), (-1,-1), 'CENTER'),
+                    ('VALIGN', (0,1), (-1,-1), 'MIDDLE'),
+                    ('TOPPADDING', (0,1), (-1,-1), 5),
+                    ('BOTTOMPADDING', (0,1), (-1,-1), 5),
                 ]))
+                
+                # Configurar para que el encabezado se repita en cada página
+                table.repeatRows = 1
                 elements.append(table)
-                elements.append(Paragraph("<br/><br/>", styles['Normal']))
+                # Agregar espacio entre categorías
+                elements.append(Paragraph("<br/>", styles['Normal']))
         
         # Generar PDF
         doc.build(elements)
