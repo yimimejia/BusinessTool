@@ -828,6 +828,8 @@ def process_pending_job(job_id):
         flash('Error al procesar la solicitud. Por favor, inténtelo de nuevo.', 'error')
         return redirect(url_for('main.pending_verification'))
 
+
+
 @bp.route('/jobs/<int:job_id>/reject-photos', methods=['POST'])
 @login_required
 @staff_required
@@ -870,131 +872,7 @@ def reject_pending_photos(job_id):
         flash('Error al procesar la solicitud', 'error')
         return redirect(url_for('main.jobs_pending_photos'))
 
-@bp.route('/inventory/generate-qr-pdf', methods=['GET'])
-@login_required
-@staff_required
-def generate_inventory_qr_pdf():
-    """Generar PDF con códigos QR del inventario agrupados por categoría"""
-    try:
-        # Crear un PDF temporal
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter)
-        elements = []
-        styles = getSampleStyleSheet()
-        
-        # Estilo para el título de la categoría
-        category_style = ParagraphStyle(
-            'CategoryStyle',
-            parent=styles['Heading1'],
-            fontSize=18,
-            spaceAfter=20,
-            alignment=1,  # Centrado
-            backColor=colors.lightgrey,
-            borderColor=colors.black,
-            borderWidth=1,
-            borderPadding=5
-        )
-        
-        # Obtener todas las categorías y sus items
-        categories = Category.query.order_by(Category.name).all()
-        
-        for category in categories:
-            # Obtener items de la categoría
-            items = InventoryItem.query.filter_by(category_id=category.id).order_by(InventoryItem.name).all()
-            
-            if not items:
-                continue
-            
-            # Crear tabla para los códigos QR (4 columnas)
-            qr_data = []
-            
-            # Agregar encabezado de categoría como primera fila
-            header_row = [[Paragraph(category.name, category_style), '', '', '']]
-            qr_data.extend(header_row)
-            
-            current_row = []
-            
-            for item in items:
-                # Generar URL para el QR
-                qr_url = url_for('main.api_quick_remove_item', item_id=item.id, _external=True)
-                
-                # Generar QR code más pequeño
-                qr = qrcode.QRCode(
-                    version=1,
-                    error_correction=qrcode.constants.ERROR_CORRECT_L,
-                    box_size=6,  # Tamaño reducido
-                    border=2     # Borde reducido
-                )
-                qr.add_data(qr_url)
-                qr.make(fit=True)
-                qr_img = qr.make_image(fill_color="black", back_color="white")
-                
-                # Convertir a imagen para ReportLab
-                temp_img = io.BytesIO()
-                qr_img.save(temp_img, format='PNG')
-                img = RLImage(temp_img, width=100, height=100)  # Tamaño reducido
-                
-                # Crear celda con QR y nombre del item
-                cell_content = [
-                    img,
-                    Paragraph(f"{item.name}<br/>FVM-{item.id}", styles['Normal'])
-                ]
-                
-                current_row.append(cell_content)
-                
-                # Crear nueva fila cada 4 items
-                if len(current_row) == 4:
-                    qr_data.append(current_row)
-                    current_row = []
-            
-            # Agregar última fila si tiene items
-            if current_row:
-                # Rellenar con celdas vacías si es necesario
-                while len(current_row) < 4:
-                    current_row.append([''])
-                qr_data.append(current_row)
-            
-            # Crear tabla con los códigos QR
-            if qr_data:
-                table = Table(qr_data, colWidths=[135]*4)
-                table.setStyle(TableStyle([
-                    # Estilo para el encabezado de categoría
-                    ('SPAN', (0,0), (3,0)),  # Combinar celdas del encabezado
-                    ('BACKGROUND', (0,0), (3,0), colors.lightgrey),
-                    ('TEXTCOLOR', (0,0), (3,0), colors.black),
-                    ('ALIGN', (0,0), (3,0), 'CENTER'),
-                    ('FONTSIZE', (0,0), (3,0), 18),
-                    ('BOTTOMPADDING', (0,0), (3,0), 10),
-                    ('TOPPADDING', (0,0), (3,0), 10),
-                    # Estilo para las celdas de contenido
-                    ('ALIGN', (0,1), (-1,-1), 'CENTER'),
-                    ('VALIGN', (0,1), (-1,-1), 'MIDDLE'),
-                    ('TOPPADDING', (0,1), (-1,-1), 5),
-                    ('BOTTOMPADDING', (0,1), (-1,-1), 5),
-                ]))
-                
-                # Configurar para que el encabezado se repita en cada página
-                table.repeatRows = 1
-                elements.append(table)
-                # Agregar espacio entre categorías
-                elements.append(Paragraph("<br/>", styles['Normal']))
-        
-        # Generar PDF
-        doc.build(elements)
-        
-        # Preparar respuesta
-        buffer.seek(0)
-        return send_file(
-            buffer,
-            mimetype='application/pdf',
-            as_attachment=True,
-            download_name=f'codigos_qr_inventario_{datetime.now().strftime("%Y%m%d")}.pdf'
-        )
-        
-    except Exception as e:
-        logger.error(f"Error generando PDF de códigos QR: {str(e)}")
-        flash('Error al generar el PDF de códigos QR', 'error')
-        return redirect(url_for('main.inventory'))
+
 
 
 @bp.route('/inventory')
@@ -1152,6 +1030,141 @@ def adjust_inventory(item_id):
         db.session.rollback()
         logger.error(f"Error al actualizar artículo: {str(e)}")
         flash('Error al actualizar el artículo', 'error')
+        return redirect(url_for('main.inventory'))
+
+@bp.route('/inventory/generate-qr-pdf', methods=['GET'])
+@login_required
+@staff_required
+def generate_inventory_qr_pdf():
+    """Generar PDF con códigos QR del inventario agrupados por categoría"""
+    try:
+        # Crear un PDF temporal
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Estilo para el título de la categoría
+        category_style = ParagraphStyle(
+            'CategoryStyle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            spaceAfter=20,
+            alignment=1,  # Centrado
+            backColor=colors.lightgrey,
+            borderColor=colors.black,
+            borderWidth=1,
+            borderPadding=5
+        )
+        
+        # Obtener todas las categorías y sus items
+        categories = Category.query.order_by(Category.name).all()
+        
+        for category in categories:
+            # Obtener items de la categoría
+            items = InventoryItem.query.filter_by(category_id=category.id).order_by(InventoryItem.name).all()
+            
+            if not items:
+                continue
+            
+            # Crear tabla para los códigos QR (4 columnas)
+            qr_data = []
+            
+            # Agregar encabezado de categoría como primera fila
+            header_row = [[Paragraph(category.name, category_style), '', '', '']]
+            qr_data.extend(header_row)
+            
+            current_row = []
+            
+            for item in items:
+                try:
+                    # Generar URL para el QR
+                    qr_url = url_for('main.api_quick_remove_item', item_id=item.id, _external=True)
+                    
+                    # Generar QR code más pequeño
+                    qr = qrcode.QRCode(
+                        version=1,
+                        error_correction=qrcode.constants.ERROR_CORRECT_L,
+                        box_size=6,  # Tamaño reducido
+                        border=2     # Borde reducido
+                    )
+                    qr.add_data(qr_url)
+                    qr.make(fit=True)
+                    qr_img = qr.make_image(fill_color="black", back_color="white")
+                    
+                    # Convertir a imagen para ReportLab
+                    temp_img = io.BytesIO()
+                    qr_img.save(temp_img, format='PNG')
+                    temp_img.seek(0)
+                    img = RLImage(temp_img, width=100, height=100)  # Tamaño reducido
+                    
+                    # Crear celda con QR y nombre del item
+                    cell_content = [
+                        img,
+                        Paragraph(f"{item.name}<br/>FVM-{item.id}", styles['Normal'])
+                    ]
+                    
+                    current_row.append(cell_content)
+                    
+                    # Crear nueva fila cada 4 items
+                    if len(current_row) == 4:
+                        qr_data.append(current_row)
+                        current_row = []
+                
+                except Exception as item_error:
+                    logger.error(f"Error procesando item {item.id}: {str(item_error)}")
+                    continue
+            
+            # Agregar última fila si tiene items
+            if current_row:
+                # Rellenar con celdas vacías si es necesario
+                while len(current_row) < 4:
+                    current_row.append([''])
+                qr_data.append(current_row)
+            
+            # Crear tabla con los códigos QR
+            if qr_data:
+                table = Table(qr_data, colWidths=[135]*4)
+                table.setStyle(TableStyle([
+                    # Estilo para el encabezado de categoría  
+                    ('SPAN', (0,0), (3,0)),  # Combinar celdas del encabezado
+                    ('BACKGROUND', (0,0), (3,0), colors.lightgrey),
+                    ('TEXTCOLOR', (0,0), (3,0), colors.black), 
+                    ('ALIGN', (0,0), (3,0), 'CENTER'),
+                    ('FONTSIZE', (0,0), (3,0), 18),
+                    ('BOTTOMPADDING', (0,0), (3,0), 10),
+                    ('TOPPADDING', (0,0), (3,0), 10),
+                    # Estilo para las celdas de contenido
+                    ('ALIGN', (0,1), (-1,-1), 'CENTER'),
+                    ('VALIGN', (0,1), (-1,-1), 'MIDDLE'),
+                    ('TOPPADDING', (0,1), (-1,-1), 5),
+                    ('BOTTOMPADDING', (0,1), (-1,-1), 5)
+                ]))
+                
+                # Configurar para que el encabezado se repita en cada página
+                table.repeatRows = 1
+                elements.append(table)
+                elements.append(Paragraph("<br/>", styles['Normal']))
+        
+        if not elements:
+            flash('No hay artículos para generar códigos QR', 'warning')
+            return redirect(url_for('main.inventory'))
+            
+        # Generar PDF
+        doc.build(elements)
+        buffer.seek(0)
+        
+        # Enviar archivo
+        return send_file(
+            buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'codigos_qr_inventario_{datetime.now().strftime("%Y%m%d")}.pdf'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error generando PDF de códigos QR: {str(e)}")
+        flash('Error al generar el PDF de códigos QR', 'error')
         return redirect(url_for('main.inventory'))
 
 @bp.route('/inventory/bulk-adjust', methods=['POST'])
