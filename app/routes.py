@@ -44,10 +44,10 @@ def api_quick_remove_item(item_id):
         
         if item.quantity <= 0:
             logger.warning(f"Stock insuficiente para item {item.name} (ID: {item_id})")
-            return jsonify({
-                'success': False,
-                'message': 'No hay unidades disponibles para retirar'
-            }), 400
+            return render_template('inventory/quick_remove_result.html', 
+                success=False,
+                message='No hay unidades disponibles para retirar',
+                item=item)
         
         # Retirar una unidad
         item.quantity -= 1
@@ -64,20 +64,19 @@ def api_quick_remove_item(item_id):
         db.session.commit()
         
         logger.info(f"Retiro exitoso: {item.name} (ID: {item_id}), nueva cantidad: {item.quantity}")
-        return jsonify({
-            'success': True,
-            'message': f'Se retiró una unidad de {item.name}',
-            'new_quantity': item.quantity,
-            'redirect': url_for('main.inventory', _external=True)
-        })
+        return render_template('inventory/quick_remove_result.html',
+            success=True,
+            message=f'Se retiró una unidad de {item.name}',
+            item=item,
+            new_quantity=item.quantity,
+            redirect_url=url_for('main.inventory', _external=True))
         
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error en retiro rápido por QR para item_id {item_id}: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': 'Error al procesar el retiro, por favor intente nuevamente'
-        }), 500
+        return render_template('inventory/quick_remove_result.html',
+            success=False,
+            message='Error al procesar el retiro, por favor intente nuevamente')
 
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
