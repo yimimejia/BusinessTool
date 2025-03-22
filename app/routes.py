@@ -277,30 +277,48 @@ def admin_required(f):
 def public_view_job_invoice(job_id):
     """Ver factura sin autenticación"""
     try:
-        job, qr_code_image, total_amount, deposit_amount, remaining_amount = get_job_invoice_data(job_id=job_id)
+        # Buscar primero en trabajos activos
+        job = Job.query.get(job_id)
         if not job:
-            return "Factura no encontrada", 404
-            
+            # Si no está en trabajos activos, buscar en completados
+            job = CompletedJob.query.get(job_id)
+            if not job:
+                return "Factura no encontrada", 404
+
+        # Generar QR code
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=5
+        )
+        
+        # La URL del QR será la misma URL pública
+        qr.add_data(url_for('main.public_view_job_invoice', job_id=job.id, _external=True))
+        qr.make(fit=True)
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+
+        # Convertir QR a base64
+        buffered = io.BytesIO()
+        qr_img.save(buffered, format="PNG")
+        qr_code_image = base64.b64encode(buffered.getvalue()).decode()
+
+        # Calcular montos
+        total_amount = float(job.total_amount or 0)
+        deposit_amount = float(job.deposit_amount or 0)
+        remaining_amount = total_amount - deposit_amount
+
         # Preparar mensaje de WhatsApp
         whatsapp_message = f"""*FOTO VIDEO MOJICA*
-¡Saludos estimado(a) {job.client_name}!
+¡Gracias por su preferencia!
 
-Le enviamos su factura:
-📋 Número: {job.invoice_number}
-💰 Total: RD${float(total_amount):.2f}
-💵 Abono: RD${float(deposit_amount):.2f}
-🔸 Restante: RD${float(remaining_amount):.2f}
+*Detalles de su trabajo:*
+Cliente: {job.client_name}
+Factura: {job.invoice_number}
+Descripción: {job.description}
+Total: ${total_amount}
+Abono: ${deposit_amount}"""
 
-¡Gracias por su preferencia!"""
-
-        # Procesar número de teléfono para WhatsApp
-        clean_phone = re.sub(r'[^\d]', '', job.phone_number) if job.phone_number else ''
-        if clean_phone and not clean_phone.startswith('1'):
-            clean_phone = '1' + clean_phone
-            
-        # Crear enlace de WhatsApp
-        whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(whatsapp_message)}" if clean_phone else None
-        
         return render_template(
             'invoice_view.html',
             job=job,
@@ -309,9 +327,9 @@ Le enviamos su factura:
             deposit_amount=deposit_amount,
             remaining_amount=remaining_amount,
             whatsapp_message=whatsapp_message,
-            whatsapp_url=whatsapp_url,
             public_view=True
         )
+
     except Exception as e:
         logger.error(f"Error al mostrar factura pública: {str(e)}")
         return "Error al mostrar la factura", 500
@@ -624,8 +642,11 @@ def send_job_photos(job_id):
 def send_whatsapp_invoice(job_id):
     """Enviar factura por WhatsApp"""
     try:
-        # Obtener el trabajo completado
-        job = CompletedJob.query.get_or_404(job_id)
+        # Buscar primero en trabajos activos
+        job = Job.query.get(job_id)
+        if not job:
+            # Si no está en trabajos activos, buscar en completados
+            job = CompletedJob.query.get_or_404(job_id)
         
         if not job.phone_number:
             flash('No hay número de teléfono registrado para este cliente', 'error')
@@ -636,8 +657,13 @@ def send_whatsapp_invoice(job_id):
         if not clean_phone.startswith('1'):
             clean_phone = '1' + clean_phone
         
-        # Generar URL pública para la factura
+        # Generar URL pública para la factura (usar ruta pública)
         invoice_url = url_for('main.public_view_job_invoice', job_id=job.id, _external=True)
+        
+        # Calcular montos
+        total_amount = float(job.total_amount or 0)
+        deposit_amount = float(job.deposit_amount or 0)
+        remaining_amount = total_amount - deposit_amount
 
         # Preparar mensaje de WhatsApp
         whatsapp_message = f"""*FOTO VIDEO MOJICA*
@@ -645,9 +671,9 @@ def send_whatsapp_invoice(job_id):
 
 Le enviamos su factura:
 📋 Número: {job.invoice_number}
-💰 Total: RD${float(job.total_amount):.2f}
-💵 Abono: RD${float(job.deposit_amount or 0):.2f}
-🔸 Restante: RD${float(job.total_amount) - float(job.deposit_amount or 0):.2f}
+💰 Total: RD${total_amount:.2f}
+💵 Abono: RD${deposit_amount:.2f}
+🔸 Restante: RD${remaining_amount:.2f}
 
 Para ver su factura digital y código QR, haga clic aquí:
 {invoice_url}
@@ -694,7 +720,7 @@ def send_whatsapp_notification(job_id):
         if not clean_phone.startswith('1'):
             clean_phone = '1' + clean_phone
         
-        # Generar URL pública para la factura
+        # Generar URL pública para la factura (usar ruta pública)
         invoice_url = url_for('main.public_view_job_invoice', job_id=job.id, _external=True)
 
         # Preparar mensaje de WhatsApp

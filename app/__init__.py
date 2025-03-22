@@ -68,6 +68,14 @@ def create_app():
         from app.routes import bp as main_blueprint
         app.register_blueprint(main_blueprint)
 
+        # Exclude public routes from login requirement
+        @app.before_request
+        def check_route():
+            from flask import request
+            if request.endpoint and 'public' in request.endpoint:
+                return None
+            return None
+
         try:
             # Create tables
             db.create_all()
