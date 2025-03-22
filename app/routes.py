@@ -77,8 +77,8 @@ def print_inventory_qr_codes():
             qr_img.save(buffered, format="PNG")
             qr_code = base64.b64encode(buffered.getvalue()).decode()
             
-            # Crear nombre compuesto (categoría - nombre)
-            item_name = f"{item.name} - {item.category.name}"
+            # Crear nombre compuesto (nombre • categoría)
+            item_name = f"{item.name} • {item.category.name}"
             logger.debug(f"Nombre compuesto generado: {item_name}")
             
             # Agregar item con su código QR y nombre compuesto
