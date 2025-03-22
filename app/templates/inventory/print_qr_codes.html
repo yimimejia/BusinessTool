@@ -58,11 +58,12 @@
         margin-bottom: 1px;
     }
     .item-name {
-        font-size: 8px;
+        font-size: 7px;  /* Reducido de 8px a 7px para acomodar nombres más largos */
         margin-top: 1px;
-        white-space: nowrap;
+        white-space: normal;  /* Cambiado de nowrap a normal para permitir dos líneas */
         overflow: hidden;
-        text-overflow: ellipsis;
+        line-height: 1.2;
+        max-height: 2.4em;  /* Permitir hasta dos líneas de texto */
         padding: 0 1px;
     }
 }

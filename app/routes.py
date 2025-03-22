@@ -74,9 +74,9 @@ def print_inventory_qr_codes():
             qr_img.save(buffered, format="PNG")
             qr_code = base64.b64encode(buffered.getvalue()).decode()
             
-            # Agregar item con su código QR
+            # Agregar item con su código QR y nombre compuesto (categoría - nombre)
             items_by_category[item.category.name].append({
-                'name': item.name,
+                'name': f"{item.name} ({item.category.name})",
                 'qr_code': qr_code
             })
 
