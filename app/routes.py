@@ -58,7 +58,7 @@ def print_inventory_qr_codes():
             qr = qrcode.QRCode(
                 version=1,
                 error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=4,  # Reducido aún más para hacer el código más compacto
+                box_size=3,  # Reducido aún más para hacer el código más compacto
                 border=1     # Borde mínimo para maximizar espacio
             )
             
