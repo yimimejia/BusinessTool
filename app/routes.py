@@ -81,8 +81,8 @@ def print_inventory_qr_codes():
             items_by_category[item.category.name].append({
                 'name': item.name,
                 'qr_code': qr_code,
-                'dimensions': f"{item.width}x{item.height}" if hasattr(item, 'width') and hasattr(item, 'height') else None,
-                'category': item.category.name  # Agregar la categoría al diccionario
+                'dimensions': f"{item.width}x{item.height}" if hasattr(item, 'width') and hasattr(item, 'height') else None
+                # La categoría viene del iterador principal (item.category.name)
             })
 
         return render_template('inventory/print_qr_codes.html', items_by_category=items_by_category)
@@ -2459,6 +2459,43 @@ def complete_job(job_id):
                 'trabajo_completado',
                 f"Trabajo completado por {authorized_user.username if authorized_user else current_user.username}: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
             )
+            
+            # Enviar notificación por WhatsApp al cliente
+            try:
+                from app.utils.whatsapp import generate_client_completion_message, generate_whatsapp_link, send_whatsapp_message
+                
+                # Generar mensaje para el cliente
+                whatsapp_message = generate_client_completion_message(completed_job)
+                
+                # Intentar enviar mensaje directo por Twilio si hay credenciales
+                whatsapp_sent = False
+                if all([os.environ.get("TWILIO_ACCOUNT_SID"), 
+                        os.environ.get("TWILIO_AUTH_TOKEN"),
+                        os.environ.get("TWILIO_PHONE_NUMBER")]):
+                    whatsapp_sent = send_whatsapp_message(
+                        completed_job.phone_number,
+                        whatsapp_message
+                    )
+                    
+                # Generar enlace de WhatsApp como alternativa
+                whatsapp_link = generate_whatsapp_link(
+                    completed_job.phone_number,
+                    whatsapp_message
+                )
+                
+                # Registrar envío
+                if whatsapp_sent:
+                    log_activity(
+                        'notificacion_whatsapp',
+                        f"Notificación automática enviada a {completed_job.client_name} por WhatsApp"
+                    )
+                    logger.info(f"Notificación WhatsApp enviada para trabajo completado #{completed_job.id}")
+                else:
+                    logger.info(f"Se generó enlace de WhatsApp para trabajo completado #{completed_job.id}")
+                
+            except Exception as whatsapp_error:
+                # Si falla el envío por WhatsApp, solo registramos el error pero no fallamos la operación principal
+                logger.error(f"Error al enviar notificación por WhatsApp: {str(whatsapp_error)}")
 
             return jsonify({
                 'success': True,
