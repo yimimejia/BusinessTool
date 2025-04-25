@@ -2464,8 +2464,11 @@ def notify_all_pending_jobs():
             flash('Faltan credenciales de Twilio para enviar mensajes por WhatsApp', 'error')
             return redirect(url_for('main.completed_jobs'))
         
-        # Obtener todos los trabajos completados no llamados con número de teléfono
-        jobs_to_notify = CompletedJob.query.filter_by(is_called=False).filter(CompletedJob.phone_number != None).all()
+        # Obtener todos los trabajos completados no llamados con número de teléfono válido
+        jobs_to_notify = CompletedJob.query.filter_by(is_called=False).filter(
+            CompletedJob.phone_number != None,
+            CompletedJob.phone_number != ''
+        ).all()
         
         if not jobs_to_notify:
             flash('No hay trabajos pendientes para notificar', 'info')
@@ -2481,6 +2484,15 @@ def notify_all_pending_jobs():
         # Procesar cada trabajo
         for job in jobs_to_notify:
             try:
+                # Validar el número de teléfono
+                if not job.phone_number or not job.phone_number.strip():
+                    logger.warning(f"Trabajo #{job.id} - Número de teléfono inválido o vacío: '{job.phone_number}'")
+                    failed_count += 1
+                    continue
+                    
+                # Log para debugging
+                logger.info(f"Notificando trabajo #{job.id} - {job.client_name} - Teléfono: {job.phone_number}")
+                
                 # Generar mensaje para el cliente
                 whatsapp_message = generate_client_completion_message(job)
                 
@@ -2501,8 +2513,10 @@ def notify_all_pending_jobs():
                     )
                     
                     success_count += 1
+                    logger.info(f"Notificación exitosa para trabajo #{job.id}")
                 else:
                     failed_count += 1
+                    logger.warning(f"Falló el envío de WhatsApp para trabajo #{job.id}")
                     
             except Exception as e:
                 logger.error(f"Error al enviar WhatsApp a {job.client_name}: {str(e)}")

@@ -30,22 +30,51 @@ def send_whatsapp_message(to_phone_number, message):
         if not all([TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER]):
             logger.error("Faltan credenciales de Twilio para enviar mensajes por WhatsApp")
             return False
+        
+        # Verificar y limpiar el número de teléfono del destinatario
+        if not to_phone_number:
+            logger.error("Número de teléfono del destinatario es nulo o vacío")
+            return False
             
-        # Asegurar que el número tenga el formato correcto
-        if not to_phone_number.startswith('+'):
-            to_phone_number = f"+{to_phone_number}"
+        clean_to_number = to_phone_number.strip() if to_phone_number else ""
+        if not clean_to_number:
+            logger.error("Número de teléfono del destinatario está vacío después de limpieza")
+            return False
+            
+        if not clean_to_number.startswith('+'):
+            clean_to_number = f"+{clean_to_number}"
+        
+        # Verificar y limpiar el número de origen (Twilio)
+        if not TWILIO_PHONE_NUMBER:
+            logger.error("Número de teléfono de Twilio es nulo o vacío")
+            return False
+            
+        clean_from_number = TWILIO_PHONE_NUMBER.strip() if TWILIO_PHONE_NUMBER else ""
+        if not clean_from_number:
+            logger.error("Número de teléfono de Twilio está vacío después de limpieza")
+            return False
+            
+        if not clean_from_number.startswith('+'):
+            clean_from_number = f"+{clean_from_number}"
+        
+        # Asegurarse de que el prefijo "whatsapp:" se use correctamente
+        whatsapp_from = f"whatsapp:{clean_from_number}"
+        whatsapp_to = f"whatsapp:{clean_to_number}"
         
         # Crear cliente de Twilio
         client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
         
-        # Enviar mensaje por WhatsApp - asegurando que se envíe como un solo mensaje
-        message = client.messages.create(
-            from_=f"whatsapp:{TWILIO_PHONE_NUMBER}",
+        # Log para debugging
+        logger.info(f"Intentando enviar WhatsApp desde {whatsapp_from} a {whatsapp_to}")
+        
+        # Enviar mensaje por WhatsApp
+        message_obj = client.messages.create(
+            from_=whatsapp_from,
             body=message,
-            to=f"whatsapp:{to_phone_number}"
+            to=whatsapp_to
         )
         
-        logger.info(f"Mensaje de WhatsApp enviado, SID: {message.sid}")
+        logger.info(f"Mensaje de WhatsApp enviado, SID: {message_obj.sid}")
         return True
         
     except Exception as e:
@@ -65,15 +94,27 @@ def generate_whatsapp_link(phone_number, message):
         str: URL para abrir WhatsApp con el mensaje predefinido
     """
     try:
+        # Verificar que el número de teléfono sea válido
+        if not phone_number:
+            logger.error("Número de teléfono es nulo o vacío")
+            return ""
+            
+        # Limpiar y formatear el número de teléfono
+        clean_number = phone_number.strip() if phone_number else ""
+        if not clean_number:
+            logger.error("Número de teléfono está vacío después de limpieza")
+            return ""
+            
         # Eliminar el "+" inicial si existe
-        if phone_number.startswith('+'):
-            phone_number = phone_number[1:]
+        if clean_number.startswith('+'):
+            clean_number = clean_number[1:]
             
         # Codificar el mensaje para URL
         encoded_message = quote(message)
         
         # Construir la URL
-        whatsapp_url = f"https://wa.me/{phone_number}?text={encoded_message}"
+        whatsapp_url = f"https://wa.me/{clean_number}?text={encoded_message}"
+        logger.info(f"Generado enlace WhatsApp: wa.me/{clean_number}")
         return whatsapp_url
         
     except Exception as e:
