@@ -2529,15 +2529,20 @@ def complete_job(job_id):
                     whatsapp_message
                 )
                 
-                # Registrar envío
+                # Registrar envío y marcar como llamado si se envió correctamente
                 if whatsapp_sent:
+                    # Marcar trabajo como llamado automáticamente
+                    completed_job.is_called = True
+                    completed_job.called_at = datetime.utcnow()
+                    db.session.commit()
+                    
                     log_activity(
                         'notificacion_whatsapp',
-                        f"Notificación automática enviada a {completed_job.client_name} por WhatsApp"
+                        f"Notificación automática enviada a {completed_job.client_name} por WhatsApp - Marcado como llamado"
                     )
-                    logger.info(f"Notificación WhatsApp enviada para trabajo completado #{completed_job.id}")
+                    logger.info(f"Notificación WhatsApp enviada para trabajo completado #{completed_job.id} - Marcado como llamado")
                 else:
-                    logger.info(f"Se generó enlace de WhatsApp para trabajo completado #{completed_job.id}")
+                    logger.info(f"Se generó enlace de WhatsApp para trabajo completado #{completed_job.id} pero no se marcó como llamado")
                 
             except Exception as whatsapp_error:
                 # Si falla el envío por WhatsApp, solo registramos el error pero no fallamos la operación principal

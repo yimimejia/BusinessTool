@@ -88,6 +88,14 @@ def create_app():
                 except Exception as e:
                     logging.error(f"Error loading user: {str(e)}")
                     return None
+                    
+            # Iniciar el scheduler para tareas programadas
+            try:
+                from app.tasks import setup_scheduler
+                setup_scheduler(app)
+                logging.info("Scheduler de tareas iniciado")
+            except Exception as scheduler_error:
+                logging.error(f"Error al iniciar scheduler: {str(scheduler_error)}")
 
             # Add default admin user if not exists
             admin_user = models.User.query.filter_by(username='admin').first()
