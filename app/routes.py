@@ -878,6 +878,45 @@ def process_pending_job(job_id):
 
         logger.info(f"Trabajo creado con QR: {active_job.qr_code}")
         
+        # Notificar al cliente por WhatsApp si hay un número de teléfono
+        try:
+            if active_job.phone_number:
+                from app.utils.whatsapp import generate_whatsapp_link
+                
+                # Preparar mensaje para el cliente
+                whatsapp_message = f"""*FOTO VIDEO MOJICA*
+¡Gracias por su preferencia!
+
+Su trabajo ha sido *REGISTRADO* exitosamente:
+📝 Descripción: {active_job.description}
+🔢 Factura: {active_job.invoice_number}
+💵 Total: ${float(active_job.total_amount or 0)}
+💳 Abono: ${float(active_job.deposit_amount or 0)}
+
+Le notificaremos cuando esté listo para recoger.
+"""
+                
+                # Generar enlace de WhatsApp para facilitar envío manual
+                whatsapp_link = generate_whatsapp_link(
+                    active_job.phone_number,
+                    whatsapp_message
+                )
+                
+                logger.info(f"Enlace WhatsApp generado para trabajo {active_job.id}: {whatsapp_link}")
+                
+                # Almacenar el enlace en la sesión para mostrarlo en la factura
+                session['whatsapp_link'] = whatsapp_link
+                
+                # Registrar en actividad
+                log_activity(
+                    'generar_whatsapp_link',
+                    f"Enlace de WhatsApp generado para notificar a {active_job.client_name}"
+                )
+                
+        except Exception as whatsapp_error:
+            # Si falla la generación del enlace de WhatsApp, solo registramos el error pero no fallamos la operación principal
+            logger.error(f"Error al generar enlace de WhatsApp: {str(whatsapp_error)}")
+        
         flash('Trabajo aprobado exitosamente', 'success')
         # Redirigir a la vista de factura para enviar al cliente
         return redirect(url_for('main.view_invoice_pdf', job_id=active_job.id))
