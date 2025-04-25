@@ -2451,6 +2451,82 @@ def remove_job(job_id):
         logger.error(f"Error al eliminar trabajo: {str(e)}")
         return jsonify({'success': False, 'message': 'Error al eliminar el trabajo'})
 
+@bp.route('/completed-jobs/notify-all-pending', methods=['POST'])
+@login_required
+@staff_required
+def notify_all_pending_jobs():
+    """Enviar notificación por WhatsApp a todos los trabajos pendientes de llamar"""
+    try:
+        # Verificar credenciales de Twilio
+        if not all([os.environ.get("TWILIO_ACCOUNT_SID"), 
+                  os.environ.get("TWILIO_AUTH_TOKEN"), 
+                  os.environ.get("TWILIO_PHONE_NUMBER")]):
+            flash('Faltan credenciales de Twilio para enviar mensajes por WhatsApp', 'error')
+            return redirect(url_for('main.completed_jobs'))
+        
+        # Obtener todos los trabajos completados no llamados con número de teléfono
+        jobs_to_notify = CompletedJob.query.filter_by(is_called=False).filter(CompletedJob.phone_number != None).all()
+        
+        if not jobs_to_notify:
+            flash('No hay trabajos pendientes para notificar', 'info')
+            return redirect(url_for('main.completed_jobs'))
+        
+        # Importar funciones de WhatsApp
+        from app.utils.whatsapp import generate_client_completion_message, send_whatsapp_message
+        
+        # Contador de éxitos y fallos
+        success_count = 0
+        failed_count = 0
+        
+        # Procesar cada trabajo
+        for job in jobs_to_notify:
+            try:
+                # Generar mensaje para el cliente
+                whatsapp_message = generate_client_completion_message(job)
+                
+                # Enviar mensaje
+                whatsapp_sent = send_whatsapp_message(
+                    job.phone_number,
+                    whatsapp_message
+                )
+                
+                if whatsapp_sent:
+                    # Marcar como llamado automáticamente
+                    job.is_called = True
+                    job.called_at = datetime.utcnow()
+                    
+                    log_activity(
+                        'whatsapp_enviado',
+                        f"Notificación masiva WhatsApp enviada a {job.client_name} (Factura: {job.invoice_number})"
+                    )
+                    
+                    success_count += 1
+                else:
+                    failed_count += 1
+                    
+            except Exception as e:
+                logger.error(f"Error al enviar WhatsApp a {job.client_name}: {str(e)}")
+                failed_count += 1
+        
+        # Guardar todos los cambios
+        db.session.commit()
+        
+        if success_count > 0:
+            message = f'{success_count} notificaciones enviadas exitosamente'
+            if failed_count > 0:
+                message += f' ({failed_count} fallidas)'
+            flash(message, 'success')
+        else:
+            flash(f'No se pudo enviar ninguna notificación. {failed_count} fallidas.', 'error')
+            
+        return redirect(url_for('main.completed_jobs'))
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al enviar notificaciones masivas: {str(e)}")
+        flash(f'Error al procesar notificaciones masivas: {str(e)}', 'error')
+        return redirect(url_for('main.completed_jobs'))
+
 @bp.route('/completed-jobs')
 @login_required
 def completed_jobs():
@@ -2459,7 +2535,7 @@ def completed_jobs():
         # Si es staff (admin o supervisor) ve todos los trabajos
         jobs = CompletedJob.query.order_by(CompletedJob.completed_at.desc()).all()
     else:
-        # Si es diseñador,        # Si es diseñador, solo ve sus trabajos completados
+        # Si es diseñador, solo ve sus trabajos completados
         jobs = CompletedJob.query.filter_by(designer_id=current_user.id).order_by(CompletedJob.completed_at.desc()).all()
 
     return render_template('completed_jobs.html', jobs=jobs)
@@ -3502,7 +3578,7 @@ def get_job_photos(job_id):
     """Obtiene los mensajes con fotos para un trabajo específico"""
     return Message.query.filter(
         Message.content.like(f'%trabajo #{job_id}%'),
-        Message.photos.isnot(None)
+        Message.photos != None
     ).order_by(Message.created_at.desc()).all()
 
 import json
