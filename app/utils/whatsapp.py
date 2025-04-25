@@ -79,17 +79,28 @@ def generate_whatsapp_link(phone_number, message):
         return ""
 
 
-def generate_client_completion_message(job):
+def generate_client_completion_message(job, include_invoice_url=True):
     """
     Genera un mensaje de WhatsApp para avisar que un trabajo está completado
     
     Args:
         job (CompletedJob): Trabajo completado
+        include_invoice_url (bool): Indica si se debe incluir el enlace a la factura
         
     Returns:
         str: Mensaje formateado para WhatsApp
     """
     try:
+        # URL pública de la factura si existe un QR code
+        invoice_url = ""
+        if include_invoice_url and job.qr_code:
+            from flask import url_for
+            from app import create_app
+            
+            # Crear un contexto de aplicación para generar URLs
+            with create_app().test_request_context():
+                invoice_url = url_for('main.view_public_invoice', qr_code=job.qr_code, _external=True)
+        
         message = f"""*FOTO VIDEO MOJICA*
 ¡Hola {job.client_name}!
 
@@ -98,14 +109,28 @@ Nos complace informarle que su trabajo ya está *LISTO* ✅
 *Detalles:*
 📝 Descripción: {job.description}
 🔢 Factura: {job.invoice_number}
-💵 Total: ${float(job.total_amount or 0)}
+💵 Total: ${float(job.total_amount or 0)}"""
+
+        # Agregar enlace a la factura si está disponible
+        if invoice_url:
+            message += f"""
+
+*Ver su factura en línea:*
+{invoice_url}"""
+
+        message += f"""
 
 Puede pasar a recogerlo en nuestras instalaciones en horario de atención.
 ¡Gracias por su preferencia!
+
+*IMPORTANTE:* 
+No responda a este número automático.
+Para cualquier consulta, contáctenos al:
+*+1 (809) 246-0263*
 
 FOTO VIDEO MOJICA
 """
         return message
     except Exception as e:
         logger.error(f"Error al generar mensaje de finalización: {str(e)}")
-        return "Su trabajo en FOTO VIDEO MOJICA está listo. ¡Gracias por su preferencia!"
+        return "Su trabajo en FOTO VIDEO MOJICA está listo. Para verlo online o contactarnos llame al +1 (809) 246-0263. ¡Gracias por su preferencia!"

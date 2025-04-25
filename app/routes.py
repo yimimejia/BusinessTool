@@ -3180,7 +3180,7 @@ def approve_pending_job(job_id):
             registered_by_id=pending_job.registered_by_id,
             invoice_number=pending_job.invoice_number,
             client_name=pending_job.client_name,
-            phone_number=pending_job.phone_number,  # Fixed: changed from phonenumber to phone_number
+            phone_number=pending_job.phone_number,
             total_amount=float(pending_job.total_amount or 0),
             deposit_amount=float(pending_job.deposit_amount or 0),
             completed_at=datetime.utcnow(),
@@ -3196,6 +3196,51 @@ def approve_pending_job(job_id):
             'trabajo_aprobado',
             f"Trabajo aprobado: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
         )
+
+        # Enviar notificación por WhatsApp si hay un número de teléfono
+        try:
+            if completed_job.phone_number:
+                from app.utils.whatsapp import generate_client_completion_message, generate_whatsapp_link, send_whatsapp_message
+                
+                # Generar mensaje para el cliente
+                whatsapp_message = generate_client_completion_message(completed_job)
+                
+                # Intentar enviar mensaje directo por Twilio si hay credenciales
+                whatsapp_sent = False
+                if all([os.environ.get("TWILIO_ACCOUNT_SID"), 
+                        os.environ.get("TWILIO_AUTH_TOKEN"),
+                        os.environ.get("TWILIO_PHONE_NUMBER")]):
+                    try:
+                        whatsapp_sent = send_whatsapp_message(
+                            completed_job.phone_number,
+                            whatsapp_message
+                        )
+                    except Exception as twilio_error:
+                        logger.error(f"Error al enviar WhatsApp con Twilio: {str(twilio_error)}")
+                        whatsapp_sent = False
+                
+                # Generar enlace de WhatsApp como alternativa
+                whatsapp_link = generate_whatsapp_link(
+                    completed_job.phone_number,
+                    whatsapp_message
+                )
+                
+                # Almacenar el enlace en la sesión para usarlo si es necesario
+                session['whatsapp_link'] = whatsapp_link
+                
+                # Registrar envío en la actividad
+                if whatsapp_sent:
+                    log_activity(
+                        'notificacion_whatsapp',
+                        f"Notificación automática enviada a {completed_job.client_name} por WhatsApp"
+                    )
+                    logger.info(f"Notificación WhatsApp enviada para trabajo completado #{completed_job.id}")
+                else:
+                    logger.info(f"Se generó enlace de WhatsApp para trabajo completado #{completed_job.id}: {whatsapp_link}")
+                
+        except Exception as whatsapp_error:
+            # Si falla el envío por WhatsApp, solo registramos el error pero no fallamos la operación principal
+            logger.error(f"Error al generar/enviar notificación por WhatsApp: {str(whatsapp_error)}")
 
         flash('Trabajo aprobado exitosamente', 'success')
         return redirect(url_for('main.pending_verification'))
@@ -3486,7 +3531,59 @@ def api_complete_job():
             f"Trabajo completado para {completed_job.client_name} (Factura: {completed_job.invoice_number})"
         )
 
-        return jsonify({'success': True, 'message': 'Trabajo completado exitosamente'})
+        # Enviar notificación por WhatsApp si hay un número de teléfono
+        whatsapp_link = None
+        try:
+            if completed_job.phone_number:
+                from app.utils.whatsapp import generate_client_completion_message, generate_whatsapp_link, send_whatsapp_message
+                
+                # Generar mensaje para el cliente
+                whatsapp_message = generate_client_completion_message(completed_job)
+                
+                # Intentar enviar mensaje directo por Twilio si hay credenciales
+                whatsapp_sent = False
+                if all([os.environ.get("TWILIO_ACCOUNT_SID"), 
+                        os.environ.get("TWILIO_AUTH_TOKEN"),
+                        os.environ.get("TWILIO_PHONE_NUMBER")]):
+                    try:
+                        whatsapp_sent = send_whatsapp_message(
+                            completed_job.phone_number,
+                            whatsapp_message
+                        )
+                    except Exception as twilio_error:
+                        logger.error(f"Error al enviar WhatsApp con Twilio: {str(twilio_error)}")
+                        whatsapp_sent = False
+                
+                # Generar enlace de WhatsApp como alternativa
+                whatsapp_link = generate_whatsapp_link(
+                    completed_job.phone_number,
+                    whatsapp_message
+                )
+                
+                # Registrar envío en la actividad
+                if whatsapp_sent:
+                    log_activity(
+                        'notificacion_whatsapp',
+                        f"Notificación automática enviada a {completed_job.client_name} por WhatsApp"
+                    )
+                    logger.info(f"Notificación WhatsApp enviada para trabajo completado #{completed_job.id}")
+                else:
+                    logger.info(f"Se generó enlace de WhatsApp para trabajo completado #{completed_job.id}")
+                
+        except Exception as whatsapp_error:
+            # Si falla el envío por WhatsApp, solo registramos el error pero no fallamos la operación principal
+            logger.error(f"Error al generar/enviar notificación por WhatsApp: {str(whatsapp_error)}")
+
+        # Incluir enlace de WhatsApp en la respuesta si está disponible
+        response_data = {
+            'success': True, 
+            'message': 'Trabajo completado exitosamente'
+        }
+        
+        if whatsapp_link:
+            response_data['whatsapp_link'] = whatsapp_link
+            
+        return jsonify(response_data)
 
     except Exception as e:
         db.session.rollback()
