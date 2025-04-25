@@ -2310,10 +2310,17 @@ def edit_job(job_id):
 @login_required
 @staff_required
 def mark_called(job_id):
+    """Marca un trabajo como llamado/notificado al cliente"""
     job = CompletedJob.query.get_or_404(job_id)
     job.is_called = True
     job.called_at = datetime.utcnow()
     db.session.commit()
+    
+    log_activity(
+        'trabajo_notificado',
+        f"Cliente {job.client_name} marcado como notificado (Factura: {job.invoice_number})"
+    )
+    
     flash('Cliente marcado como notificado', 'success')
     return redirect(url_for('main.completed_jobs'))
 
