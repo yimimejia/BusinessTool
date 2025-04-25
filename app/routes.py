@@ -767,8 +767,8 @@ def cleanup_temp_files(*file_paths):
 
 @bp.route('/jobs/<int:job_id>/send-whatsapp-notification', methods=['GET'])
 @login_required
-def send_whatsapp_notification(job_id):
-    """Enviar notificación por WhatsApp"""
+def send_job_whatsapp_notification(job_id):
+    """Enviar notificación por WhatsApp para trabajos activos"""
     try:
         job = Job.query.get_or_404(job_id)
         
@@ -2323,6 +2323,59 @@ def mark_called(job_id):
     
     flash('Cliente marcado como notificado', 'success')
     return redirect(url_for('main.completed_jobs'))
+
+@bp.route('/completed-jobs/<int:job_id>/send-whatsapp-and-mark', methods=['POST'])
+@login_required
+@staff_required
+def send_whatsapp_and_mark(job_id):
+    """Enviar notificación por WhatsApp y marcar como llamado automáticamente"""
+    try:
+        job = CompletedJob.query.get_or_404(job_id)
+        
+        if not job.phone_number:
+            flash('Este trabajo no tiene número de teléfono registrado', 'error')
+            return redirect(url_for('main.completed_jobs'))
+        
+        # Verificar credenciales de Twilio
+        if not all([os.environ.get("TWILIO_ACCOUNT_SID"), 
+                  os.environ.get("TWILIO_AUTH_TOKEN"), 
+                  os.environ.get("TWILIO_PHONE_NUMBER")]):
+            flash('Faltan credenciales de Twilio para enviar mensajes por WhatsApp', 'error')
+            return redirect(url_for('main.completed_jobs'))
+        
+        # Enviar notificación por WhatsApp
+        from app.utils.whatsapp import generate_client_completion_message, send_whatsapp_message
+        
+        # Generar mensaje para el cliente
+        whatsapp_message = generate_client_completion_message(job)
+        
+        # Enviar mensaje
+        whatsapp_sent = send_whatsapp_message(
+            job.phone_number,
+            whatsapp_message
+        )
+        
+        if whatsapp_sent:
+            # Marcar como llamado automáticamente
+            job.is_called = True
+            job.called_at = datetime.utcnow()
+            db.session.commit()
+            
+            log_activity(
+                'whatsapp_enviado',
+                f"Notificación WhatsApp enviada a {job.client_name} (Factura: {job.invoice_number})"
+            )
+            
+            flash('Mensaje de WhatsApp enviado y trabajo marcado como notificado', 'success')
+        else:
+            flash('No se pudo enviar el mensaje de WhatsApp. Intente más tarde.', 'error')
+            
+        return redirect(url_for('main.completed_jobs'))
+        
+    except Exception as e:
+        logger.error(f"Error al enviar notificación WhatsApp: {str(e)}")
+        flash(f'Error al enviar notificación: {str(e)}', 'error')
+        return redirect(url_for('main.completed_jobs'))
 
 @bp.route('/completed-jobs/<int:job_id>/mark-delivered', methods=['POST'])
 @login_required

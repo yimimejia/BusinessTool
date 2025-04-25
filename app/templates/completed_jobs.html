@@ -82,15 +82,23 @@
                                     </button>
                                 </form>
                                 {% if job.phone_number %}
+                                <!-- Botón para usar la API de Twilio directamente -->
+                                <form action="{{ url_for('main.send_whatsapp_and_mark', job_id=job.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-primary" title="Enviar WhatsApp y marcar como llamado">
+                                        <i class="bi bi-whatsapp"></i> Notificar
+                                    </button>
+                                </form>
+                                
+                                <!-- Enlaces alternativos de WhatsApp para uso manual -->
                                 {%- set mensaje = "Le hablamos de *FOTO VIDEO MOJICA* para informarle que su trabajo está listo. Puede ver su factura en el siguiente enlace: " + url_for('main.view_invoice_pdf', job_id=job.id, _external=True) -%}
                                 {%- set clean_phone = job.phone_number | replace('+', '') | replace('-', '') | replace(' ', '') -%}
                                 <a href="https://wa.me/{{ clean_phone }}?text={{ mensaje | urlencode }}" 
-                                   class="btn btn-sm btn-success" target="_blank">
+                                   class="btn btn-sm btn-success" target="_blank" title="Abrir WhatsApp Web">
                                     <i class="bi bi-whatsapp"></i> WhatsApp
                                 </a>
                                 <a href="{{ url_for('main.send_whatsapp_invoice', job_id=job.id) }}" 
-                                   class="btn btn-sm btn-success" target="_blank">
-                                    <i class="bi bi-whatsapp"></i> Enviar Factura
+                                   class="btn btn-sm btn-success" target="_blank" title="Enviar factura por WhatsApp">
+                                    <i class="bi bi-whatsapp"></i> Factura
                                 </a>
                                 {% endif %}
                                 {% else %}
