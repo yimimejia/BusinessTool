@@ -366,6 +366,10 @@ Nos complace informarle que su trabajo ya está *LISTO* para recoger.
 *Acceder a su factura digital:*
 {invoice_url}
 
+*Horario de atención:*
+🕐 Lunes a Viernes: 8:00 AM - 6:00 PM
+🕐 Sábados y Domingos: 8:00 AM - 5:00 PM
+
 Puede pasar a recoger su trabajo en nuestras instalaciones durante nuestro horario de atención.
 
 Gracias por confiar en nosotros.
@@ -382,6 +386,10 @@ Su trabajo está *LISTO* para recoger.
 
 Factura: {self.invoice_number}
 Descripción: {self.description}
+
+*Horario de atención:*
+🕐 Lunes a Viernes: 8:00 AM - 6:00 PM
+🕐 Sábados y Domingos: 8:00 AM - 5:00 PM
 
 Gracias por su preferencia."""
 

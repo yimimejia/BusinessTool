@@ -165,6 +165,10 @@ Nos complace informarle que su trabajo ya está *LISTO* para recoger.
 
         message += f"""
 
+*Horario de atención:*
+🕐 Lunes a Viernes: 8:00 AM - 6:00 PM
+🕐 Sábados y Domingos: 8:00 AM - 5:00 PM
+
 Puede pasar a recoger su trabajo en nuestras instalaciones durante nuestro horario de atención.
 
 Gracias por confiar en nosotros.
