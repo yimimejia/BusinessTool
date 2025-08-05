@@ -55,9 +55,17 @@
         // Función para inicializar DataTables de manera segura
         function initializeDataTable(tableId) {
             const table = $(tableId);
-            if ($.fn.DataTable.isDataTable(tableId)) {
-                table.DataTable().destroy();
+            if (table.length === 0) {
+                return;
             }
+            
+            // Verificar si DataTable ya está inicializada
+            if ($.fn.DataTable.isDataTable(tableId)) {
+                // Destruir la instancia existente primero
+                table.DataTable().destroy();
+                table.empty();
+            }
+            
             table.DataTable({
                 language: {
                     url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
