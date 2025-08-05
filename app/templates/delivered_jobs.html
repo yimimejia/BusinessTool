@@ -42,21 +42,7 @@
 
 <script>
 $(document).ready(function() {
-    $('#deliveredJobsTable').DataTable({
-        "order": [[ 5, "desc" ]],  // Ordenar por fecha de entrega (descendente)
-        "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
-        },
-        "responsive": true,
-        "columns": [
-            { "width": "5%" },  // ID
-            { "width": "25%" }, // Cliente + Descripción
-            { "width": "10%" }, // Factura
-            { "width": "15%" }, // Teléfono
-            { "width": "15%" }, // Diseñador
-            { "width": "15%" }  // Fecha
-        ]
-    });
+    initializeDataTable('#deliveredJobsTable');
 });
 </script>
 {% endblock %}

@@ -93,11 +93,7 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Inicializar DataTable con configuración en español
-        initializeDataTable('#pendingJobsTable', {
-            language: {
-                url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
-            }
-        });
+        initializeDataTable('#pendingJobsTable');
 
         let currentJobId = null;
         const authModal = new bootstrap.Modal(document.getElementById('authModal'));

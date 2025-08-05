@@ -52,27 +52,47 @@
             });
         }
 
+        // Variable global para rastrear DataTables inicializadas
+        window.initializedTables = window.initializedTables || new Set();
+
         // Función para inicializar DataTables de manera segura
         function initializeDataTable(tableId) {
             const table = $(tableId);
             if (table.length === 0) {
+                console.warn('Tabla no encontrada:', tableId);
+                return;
+            }
+            
+            // Verificar si ya fue inicializada antes
+            if (window.initializedTables.has(tableId)) {
+                console.log('DataTable ya inicializada:', tableId);
                 return;
             }
             
             // Verificar si DataTable ya está inicializada
             if ($.fn.DataTable.isDataTable(tableId)) {
-                // Destruir la instancia existente primero
-                table.DataTable().destroy();
-                table.empty();
+                console.log('DataTable detectada como existente:', tableId);
+                window.initializedTables.add(tableId);
+                return;
             }
             
-            table.DataTable({
-                language: {
-                    url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
-                },
-                responsive: true,
-                order: [[0, 'desc']]
-            });
+            try {
+                table.DataTable({
+                    language: {
+                        url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+                    },
+                    responsive: true,
+                    order: [[0, 'desc']],
+                    retrieve: true // Permite recuperar instancia existente
+                });
+                
+                // Marcar como inicializada
+                window.initializedTables.add(tableId);
+                console.log('DataTable inicializada exitosamente:', tableId);
+                
+            } catch (error) {
+                console.error('Error inicializando DataTable:', tableId, error);
+            }
         }
 
         // Firebase Configuration and Initialization
