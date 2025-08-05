@@ -55,8 +55,8 @@
               <td>
                 <div class="btn-group">
                   {% if job.status == 'pending' %}
-                  <button class="btn btn-success btn-sm complete-job" data-job-id="{{ job.id }}">
-                    <i class="bi bi-check-circle"></i> Completar
+                  <button class="btn btn-warning btn-sm notify-job" data-job-id="{{ job.id }}" data-client="{{ job.client_name }}" data-description="{{ job.description }}">
+                    <i class="bi bi-bell"></i> Notificar
                   </button>
                   {% endif %}
                 </div>
@@ -70,7 +70,64 @@
   </div>
 </div>
 
-<!-- El resto del código permanece igual -->
+<!-- JavaScript para manejar el botón Notificar -->
+<script>
+$(document).ready(function() {
+    // Manejar clic en botón Notificar
+    $('.notify-job').click(function() {
+        const jobId = $(this).data('job-id');
+        const clientName = $(this).data('client');
+        const description = $(this).data('description');
+        const button = $(this);
+        
+        // Confirmar acción
+        if (!confirm(`¿Marcar trabajo como listo para verificación?\n\nCliente: ${clientName}\nDescripción: ${description}`)) {
+            return;
+        }
+        
+        // Deshabilitar botón
+        button.prop('disabled', true);
+        button.html('<i class="bi bi-clock"></i> Procesando...');
+        
+        // Enviar solicitud
+        fetch('/api/mark-job-ready', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ job_id: jobId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Mostrar mensaje de éxito
+                alert('¡Trabajo marcado como listo para verificación!');
+                
+                // Remover fila de la tabla
+                button.closest('tr').fadeOut(500, function() {
+                    $(this).remove();
+                });
+            } else {
+                alert('Error: ' + data.message);
+                // Restaurar botón
+                button.prop('disabled', false);
+                button.html('<i class="bi bi-bell"></i> Notificar');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al procesar la solicitud');
+            // Restaurar botón
+            button.prop('disabled', false);
+            button.html('<i class="bi bi-bell"></i> Notificar');
+        });
+    });
+    
+    // Inicializar DataTable
+    initializeDataTable('#jobsTable');
+});
+</script>
+
 <!-- Modal de Autenticación -->
 <div class="modal fade" id="authModal" tabindex="-1">
   <div class="modal-dialog">

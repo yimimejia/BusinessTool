@@ -67,6 +67,10 @@ def create_app():
         # Import and register routes blueprint
         from app.routes import bp as main_blueprint
         app.register_blueprint(main_blueprint)
+        
+        # Register Firebase API blueprint
+        from app.firebase_api import firebase_bp
+        app.register_blueprint(firebase_bp)
 
         # Exclude public routes from login requirement
         @app.before_request

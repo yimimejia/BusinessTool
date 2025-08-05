@@ -3227,6 +3227,23 @@ def approve_pending_job(job_id):
             f"Trabajo aprobado: {completed_job.client_name} (Factura: {completed_job.invoice_number})"
         )
 
+        # Enviar notificaciones Firebase
+        try:
+            from app.utils.firebase_notifications import firebase_notifications
+            
+            # Notificar al diseñador sobre la aprobación
+            firebase_notifications.notify_job_approved(
+                completed_job.id,
+                completed_job.client_name,
+                completed_job.description,
+                completed_job.designer_id
+            )
+            
+            logger.info(f"Notificaciones Firebase enviadas para trabajo aprobado {completed_job.id}")
+            
+        except Exception as firebase_error:
+            logger.error(f"Error enviando notificaciones Firebase: {str(firebase_error)}")
+
         # Enviar notificación por WhatsApp si hay un número de teléfono
         try:
             if completed_job.phone_number:

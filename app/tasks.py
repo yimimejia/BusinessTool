@@ -5,7 +5,7 @@ import os
 import logging
 from datetime import datetime, timedelta
 from app import db, create_app
-from app.models import CompletedJob
+from app.models import CompletedJob, Job
 from app.utils.whatsapp import generate_client_completion_message, send_whatsapp_message
 from app.routes import log_activity
 
@@ -79,6 +79,56 @@ def notify_pending_completed_jobs():
         except Exception as e:
             logger.error(f"Error verificando trabajos pendientes por notificar: {str(e)}")
 
+def notify_pending_work_to_designers():
+    """
+    Notifica a diseñadores sobre trabajos pendientes cada 40 minutos
+    """
+    app = create_app()
+    
+    with app.app_context():
+        try:
+            from app.utils.firebase_notifications import firebase_notifications
+            
+            # Obtener todos los trabajos pendientes 
+            pending_jobs = Job.query.filter_by(status='pending').all()
+            
+            if not pending_jobs:
+                logger.info("No hay trabajos pendientes para notificar a diseñadores")
+                return
+                
+            logger.info(f"Notificando {len(pending_jobs)} trabajos pendientes a diseñadores")
+            
+            # Agrupar trabajos por diseñador
+            jobs_by_designer = {}
+            for job in pending_jobs:
+                if job.designer_id not in jobs_by_designer:
+                    jobs_by_designer[job.designer_id] = []
+                jobs_by_designer[job.designer_id].append(job)
+            
+            # Enviar notificaciones a cada diseñador
+            for designer_id, jobs in jobs_by_designer.items():
+                try:
+                    # Seleccionar un trabajo al azar para notificar
+                    import random
+                    job = random.choice(jobs)
+                    
+                    # Enviar notificación Firebase
+                    firebase_notifications.notify_pending_work(
+                        designer_id,
+                        job.client_name,
+                        job.description
+                    )
+                    
+                    logger.info(f"Notificación enviada a diseñador {designer_id} para trabajo {job.id}")
+                    
+                except Exception as job_error:
+                    logger.error(f"Error notificando a diseñador {designer_id}: {str(job_error)}")
+            
+        except Exception as e:
+            logger.error(f"Error en tarea de notificaciones a diseñadores: {str(e)}")
+        finally:
+            db.session.close()
+
 def setup_scheduler(app):
     """
     Configura el programador de tareas para ejecutar funciones periódicamente
@@ -97,6 +147,15 @@ def setup_scheduler(app):
             trigger=IntervalTrigger(minutes=15),
             id='check_completed_jobs',
             name='Verificar trabajos completados sin notificar',
+            replace_existing=True
+        )
+        
+        # Notificar trabajos pendientes a diseñadores cada 40 minutos
+        scheduler.add_job(
+            func=notify_pending_work_to_designers,
+            trigger=IntervalTrigger(minutes=40),
+            id='notify_designers',
+            name='Notificar trabajos pendientes a diseñadores',
             replace_existing=True
         )
         

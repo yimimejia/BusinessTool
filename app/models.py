@@ -21,6 +21,7 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     remember_token = db.Column(db.String(100))
     permanent_session = db.Column(db.Boolean, default=False)
+    fcm_token = db.Column(db.Text)  # Token para Firebase Cloud Messaging
 
     assigned_jobs = db.relationship('Job', 
                                   foreign_keys='Job.designer_id',

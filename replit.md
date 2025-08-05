@@ -8,6 +8,17 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+## August 2025 - Firebase Cloud Messaging Implementation
+- Implemented comprehensive Firebase Cloud Messaging system for internal staff notifications
+- Added fcm_token field to User model for push notification support
+- Created Firebase configuration files and notification utilities
+- Implemented automatic notifications every 40 minutes for designers with pending work
+- Added "Notificar" button in designer dashboard to mark work ready for verification
+- Added congratulatory notifications and modal when supervisors approve work
+- Integrated Firebase notifications into job approval workflow
+- Created comprehensive notification system with foreground and background message handling
+- Updated base template to include Firebase SDK and initialization scripts
+
 ## August 2025 - WhatsApp Integration Simplification
 - Removed Twilio WhatsApp bulk notification system due to configuration issues
 - Simplified WhatsApp integration to use web links instead of API calls
@@ -57,7 +68,8 @@ Preferred communication style: Simple, everyday language.
 # External Dependencies
 
 ## Third-party Services
-- **Twilio**: WhatsApp Business API for automated client notifications
+- **Firebase Cloud Messaging**: Real-time push notifications for internal staff communication
+- **Twilio**: WhatsApp Business API for individual client notifications via web links
 - **Redis**: Caching and real-time event streaming for SSE functionality
 
 ## Database
