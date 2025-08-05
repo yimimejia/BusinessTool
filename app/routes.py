@@ -521,28 +521,34 @@ def get_job_invoice_data(job_id=None, qr_code=None):
         ).first()
 
         if not invoice:
-            logger.info(f"Creando nueva factura para trabajo {job.id}")
-            invoice = Invoice(
-                job_id=job.id,
-                job_type='completed_job' if isinstance(job, CompletedJob) else 'job',
-                invoice_number=job.invoice_number,
-                total_amount=float(job.total_amount or 0),
-                deposit_amount=float(getattr(job, 'deposit_amount', 0) or 0),
-                created_at=job.created_at
-            )
-            
-            try:
-                # Generar token de acceso y establecer expiración
-                invoice.access_token = secrets.token_urlsafe(32)
-                invoice.token_expiry = datetime.utcnow() + timedelta(days=30)
+            # Verificar si ya existe una factura con este número antes de crear
+            existing_invoice = Invoice.query.filter_by(invoice_number=job.invoice_number).first()
+            if existing_invoice:
+                logger.warning(f"Factura con número {job.invoice_number} ya existe. Usando factura existente.")
+                invoice = existing_invoice
+            else:
+                logger.info(f"Creando nueva factura para trabajo {job.id}")
+                invoice = Invoice(
+                    job_id=job.id,
+                    job_type='completed_job' if isinstance(job, CompletedJob) else 'job',
+                    invoice_number=job.invoice_number,
+                    total_amount=float(job.total_amount or 0),
+                    deposit_amount=float(getattr(job, 'deposit_amount', 0) or 0),
+                    created_at=job.created_at
+                )
                 
-                db.session.add(invoice)
-                db.session.commit()
-                logger.info("Nueva factura creada exitosamente con token")
-            except Exception as e:
-                logger.error(f"Error al crear factura: {str(e)}")
-                db.session.rollback()
-                invoice = Invoice.query.filter_by(invoice_number=job.invoice_number).first()
+                try:
+                    # Generar token de acceso y establecer expiración
+                    invoice.access_token = secrets.token_urlsafe(32)
+                    invoice.token_expiry = datetime.utcnow() + timedelta(days=30)
+                    
+                    db.session.add(invoice)
+                    db.session.commit()
+                    logger.info("Nueva factura creada exitosamente con token")
+                except Exception as e:
+                    logger.error(f"Error al crear factura: {str(e)}")
+                    db.session.rollback()
+                    invoice = Invoice.query.filter_by(invoice_number=job.invoice_number).first()
                 if not invoice:
                     return None, None, 0, 0, 0
 
@@ -873,28 +879,27 @@ def process_pending_job(job_id):
         existing_invoice = Invoice.query.filter_by(invoice_number=invoice_number).first()
         
         if existing_invoice:
-            # Si ya existe una factura, actualizar su job_id al nuevo trabajo
-            existing_invoice.job_id = active_job.id
-            existing_invoice.job_type = 'job'
-            existing_invoice.total_amount = request.form.get('total_amount')
-            existing_invoice.deposit_amount = request.form.get('deposit_amount')
-            existing_invoice.issued_at = datetime.utcnow()
-            logger.info(f"Actualizando factura existente {invoice_number} para trabajo {active_job.id}")
-        else:
-            # Crear nueva factura solo si no existe
-            invoice = Invoice(
-                job_id=active_job.id,
-                job_type='job',
-                invoice_number=invoice_number,
-                total_amount=request.form.get('total_amount'),
-                deposit_amount=request.form.get('deposit_amount'),
-                created_at=pending_job.created_at,
-                issued_at=datetime.utcnow()
-            )
-            db.session.add(invoice)
-            logger.info(f"Creando nueva factura {invoice_number} para trabajo {active_job.id}")
+            # Si ya existe una factura, mostrar error y no procesar
+            db.session.rollback()
+            flash(f'Error: El número de factura {invoice_number} ya está registrado en el sistema. Por favor, use un número diferente.', 'error')
+            logger.warning(f"Intento de crear factura duplicada: {invoice_number}")
+            return redirect(url_for('main.approve_job', job_id=job_id))
+        
+        # Crear nueva factura solo si no existe
+        invoice = Invoice(
+            job_id=active_job.id,
+            job_type='job',
+            invoice_number=invoice_number,
+            total_amount=request.form.get('total_amount'),
+            deposit_amount=request.form.get('deposit_amount'),
+            created_at=pending_job.created_at,
+            issued_at=datetime.utcnow()
+        )
+        
+        db.session.add(invoice)
         db.session.delete(pending_job)
         db.session.commit()
+        logger.info(f"Factura {invoice_number} creada exitosamente para trabajo {active_job.id}")
 
         logger.info(f"Trabajo creado con QR: {active_job.qr_code}")
         
