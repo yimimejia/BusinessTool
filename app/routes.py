@@ -726,20 +726,16 @@ def send_whatsapp_invoice(job_id):
         deposit_amount = float(job.deposit_amount or 0)
         remaining_amount = total_amount - deposit_amount
 
-        # Preparar mensaje de WhatsApp
-        whatsapp_message = f"""*FOTO VIDEO MOJICA*
-¡Saludos estimado(a) {job.client_name}!
-
-Le enviamos su factura:
-📋 Número: {job.invoice_number}
-💰 Total: RD${total_amount:.2f}
-💵 Abono: RD${deposit_amount:.2f}
-🔸 Restante: RD${remaining_amount:.2f}
-
-Para ver su factura digital y código QR, haga clic aquí:
+        # Preparar mensaje de WhatsApp según las especificaciones del usuario
+        whatsapp_message = f"""FOTO VIDEO MOJICA 
 {invoice_url}
+acceda a su factura atraves de este enlace.
+le informamos que su trabajo esta listo.
+Gracias por Preferirnos 
+DIOS TE BENDIGA.
 
-¡Gracias por su preferencia!"""
+aqui podra ver su factura en caso de que pierda la fisica para mas informacion contancte : 809-246-0263 o 809-973-0372 Ambos por whatssap o llamada normal.
+DIOS TE BENDIGA."""
         
         # Crear enlace de WhatsApp
         whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(whatsapp_message)}"
@@ -2342,58 +2338,7 @@ def unmark_called(job_id):
     flash('Estado "llamado" deshecho. El cliente puede ser notificado nuevamente.', 'info')
     return redirect(url_for('main.completed_jobs'))
 
-@bp.route('/completed-jobs/<int:job_id>/send-whatsapp-and-mark', methods=['POST'])
-@login_required
-@staff_required
-def send_whatsapp_and_mark(job_id):
-    """Enviar notificación por WhatsApp y marcar como llamado automáticamente"""
-    try:
-        job = CompletedJob.query.get_or_404(job_id)
-        
-        if not job.phone_number:
-            flash('Este trabajo no tiene número de teléfono registrado', 'error')
-            return redirect(url_for('main.completed_jobs'))
-        
-        # Verificar credenciales de Twilio
-        if not all([os.environ.get("TWILIO_ACCOUNT_SID"), 
-                  os.environ.get("TWILIO_AUTH_TOKEN"), 
-                  os.environ.get("TWILIO_PHONE_NUMBER")]):
-            flash('Faltan credenciales de Twilio para enviar mensajes por WhatsApp', 'error')
-            return redirect(url_for('main.completed_jobs'))
-        
-        # Enviar notificación por WhatsApp
-        from app.utils.whatsapp import generate_client_completion_message, send_whatsapp_message
-        
-        # Generar mensaje para el cliente
-        whatsapp_message = generate_client_completion_message(job)
-        
-        # Enviar mensaje
-        whatsapp_sent = send_whatsapp_message(
-            job.phone_number,
-            whatsapp_message
-        )
-        
-        if whatsapp_sent:
-            # Marcar como llamado automáticamente
-            job.is_called = True
-            job.called_at = datetime.utcnow()
-            db.session.commit()
-            
-            log_activity(
-                'whatsapp_enviado',
-                f"Notificación WhatsApp enviada a {job.client_name} (Factura: {job.invoice_number})"
-            )
-            
-            flash('Mensaje de WhatsApp enviado y trabajo marcado como notificado', 'success')
-        else:
-            flash('No se pudo enviar el mensaje de WhatsApp. Intente más tarde.', 'error')
-            
-        return redirect(url_for('main.completed_jobs'))
-        
-    except Exception as e:
-        logger.error(f"Error al enviar notificación WhatsApp: {str(e)}")
-        flash(f'Error al enviar notificación: {str(e)}', 'error')
-        return redirect(url_for('main.completed_jobs'))
+
 
 @bp.route('/completed-jobs/<int:job_id>/mark-delivered', methods=['POST'])
 @login_required
@@ -2469,95 +2414,7 @@ def remove_job(job_id):
         logger.error(f"Error al eliminar trabajo: {str(e)}")
         return jsonify({'success': False, 'message': 'Error al eliminar el trabajo'})
 
-@bp.route('/completed-jobs/notify-all-pending', methods=['POST'])
-@login_required
-@staff_required
-def notify_all_pending_jobs():
-    """Enviar notificación por WhatsApp a todos los trabajos pendientes de llamar"""
-    try:
-        # Verificar credenciales de Twilio
-        if not all([os.environ.get("TWILIO_ACCOUNT_SID"), 
-                  os.environ.get("TWILIO_AUTH_TOKEN"), 
-                  os.environ.get("TWILIO_PHONE_NUMBER")]):
-            flash('Faltan credenciales de Twilio para enviar mensajes por WhatsApp', 'error')
-            return redirect(url_for('main.completed_jobs'))
-        
-        # Obtener todos los trabajos completados no llamados con número de teléfono válido
-        jobs_to_notify = CompletedJob.query.filter_by(is_called=False).filter(
-            CompletedJob.phone_number != None,
-            CompletedJob.phone_number != ''
-        ).all()
-        
-        if not jobs_to_notify:
-            flash('No hay trabajos pendientes para notificar', 'info')
-            return redirect(url_for('main.completed_jobs'))
-        
-        # Importar funciones de WhatsApp
-        from app.utils.whatsapp import generate_client_completion_message, send_whatsapp_message
-        
-        # Contador de éxitos y fallos
-        success_count = 0
-        failed_count = 0
-        
-        # Procesar cada trabajo
-        for job in jobs_to_notify:
-            try:
-                # Validar el número de teléfono
-                if not job.phone_number or not job.phone_number.strip():
-                    logger.warning(f"Trabajo #{job.id} - Número de teléfono inválido o vacío: '{job.phone_number}'")
-                    failed_count += 1
-                    continue
-                    
-                # Log para debugging
-                logger.info(f"Notificando trabajo #{job.id} - {job.client_name} - Teléfono: {job.phone_number}")
-                
-                # Generar mensaje para el cliente
-                whatsapp_message = generate_client_completion_message(job)
-                
-                # Enviar mensaje
-                whatsapp_sent = send_whatsapp_message(
-                    job.phone_number,
-                    whatsapp_message
-                )
-                
-                if whatsapp_sent:
-                    # Marcar como llamado automáticamente
-                    job.is_called = True
-                    job.called_at = datetime.utcnow()
-                    
-                    log_activity(
-                        'whatsapp_enviado',
-                        f"Notificación masiva WhatsApp enviada a {job.client_name} (Factura: {job.invoice_number})"
-                    )
-                    
-                    success_count += 1
-                    logger.info(f"Notificación exitosa para trabajo #{job.id}")
-                else:
-                    failed_count += 1
-                    logger.warning(f"Falló el envío de WhatsApp para trabajo #{job.id}")
-                    
-            except Exception as e:
-                logger.error(f"Error al enviar WhatsApp a {job.client_name}: {str(e)}")
-                failed_count += 1
-        
-        # Guardar todos los cambios
-        db.session.commit()
-        
-        if success_count > 0:
-            message = f'{success_count} notificaciones enviadas exitosamente'
-            if failed_count > 0:
-                message += f' ({failed_count} fallidas)'
-            flash(message, 'success')
-        else:
-            flash(f'No se pudo enviar ninguna notificación. {failed_count} fallidas.', 'error')
-            
-        return redirect(url_for('main.completed_jobs'))
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error al enviar notificaciones masivas: {str(e)}")
-        flash(f'Error al procesar notificaciones masivas: {str(e)}', 'error')
-        return redirect(url_for('main.completed_jobs'))
+
 
 @bp.route('/completed-jobs')
 @login_required

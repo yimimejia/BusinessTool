@@ -110,6 +110,10 @@
             background: #25D366;
             color: white;
         }
+        .btn-close {
+            background: #dc3545;
+            color: white;
+        }
         @media print {
             .actions { display: none; }
             body { padding: 0; }
@@ -166,10 +170,15 @@
     </div>
 
     <div class="actions">
+        <button onclick="window.close()" class="btn btn-close">
+            Cerrar
+        </button>
         <button onclick="window.print()" class="btn btn-print">
             Imprimir
         </button>
-        <a href="https://wa.me/{{ job.phone_number|replace('+', '')|replace(' ', '') }}?text={{ whatsapp_message|urlencode }}" 
+        {% set clean_phone = job.phone_number|replace('+', '')|replace('-', '')|replace(' ', '') %}
+        {% set whatsapp_msg = "FOTO VIDEO MOJICA aqui podra ver su factura en caso de que pierda la fisica para mas informacion contancte : 809-246-0263 o 809-973-0372 Ambos por whatssap o llamada normal. DIOS TE BENDIGA." %}
+        <a href="https://wa.me/{{ clean_phone }}?text={{ whatsapp_msg|urlencode }}" 
            class="btn btn-whatsapp" target="_blank">
             Enviar por WhatsApp
         </a>

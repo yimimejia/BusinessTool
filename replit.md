@@ -1,0 +1,77 @@
+# Overview
+
+This is a job management system for "FOTO VIDEO MOJICA", a photography and video business. The system handles the complete workflow from job registration to completion and delivery, with role-based access control for administrators, supervisors, and designers. It includes features for inventory management, QR code scanning, WhatsApp notifications, invoice generation, and real-time messaging between users.
+
+# User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+# Recent Changes
+
+## August 2025 - WhatsApp Integration Simplification
+- Removed Twilio WhatsApp bulk notification system due to configuration issues
+- Simplified WhatsApp integration to use web links instead of API calls
+- Unified invoice and WhatsApp buttons into single functionality
+- Removed purple "notificar" button
+- Added "undo" functionality for jobs marked as "called"
+- Updated WhatsApp message format to include business contact information
+- Added close button to invoice interface
+- Fixed WhatsApp button to properly use phone number from invoice
+
+# System Architecture
+
+## Backend Architecture
+- **Framework**: Flask with SQLAlchemy ORM for database operations
+- **Database**: PostgreSQL with Alembic migrations for schema management
+- **Authentication**: Flask-Login with role-based access control (Admin, Supervisor, Designer)
+- **Session Management**: File-based sessions with 7-day persistence
+- **Real-time Features**: Server-Sent Events (SSE) for live notifications and updates
+
+## Data Models
+- **User System**: Multi-role user authentication with hierarchical permissions
+- **Job Workflow**: Complete job lifecycle from pending → completed → delivered states
+- **Inventory Management**: Product tracking with QR code integration for withdrawals
+- **Activity Logging**: Comprehensive audit trail for all system actions
+- **Messaging System**: Internal communication between users with read status tracking
+
+## Frontend Architecture
+- **Progressive Web App (PWA)**: Offline-capable with service worker for mobile experience
+- **Responsive Design**: Bootstrap-based dark theme optimized for mobile devices
+- **Interactive Components**: DataTables for data management, real-time notifications
+- **QR Code Integration**: HTML5 QR scanner for inventory management
+
+## Key Features
+- **Job Management**: Complete workflow from registration to delivery with approval processes
+- **Invoice System**: PDF generation with QR codes for job verification
+- **WhatsApp Integration**: Automated client notifications via Twilio API
+- **Inventory Control**: QR-based product tracking and withdrawal system
+- **Photo Gallery**: Secure temporary links for client photo access
+- **Real-time Notifications**: Live updates across all connected users
+
+## Security Implementation
+- **Role-based Access Control**: Hierarchical permissions (Admin > Supervisor > Designer)
+- **Session Security**: Secure session management with configurable expiration
+- **Input Validation**: Server-side validation for all user inputs
+- **Activity Monitoring**: Comprehensive logging of all system interactions
+
+# External Dependencies
+
+## Third-party Services
+- **Twilio**: WhatsApp Business API for automated client notifications
+- **Redis**: Caching and real-time event streaming for SSE functionality
+
+## Database
+- **PostgreSQL**: Primary database with connection pooling and automatic reconnection
+
+## Python Libraries
+- **Flask Ecosystem**: Core framework with extensions for authentication, migrations, and SSE
+- **Image Processing**: Pillow for logo processing and QR code generation
+- **PDF Generation**: ReportLab and WeasyPrint for invoice and report generation
+- **Communication**: Twilio SDK for WhatsApp messaging integration
+- **Security**: JWT for temporary link generation and Werkzeug for password hashing
+
+## Frontend Libraries
+- **Bootstrap**: UI framework with dark theme for consistent styling
+- **DataTables**: Advanced table functionality with sorting and filtering
+- **HTML5-QRCode**: Client-side QR code scanning capabilities
+- **Service Worker**: PWA functionality for offline access and app-like experience
