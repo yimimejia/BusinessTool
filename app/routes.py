@@ -735,8 +735,34 @@ def send_whatsapp_invoice(job_id):
         deposit_amount = float(job.deposit_amount or 0)
         remaining_amount = total_amount - deposit_amount
 
-        # Preparar mensaje de WhatsApp específico para envío de factura virtual
-        whatsapp_message = f"""*FOTO VIDEO MOJICA*
+        # Determinar si es un trabajo completado para usar el mensaje correcto
+        is_completed = isinstance(job, CompletedJob)
+        
+        if is_completed:
+            # Para trabajos completados: mensaje de trabajo listo
+            whatsapp_message = f"""*FOTO VIDEO MOJICA*
+
+Estimado/a {job.client_name},
+
+Nos complace informarle que su trabajo ya está *LISTO* para recoger.
+
+*Detalles del trabajo:*
+📝 Descripción: {job.description}
+🔢 No. Factura: {job.invoice_number}
+💵 Total: ${float(job.total_amount or 0)}
+
+*Acceder a su factura digital:*
+{invoice_url}
+
+Puede pasar a recoger su trabajo en nuestras instalaciones durante nuestro horario de atención.
+
+Gracias por confiar en nosotros.
+Que Dios le bendiga.
+
+*FOTO VIDEO MOJICA*"""
+        else:
+            # Para otros trabajos: mensaje de factura virtual
+            whatsapp_message = f"""*FOTO VIDEO MOJICA*
 
 {invoice_url}
 

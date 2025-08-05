@@ -342,6 +342,51 @@ class CompletedJob(db.Model):
             self.qr_code = base64.urlsafe_b64encode(unique_id.encode()).decode()
         return self.qr_code
 
+    def get_whatsapp_link(self, with_invoice=False, invoice_url=None):
+        """Genera enlace de WhatsApp para trabajo completado"""
+        if not self.phone_number:
+            return None
+
+        import urllib.parse
+        phone = re.sub(r'[^\d]', '', self.phone_number)
+
+        if with_invoice and invoice_url:
+            # Mensaje de trabajo listo con enlace a factura
+            message = f"""*FOTO VIDEO MOJICA*
+
+Estimado/a {self.client_name},
+
+Nos complace informarle que su trabajo ya está *LISTO* para recoger.
+
+*Detalles del trabajo:*
+📝 Descripción: {self.description}
+🔢 No. Factura: {self.invoice_number}
+💵 Total: ${float(self.total_amount or 0)}
+
+*Acceder a su factura digital:*
+{invoice_url}
+
+Puede pasar a recoger su trabajo en nuestras instalaciones durante nuestro horario de atención.
+
+Gracias por confiar en nosotros.
+Que Dios le bendiga.
+
+*FOTO VIDEO MOJICA*"""
+        else:
+            # Mensaje simple de trabajo listo
+            message = f"""*FOTO VIDEO MOJICA*
+
+Hola {self.client_name}, 
+
+Su trabajo está *LISTO* para recoger.
+
+Factura: {self.invoice_number}
+Descripción: {self.description}
+
+Gracias por su preferencia."""
+
+        return f"https://wa.me/{phone}?text={urllib.parse.quote(message)}"
+
 class DeliveredJob(db.Model):
     __tablename__ = 'delivered_jobs'
     id = db.Column(db.Integer, primary_key=True)
