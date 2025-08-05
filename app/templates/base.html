@@ -89,6 +89,9 @@
                     if (permission === 'granted') {
                         console.log('Notification permission granted.');
                         
+                        // Send immediate welcome notification
+                        sendWelcomeNotification();
+                        
                         messaging.getToken({ 
                             vapidKey: 'BLN9_vqrwJHq8kHtFJ9qL9Nq9qJGqG_qQ9qr1qr1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1'
                         }).then((currentToken) => {
@@ -145,6 +148,37 @@
                             tag: 'foto-video-mojica'
                         });
                     });
+                }
+            }
+
+            // Send welcome notification when permissions are granted
+            function sendWelcomeNotification() {
+                try {
+                    if ('serviceWorker' in navigator && 'PushManager' in window) {
+                        navigator.serviceWorker.ready.then(registration => {
+                            registration.showNotification('FOTO VIDEO MOJICA', {
+                                body: 'No desactive las notificaciones para continuar recibiendo las notificaciones.\n\nAtt. Administración',
+                                icon: '/static/icons/logo-192x192.png',
+                                badge: '/static/icons/logo-192x192.png',
+                                tag: 'welcome-notification',
+                                requireInteraction: true,
+                                actions: [
+                                    {
+                                        action: 'ok',
+                                        title: 'Entendido'
+                                    }
+                                ]
+                            });
+                        });
+                    } else {
+                        // Fallback to browser notification
+                        new Notification('FOTO VIDEO MOJICA', {
+                            body: 'No desactive las notificaciones para continuar recibiendo las notificaciones.\n\nAtt. Administración',
+                            icon: '/static/icons/logo-192x192.png'
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error enviando notificación de bienvenida:', error);
                 }
             }
 
