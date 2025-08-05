@@ -120,6 +120,30 @@ class FirebaseNotifications:
         supervisor_title = "Trabajo Aprobado"
         supervisor_body = f"Trabajo verificado y completado: {client_name} ({description})"
         self.send_to_role('supervisor', supervisor_title, supervisor_body, data)
+    
+    def send_to_all_users(self, title: str, body: str, data: Optional[dict] = None):
+        """Enviar notificación a todos los usuarios autenticados"""
+        from app.models import User
+        
+        users = User.query.all()
+        tokens = [user.fcm_token for user in users if user.fcm_token]
+        
+        if not tokens:
+            logger.warning("No hay tokens FCM para ningún usuario")
+            return False
+            
+        return self.send_notification(tokens, title, body, data)
 
 # Instancia global
 firebase_notifications = FirebaseNotifications()
+
+# Funciones de conveniencia
+def send_firebase_notification_to_all(title: str, body: str, data: Optional[dict] = None):
+    """Función de conveniencia para enviar notificación a todos los usuarios"""
+    return firebase_notifications.send_to_all_users(title, body, data)
+
+def send_firebase_notification(token: str, title: str, body: str, data: Optional[dict] = None):
+    """Función de conveniencia para enviar notificación a un token específico"""
+    if not token:
+        return False
+    return firebase_notifications.send_notification([token], title, body, data)

@@ -1755,77 +1755,196 @@ def index():
 
 # Nuevas rutas para mensajería
 
-@bp.route('/messages')
+# Nuevas rutas de chat moderno
+
+@bp.route('/chat')
 @login_required
-def messages():
-    """Ver mensajes"""
-    messages = current_user.get_messages()
-    users = User.query.filter(User.id != current_user.id).all()
-    return render_template('messages.html', messages=messages, users=users)
+def chat():
+    """Chat moderno con notificaciones Firebase"""
+    return render_template('chat.html')
 
-@bp.route('/messages/send', methods=['POST'])
+@bp.route('/api/chat/users')
 @login_required
-def send_message():
-    """Enviar un mensaje a uno o todos los diseñadores"""
-    send_to_all = request.form.get('send_to_all') == 'true'
-    recipient_id = request.form.get('recipient_id')
-    content = request.form.get('content')
-
-    if not content:
-        flash('Por favor escriba un mensaje', 'error')
-        return redirect(url_for('main.messages'))
-
-    if send_to_all:
-        # Enviar a todos los diseñadores
-        designers = User.query.filter_by(is_designer=True).all()
-        for designer in designers:
-            message = Message(
-                sender_id=current_user.id,
-                recipient_id=designer.id,
-                content=content
-            )
-            db.session.add(message)
-            send_notification(designer.id, "Nuevo mensaje", content)
+def get_chat_users():
+    """Obtener lista de usuarios para chat"""
+    try:
+        users = User.query.filter(User.id != current_user.id).all()
+        users_data = []
+        
+        for user in users:
+            # Contar mensajes no leídos de este usuario
+            unread_count = Message.query.filter_by(
+                sender_id=user.id,
+                recipient_id=current_user.id,
+                is_read=False
+            ).count()
             
-        log_activity('enviar_mensaje', "Mensaje enviado a todos los diseñadores")
-    else:
-        if not recipient_id:
-            flash('Por favor seleccione un destinatario', 'error')
-            return redirect(url_for('main.messages'))
+            # Determinar rol
+            if user.is_admin:
+                role = "Administrador"
+            elif user.is_supervisor:
+                role = "Supervisor"
+            elif user.is_designer:
+                role = "Diseñador"
+            else:
+                role = "Usuario"
+            
+            users_data.append({
+                'id': user.id,
+                'name': user.name,
+                'username': user.username,
+                'role': role,
+                'online': True,  # Por ahora todos online, se puede mejorar
+                'unread_count': unread_count
+            })
+        
+        return jsonify(users_data)
+    
+    except Exception as e:
+        logger.error(f"Error al obtener usuarios para chat: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
+@bp.route('/api/chat/messages/<int:user_id>')
+@login_required
+def get_chat_messages(user_id):
+    """Obtener mensajes entre el usuario actual y otro usuario"""
+    try:
+        messages = Message.query.filter(
+            or_(
+                and_(Message.sender_id == current_user.id, Message.recipient_id == user_id),
+                and_(Message.sender_id == user_id, Message.recipient_id == current_user.id)
+            )
+        ).order_by(Message.created_at.asc()).all()
+        
+        # Marcar mensajes del otro usuario como leídos
+        Message.query.filter_by(
+            sender_id=user_id,
+            recipient_id=current_user.id,
+            is_read=False
+        ).update({'is_read': True})
+        
+        db.session.commit()
+        
+        messages_data = []
+        for message in messages:
+            messages_data.append({
+                'id': message.id,
+                'sender_id': message.sender_id,
+                'recipient_id': message.recipient_id,
+                'content': message.content,
+                'created_at': message.created_at.isoformat(),
+                'is_read': message.is_read
+            })
+        
+        return jsonify(messages_data)
+        
+    except Exception as e:
+        logger.error(f"Error al obtener mensajes: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/api/chat/send', methods=['POST'])
+@login_required
+def send_chat_message():
+    """Enviar mensaje en el nuevo chat"""
+    try:
+        data = request.get_json()
+        recipient_id = data.get('recipient_id')
+        content = data.get('content', '').strip()
+        
+        if not recipient_id or not content:
+            return jsonify({'error': 'Datos incompletos'}), 400
+        
+        # Verificar que el destinatario existe
         recipient = User.query.get(recipient_id)
+        if not recipient:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        # Crear mensaje
         message = Message(
             sender_id=current_user.id,
             recipient_id=recipient_id,
             content=content
         )
+        
         db.session.add(message)
-        send_notification(recipient_id, "Nuevo mensaje", content)
-        log_activity('enviar_mensaje', f"Mensaje enviado a {recipient.username}")
-
-    db.session.commit()
-    flash('Mensaje enviado exitosamente', 'success')
-    return redirect(url_for('main.messages'))
-
-@bp.route('/api/messages/mark_as_read/<int:user_id>', methods=['POST'])
-@login_required
-def mark_messages_as_read(user_id):
-    """Marcar todos los mensajes de un usuario como leídos"""
-    try:
-        messages = Message.query.filter_by(
-            recipient_id=current_user.id,
-            sender_id=user_id,
-            is_read=False
-        ).all()
-        
-        for message in messages:
-            message.is_read = True
-        
         db.session.commit()
-        return jsonify({'success': True})
+        
+        # Enviar notificación Firebase
+        try:
+            from app.utils.firebase_notifications import send_firebase_notification
+            
+            notification_title = f"Nuevo mensaje de {current_user.name}"
+            notification_body = content[:100] + "..." if len(content) > 100 else content
+            
+            # Enviar notificación al destinatario
+            send_firebase_notification(
+                recipient.fcm_token if hasattr(recipient, 'fcm_token') and recipient.fcm_token else None,
+                notification_title,
+                notification_body,
+                data={
+                    'type': 'chat_message',
+                    'sender_id': str(current_user.id),
+                    'sender_name': current_user.name,
+                    'message_id': str(message.id)
+                }
+            )
+            
+            logger.info(f"Notificación Firebase enviada para mensaje de chat: {current_user.name} -> {recipient.name}")
+            
+        except Exception as e:
+            logger.error(f"Error enviando notificación Firebase: {str(e)}")
+        
+        # Registrar actividad
+        log_activity('enviar_mensaje_chat', f"Mensaje enviado a {recipient.name}")
+        
+        # Retornar datos del mensaje creado
+        return jsonify({
+            'id': message.id,
+            'sender_id': message.sender_id,
+            'recipient_id': message.recipient_id,
+            'content': message.content,
+            'created_at': message.created_at.isoformat(),
+            'is_read': message.is_read
+        })
+        
     except Exception as e:
+        logger.error(f"Error enviando mensaje de chat: {str(e)}")
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/api/chat/test-notification', methods=['POST'])
+@login_required
+def test_chat_notification():
+    """Probar notificación Firebase a todos los usuarios"""
+    try:
+        data = request.get_json()
+        title = data.get('title', 'Notificación de prueba')
+        body = data.get('body', 'Esta es una notificación de prueba del sistema de chat')
+        
+        from app.utils.firebase_notifications import send_firebase_notification_to_all
+        
+        # Enviar notificación a todos los usuarios
+        result = send_firebase_notification_to_all(
+            title,
+            body,
+            data={
+                'type': 'test_notification',
+                'sender': current_user.name,
+                'timestamp': datetime.utcnow().isoformat()
+            }
+        )
+        
+        logger.info(f"Notificación de prueba enviada por {current_user.name}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Notificación de prueba enviada a todos los usuarios',
+            'result': result
+        })
+        
+    except Exception as e:
+        logger.error(f"Error enviando notificación de prueba: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @bp.route('/messages/unread')
 @login_required

@@ -590,8 +590,8 @@
                 <div class="navbar-text text-white me-3">
                     <i class="bi bi-person-circle"></i> {{ current_user.name }}
                     {% if current_user.is_authenticated %}
-                    <a href="{{ url_for('main.messages') }}" class="text-white message-icon" id="messageIcon">
-                        <i class="bi bi-envelope"></i>
+                    <a href="{{ url_for('main.chat') }}" class="text-white message-icon" id="messageIcon">
+                        <i class="bi bi-chat-dots"></i>
                         <span class="message-badge d-none" id="unreadCount">0</span>
                     </a>
                     {% endif %}

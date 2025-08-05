@@ -1,0 +1,618 @@
+{% extends "base.html" %}
+
+{% block title %}Chat{% endblock %}
+
+{% block content %}
+<div class="chat-app">
+    <!-- Header -->
+    <div class="chat-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h4 class="mb-0 text-white">
+                        <i class="bi bi-chat-dots"></i> Chat Interno
+                    </h4>
+                </div>
+                <div class="col-auto">
+                    <span class="online-indicator">
+                        <i class="bi bi-circle-fill text-success"></i>
+                        <span id="onlineCount">0</span> en línea
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="chat-container">
+        <!-- Sidebar con usuarios -->
+        <div class="chat-sidebar">
+            <div class="sidebar-header">
+                <h6 class="mb-0">Usuarios</h6>
+                <button class="btn btn-sm btn-outline-light" id="refreshUsers">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </div>
+            
+            <div class="users-list" id="usersList">
+                <!-- Los usuarios se cargarán aquí -->
+            </div>
+        </div>
+
+        <!-- Chat principal -->
+        <div class="chat-main">
+            <div class="chat-messages" id="chatMessages">
+                <div class="welcome-message">
+                    <div class="text-center text-muted">
+                        <i class="bi bi-chat-heart fs-1"></i>
+                        <h5>¡Bienvenido al chat!</h5>
+                        <p>Selecciona un usuario para comenzar a chatear</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-input">
+                <form id="messageForm">
+                    <div class="input-group">
+                        <input type="text" 
+                               id="messageInput" 
+                               class="form-control" 
+                               placeholder="Escribe tu mensaje..." 
+                               disabled>
+                        <button type="submit" 
+                                class="btn btn-primary" 
+                                id="sendButton" 
+                                disabled>
+                            <i class="bi bi-send"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Indicador de escritura -->
+    <div class="typing-indicator" id="typingIndicator" style="display: none;">
+        <div class="typing-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <span class="typing-text"></span>
+    </div>
+</div>
+
+<style>
+.chat-app {
+    height: calc(100vh - 60px);
+    display: flex;
+    flex-direction: column;
+    background: #0d1117;
+}
+
+.chat-header {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    padding: 1rem;
+    border-bottom: 1px solid #374151;
+}
+
+.online-indicator {
+    color: #94a3b8;
+    font-size: 0.875rem;
+}
+
+.chat-container {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+}
+
+.chat-sidebar {
+    width: 300px;
+    background: #161b22;
+    border-right: 1px solid #30363d;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 1rem;
+    border-bottom: 1px solid #30363d;
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    color: #f0f6fc;
+}
+
+.users-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem 0;
+}
+
+.user-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    color: #c9d1d9;
+}
+
+.user-item:hover {
+    background: #21262d;
+}
+
+.user-item.active {
+    background: #1f6feb;
+    color: white;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    margin-right: 0.75rem;
+}
+
+.user-info {
+    flex: 1;
+}
+
+.user-name {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.user-role {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+.user-status {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-left: auto;
+}
+
+.user-status.online {
+    background: #22c55e;
+}
+
+.user-status.offline {
+    background: #6b7280;
+}
+
+.unread-badge {
+    background: #ef4444;
+    color: white;
+    border-radius: 10px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: bold;
+    margin-left: 0.5rem;
+}
+
+.chat-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #0d1117;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    scroll-behavior: smooth;
+}
+
+.welcome-message {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.message {
+    display: flex;
+    margin-bottom: 1rem;
+    animation: messageSlide 0.3s ease-out;
+}
+
+@keyframes messageSlide {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.message.own {
+    flex-direction: row-reverse;
+}
+
+.message-avatar {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 0.875rem;
+    margin: 0 0.75rem;
+}
+
+.message.own .message-avatar {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.message-content {
+    max-width: 60%;
+    background: #21262d;
+    border-radius: 1rem;
+    padding: 0.75rem 1rem;
+    color: #c9d1d9;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.message.own .message-content {
+    background: #1f6feb;
+    color: white;
+}
+
+.message-text {
+    margin-bottom: 0.25rem;
+    line-height: 1.4;
+}
+
+.message-time {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    text-align: right;
+}
+
+.message.own .message-time {
+    text-align: left;
+}
+
+.chat-input {
+    padding: 1rem;
+    border-top: 1px solid #30363d;
+    background: #161b22;
+}
+
+.chat-input .form-control {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    color: #c9d1d9;
+    border-radius: 1.5rem;
+    padding: 0.75rem 1rem;
+}
+
+.chat-input .form-control:focus {
+    background: #0d1117;
+    border-color: #1f6feb;
+    color: #c9d1d9;
+    box-shadow: 0 0 0 0.2rem rgba(31, 111, 235, 0.25);
+}
+
+.chat-input .btn {
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    margin-left: 0.5rem;
+}
+
+.typing-indicator {
+    position: absolute;
+    bottom: 80px;
+    left: 320px;
+    background: #21262d;
+    padding: 0.5rem 1rem;
+    border-radius: 1rem;
+    color: #c9d1d9;
+    font-size: 0.875rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.typing-dots {
+    display: inline-flex;
+    gap: 0.25rem;
+    margin-right: 0.5rem;
+}
+
+.typing-dots span {
+    width: 6px;
+    height: 6px;
+    background: #6b7280;
+    border-radius: 50%;
+    animation: typingBounce 1.4s infinite ease-in-out;
+}
+
+.typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+.typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typingBounce {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .chat-sidebar {
+        width: 250px;
+    }
+    
+    .message-content {
+        max-width: 80%;
+    }
+}
+</style>
+
+{% block scripts %}
+<script>
+class ChatApp {
+    constructor() {
+        this.currentUserId = {{ current_user.id }};
+        this.currentUserName = "{{ current_user.name }}";
+        this.selectedUserId = null;
+        this.messages = new Map();
+        this.users = new Map();
+        this.typingTimer = null;
+        
+        this.init();
+    }
+    
+    init() {
+        this.loadUsers();
+        this.setupEventListeners();
+        this.startPolling();
+        
+        // Test Firebase notification
+        this.testFirebaseNotification();
+    }
+    
+    setupEventListeners() {
+        document.getElementById('messageForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.sendMessage();
+        });
+        
+        document.getElementById('refreshUsers').addEventListener('click', () => {
+            this.loadUsers();
+        });
+        
+        // Auto-resize mensaje input
+        const messageInput = document.getElementById('messageInput');
+        messageInput.addEventListener('input', () => {
+            this.handleTyping();
+        });
+    }
+    
+    async loadUsers() {
+        try {
+            const response = await fetch('/api/chat/users');
+            const users = await response.json();
+            
+            this.renderUsers(users);
+        } catch (error) {
+            console.error('Error loading users:', error);
+        }
+    }
+    
+    renderUsers(users) {
+        const usersList = document.getElementById('usersList');
+        usersList.innerHTML = '';
+        
+        users.forEach(user => {
+            const userElement = document.createElement('button');
+            userElement.className = 'user-item';
+            userElement.dataset.userId = user.id;
+            
+            const unreadCount = user.unread_count || 0;
+            const unreadBadge = unreadCount > 0 ? 
+                `<span class="unread-badge">${unreadCount}</span>` : '';
+            
+            userElement.innerHTML = `
+                <div class="user-avatar">
+                    ${user.name.charAt(0).toUpperCase()}
+                </div>
+                <div class="user-info">
+                    <div class="user-name">${user.name}</div>
+                    <div class="user-role">${user.role}</div>
+                </div>
+                <div class="user-status ${user.online ? 'online' : 'offline'}"></div>
+                ${unreadBadge}
+            `;
+            
+            userElement.addEventListener('click', () => {
+                this.selectUser(user.id, user.name);
+            });
+            
+            usersList.appendChild(userElement);
+            this.users.set(user.id, user);
+        });
+        
+        // Update online count
+        const onlineCount = users.filter(u => u.online).length;
+        document.getElementById('onlineCount').textContent = onlineCount;
+    }
+    
+    selectUser(userId, userName) {
+        this.selectedUserId = userId;
+        
+        // Update UI
+        document.querySelectorAll('.user-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        
+        document.querySelector(`[data-user-id="${userId}"]`).classList.add('active');
+        
+        // Enable message input
+        document.getElementById('messageInput').disabled = false;
+        document.getElementById('sendButton').disabled = false;
+        document.getElementById('messageInput').focus();
+        
+        // Load messages for this user
+        this.loadMessages(userId);
+        
+        // Clear unread badge
+        const unreadBadge = document.querySelector(`[data-user-id="${userId}"] .unread-badge`);
+        if (unreadBadge) {
+            unreadBadge.remove();
+        }
+    }
+    
+    async loadMessages(userId) {
+        try {
+            const response = await fetch(`/api/chat/messages/${userId}`);
+            const messages = await response.json();
+            
+            this.renderMessages(messages);
+        } catch (error) {
+            console.error('Error loading messages:', error);
+        }
+    }
+    
+    renderMessages(messages) {
+        const chatMessages = document.getElementById('chatMessages');
+        chatMessages.innerHTML = '';
+        
+        messages.forEach(message => {
+            this.addMessageToUI(message);
+        });
+        
+        this.scrollToBottom();
+    }
+    
+    addMessageToUI(message) {
+        const chatMessages = document.getElementById('chatMessages');
+        const messageElement = document.createElement('div');
+        
+        const isOwn = message.sender_id === this.currentUserId;
+        messageElement.className = `message ${isOwn ? 'own' : ''}`;
+        
+        const senderName = isOwn ? this.currentUserName : 
+            (this.users.get(message.sender_id)?.name || 'Usuario');
+        
+        messageElement.innerHTML = `
+            <div class="message-avatar">
+                ${senderName.charAt(0).toUpperCase()}
+            </div>
+            <div class="message-content">
+                <div class="message-text">${this.escapeHtml(message.content)}</div>
+                <div class="message-time">${this.formatTime(message.created_at)}</div>
+            </div>
+        `;
+        
+        chatMessages.appendChild(messageElement);
+    }
+    
+    async sendMessage() {
+        const messageInput = document.getElementById('messageInput');
+        const content = messageInput.value.trim();
+        
+        if (!content || !this.selectedUserId) return;
+        
+        try {
+            const response = await fetch('/api/chat/send', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    recipient_id: this.selectedUserId,
+                    content: content
+                })
+            });
+            
+            if (response.ok) {
+                const message = await response.json();
+                this.addMessageToUI(message);
+                messageInput.value = '';
+                this.scrollToBottom();
+            }
+        } catch (error) {
+            console.error('Error sending message:', error);
+        }
+    }
+    
+    handleTyping() {
+        // Implement typing indicators here if needed
+        clearTimeout(this.typingTimer);
+        this.typingTimer = setTimeout(() => {
+            // Stop typing indicator
+        }, 1000);
+    }
+    
+    scrollToBottom() {
+        const chatMessages = document.getElementById('chatMessages');
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    startPolling() {
+        // Poll for new messages every 3 seconds
+        setInterval(() => {
+            if (this.selectedUserId) {
+                this.loadMessages(this.selectedUserId);
+            }
+            this.loadUsers(); // Update user list and unread counts
+        }, 3000);
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    formatTime(timestamp) {
+        const date = new Date(timestamp);
+        return date.toLocaleTimeString('es-ES', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+    }
+    
+    testFirebaseNotification() {
+        // Test Firebase notification to all users
+        fetch('/api/chat/test-notification', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                title: 'Chat Sistema',
+                body: 'El nuevo sistema de chat está funcionando correctamente',
+                test: true
+            })
+        }).catch(error => {
+            console.error('Error testing Firebase notification:', error);
+        });
+    }
+}
+
+// Initialize chat when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    window.chatApp = new ChatApp();
+});
+</script>
+{% endblock %}
+{% endblock %}
