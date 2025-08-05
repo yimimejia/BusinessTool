@@ -113,6 +113,14 @@
                                 </a>
                                 {% endif %}
                                 {% else %}
+                                <!-- Botón para deshacer el marcado como llamado -->
+                                <form action="{{ url_for('main.unmark_called', job_id=job.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-warning" title="Deshacer: marcar como no llamado">
+                                        <i class="bi bi-arrow-counterclockwise"></i> Deshacer
+                                    </button>
+                                </form>
+                                
+                                <!-- Botón para marcar como entregado -->
                                 <form action="{{ url_for('main.mark_delivered', job_id=job.id) }}" method="POST" class="d-inline">
                                     <button type="submit" class="btn btn-sm btn-success">
                                         <i class="bi bi-check-circle"></i> Entregado

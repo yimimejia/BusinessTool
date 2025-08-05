@@ -2324,6 +2324,24 @@ def mark_called(job_id):
     flash('Cliente marcado como notificado', 'success')
     return redirect(url_for('main.completed_jobs'))
 
+@bp.route('/completed-jobs/<int:job_id>/unmark-called', methods=['POST'])
+@login_required
+@staff_required
+def unmark_called(job_id):
+    """Deshacer el marcado como llamado - marcar trabajo como no llamado"""
+    job = CompletedJob.query.get_or_404(job_id)
+    job.is_called = False
+    job.called_at = None
+    db.session.commit()
+    
+    log_activity(
+        'cliente_llamado_deshecho',
+        f"Se deshizo el estado 'llamado' para: {job.client_name} (Factura: {job.invoice_number})"
+    )
+    
+    flash('Estado "llamado" deshecho. El cliente puede ser notificado nuevamente.', 'info')
+    return redirect(url_for('main.completed_jobs'))
+
 @bp.route('/completed-jobs/<int:job_id>/send-whatsapp-and-mark', methods=['POST'])
 @login_required
 @staff_required
