@@ -18,6 +18,8 @@ Preferred communication style: Simple, everyday language.
 - Integrated Firebase notifications into job approval workflow
 - Created comprehensive notification system with foreground and background message handling
 - Updated base template to include Firebase SDK and initialization scripts
+- Added automatic notification permission request on first login with immediate welcome notification
+- Implemented supervisor notifications when designers mark work ready for verification
 
 ## August 2025 - WhatsApp Integration Simplification
 - Removed Twilio WhatsApp bulk notification system due to configuration issues

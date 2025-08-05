@@ -3860,3 +3860,72 @@ def clear_fresh_login():
         logger.error(f"Error limpiando fresh_login: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
+@bp.route('/api/mark-job-ready', methods=['POST'])
+@login_required
+def mark_job_ready():
+    """Marcar trabajo como listo para verificación"""
+    try:
+        data = request.get_json()
+        job_id = data.get('job_id')
+        
+        if not job_id:
+            return jsonify({'success': False, 'message': 'ID de trabajo no proporcionado'})
+        
+        # Buscar el trabajo
+        job = Job.query.get(job_id)
+        if not job:
+            return jsonify({'success': False, 'message': 'Trabajo no encontrado'})
+        
+        # Verificar que el usuario puede marcar este trabajo
+        if not current_user.is_designer and job.designer_id != current_user.id:
+            return jsonify({'success': False, 'message': 'No tienes permiso para marcar este trabajo'})
+        
+        # Crear trabajo pendiente de verificación
+        pending_job = PendingJob(
+            description=job.description,
+            designer_id=job.designer_id,
+            registered_by_id=job.registered_by_id,
+            client_name=job.client_name,
+            phone_number=job.phone_number,
+            pending_type='photo_verification',
+            invoice_number=job.invoice_number,
+            total_amount=job.total_amount,
+            deposit_amount=job.deposit_amount,
+            tags=job.tags,
+            created_at=job.created_at
+        )
+        
+        # Eliminar el trabajo original y agregar el pendiente
+        db.session.delete(job)
+        db.session.add(pending_job)
+        db.session.commit()
+        
+        # Registrar actividad
+        log_activity(
+            'trabajo_listo_verificacion',
+            f"Trabajo marcado como listo para verificación: {job.client_name} (Factura: {job.invoice_number})"
+        )
+        
+        # Notificar a todos los supervisores
+        from app.utils.firebase_notifications import firebase_notifications
+        firebase_notifications.send_to_role(
+            'supervisor', 
+            'Trabajo Listo para Verificación',
+            f'El diseñador {current_user.name} marcó como listo: {job.client_name} ({job.description})',
+            {
+                'type': 'ready_for_verification',
+                'job_id': pending_job.id,
+                'client_name': job.client_name,
+                'description': job.description,
+                'designer_name': current_user.name
+            }
+        )
+        
+        logger.info(f"Trabajo {job_id} marcado como listo para verificación por {current_user.username}")
+        return jsonify({'success': True, 'message': 'Trabajo marcado como listo para verificación'})
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error marcando trabajo como listo: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al procesar la solicitud: {str(e)}'})
+
