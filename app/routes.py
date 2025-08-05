@@ -1826,7 +1826,7 @@ def jobs_pending_photos():
 @bp.route('/search/invoices')
 @login_required
 def search_invoices():
-    """Búsqueda de facturas"""
+    """Búsqueda de facturas en todas las tablas de trabajos"""
     try:
         query = request.args.get('query', '')
         logger.info(f"Iniciando búsqueda de facturas con query: '{query}'")
@@ -1834,48 +1834,104 @@ def search_invoices():
         if not query:
             return render_template('search_invoices.html', results=[], query=None)
 
-        # Buscar primero en la tabla de facturas
-        invoices = Invoice.query.filter(
-            Invoice.invoice_number.ilike(f'%{query}%')
-        ).order_by(Invoice.created_at.desc()).all()
-
-        logger.info(f"Encontradas {len(invoices)} facturas")
-        
         results = []
-        for invoice in invoices:
-            try:
-                # Obtener el trabajo relacionado
-                work = invoice.get_job()
-                if work:
-                    # Calcular montos
-                    total = float(invoice.total_amount or 0)
-                    deposit = float(invoice.deposit_amount or 0)
-                    remaining = total - deposit
-                    
-                    result = {
-                        'id': work.id,  # ID del trabajo para el enlace de la factura
-                        'invoice_number': invoice.invoice_number,
-                        'client_name': work.client_name,
-                        'description': work.description if hasattr(work, 'description') else '',
-                        'created_at': invoice.created_at,
-                        'total_amount': total,
-                        'deposit_amount': deposit,
-                        'remaining_amount': remaining,
-                        'status': 'Completado' if isinstance(work, CompletedJob) else 'Pendiente'
-                    }
-                    results.append(result)
-                    logger.info(f"Procesada factura {invoice.invoice_number} para cliente {work.client_name}")
-            except Exception as e:
-                logger.error(f"Error procesando factura {invoice.id}: {str(e)}")
-                continue
+        
+        # 1. Buscar en trabajos pendientes (PendingJob)
+        pending_jobs = PendingJob.query.filter(
+            PendingJob.invoice_number.ilike(f'%{query}%')
+        ).all()
+        
+        for job in pending_jobs:
+            if job.invoice_number:
+                result = {
+                    'id': job.id,
+                    'invoice_number': job.invoice_number,
+                    'client_name': job.client_name,
+                    'description': job.description,
+                    'created_at': job.created_at,
+                    'total_amount': float(job.total_amount or 0),
+                    'deposit_amount': float(job.deposit_amount or 0),
+                    'remaining_amount': float(job.total_amount or 0) - float(job.deposit_amount or 0),
+                    'status': 'Pendiente de Aprobación'
+                }
+                results.append(result)
+                logger.info(f"Encontrado trabajo pendiente: {job.invoice_number} - {job.client_name}")
 
-        logger.info(f"Total de resultados procesados: {len(results)}")
+        # 2. Buscar en trabajos activos (Job)
+        active_jobs = Job.query.filter(
+            Job.invoice_number.ilike(f'%{query}%')
+        ).all()
+        
+        for job in active_jobs:
+            if job.invoice_number:
+                result = {
+                    'id': job.id,
+                    'invoice_number': job.invoice_number,
+                    'client_name': job.client_name,
+                    'description': job.description,
+                    'created_at': job.created_at,
+                    'total_amount': float(job.total_amount or 0),
+                    'deposit_amount': float(job.deposit_amount or 0),
+                    'remaining_amount': float(job.total_amount or 0) - float(job.deposit_amount or 0),
+                    'status': 'En Progreso'
+                }
+                results.append(result)
+                logger.info(f"Encontrado trabajo activo: {job.invoice_number} - {job.client_name}")
+
+        # 3. Buscar en trabajos completados (CompletedJob)
+        completed_jobs = CompletedJob.query.filter(
+            CompletedJob.invoice_number.ilike(f'%{query}%')
+        ).all()
+        
+        for job in completed_jobs:
+            if job.invoice_number:
+                result = {
+                    'id': job.id,
+                    'invoice_number': job.invoice_number,
+                    'client_name': job.client_name,
+                    'description': job.description,
+                    'created_at': job.created_at,
+                    'total_amount': float(job.total_amount or 0),
+                    'deposit_amount': float(job.deposit_amount or 0),
+                    'remaining_amount': float(job.total_amount or 0) - float(job.deposit_amount or 0),
+                    'status': 'Completado'
+                }
+                results.append(result)
+                logger.info(f"Encontrado trabajo completado: {job.invoice_number} - {job.client_name}")
+
+        # 4. Buscar en trabajos entregados (DeliveredJob)
+        delivered_jobs = DeliveredJob.query.filter(
+            DeliveredJob.invoice_number.ilike(f'%{query}%')
+        ).all()
+        
+        for job in delivered_jobs:
+            if job.invoice_number:
+                result = {
+                    'id': job.id,
+                    'invoice_number': job.invoice_number,
+                    'client_name': job.client_name,
+                    'description': job.description,
+                    'created_at': job.created_at,
+                    'total_amount': float(job.total_amount or 0),
+                    'deposit_amount': float(job.deposit_amount or 0),
+                    'remaining_amount': float(job.total_amount or 0) - float(job.deposit_amount or 0),
+                    'status': 'Entregado'
+                }
+                results.append(result)
+                logger.info(f"Encontrado trabajo entregado: {job.invoice_number} - {job.client_name}")
+
+        # Ordenar resultados por fecha de creación (más recientes primero)
+        results.sort(key=lambda x: x['created_at'] if x['created_at'] else datetime.min, reverse=True)
+
+        logger.info(f"Total de resultados encontrados en todas las tablas: {len(results)}")
         return render_template('search_invoices.html', results=results, query=query)
 
     except Exception as e:
         logger.error(f"Error en búsqueda de facturas: {str(e)}")
         flash('Error al realizar la búsqueda', 'error')
         return render_template('search_invoices.html', results=[], query=query, error=True)
+
+
 
 @bp.route('/logout')
 @login_required
@@ -1985,38 +2041,122 @@ def pending_verification():
 @bp.route('/search')
 @login_required
 def search():
-    """Buscar facturas por nombre de cliente o número de factura"""
-    query = request.args.get('query', '').strip()
-    if query:
-        # Buscar en trabajos activos, completados y pendientes
-        active_jobs = Job.query.filter(
-            or_(
-                Job.client_name.ilike(f'%{query}%'),
-                Job.invoice_number.ilike(f'%{query}%')
-            )
-        ).all()
+    """Búsqueda de facturas en todas las tablas de trabajos"""
+    try:
+        query = request.args.get('query', '')
+        logger.info(f"Iniciando búsqueda de facturas con query: '{query}'")
+        
+        if not query:
+            return render_template('search_invoices.html', results=[], query=None)
 
-        completed_jobs = CompletedJob.query.filter(
-            or_(
-                CompletedJob.client_name.ilike(f'%{query}%'),
-                CompletedJob.invoice_number.ilike(f'%{query}%')
-            )
-        ).all()
-
+        results = []
+        
+        # 1. Buscar en trabajos pendientes (PendingJob)
         pending_jobs = PendingJob.query.filter(
             or_(
-                PendingJob.client_name.ilike(f'%{query}%'),
-                PendingJob.invoice_number.ilike(f'%{query}%')
+                PendingJob.invoice_number.ilike(f'%{query}%'),
+                PendingJob.client_name.ilike(f'%{query}%')
             )
         ).all()
+        
+        for job in pending_jobs:
+            if job.invoice_number:
+                result = {
+                    'id': job.id,
+                    'invoice_number': job.invoice_number,
+                    'client_name': job.client_name,
+                    'description': job.description,
+                    'created_at': job.created_at,
+                    'total_amount': float(job.total_amount or 0),
+                    'deposit_amount': float(job.deposit_amount or 0),
+                    'remaining_amount': float(job.total_amount or 0) - float(job.deposit_amount or 0),
+                    'status': 'Pendiente de Aprobación'
+                }
+                results.append(result)
+                logger.info(f"Encontrado trabajo pendiente: {job.invoice_number} - {job.client_name}")
 
-        # Combinar y ordenar todos los trabajos por fecha
-        all_jobs = active_jobs + completed_jobs + pending_jobs
-        jobs = sorted(all_jobs, key=lambda x: x.created_at, reverse=True)
-    else:
-        jobs = []
+        # 2. Buscar en trabajos activos (Job)
+        active_jobs = Job.query.filter(
+            or_(
+                Job.invoice_number.ilike(f'%{query}%'),
+                Job.client_name.ilike(f'%{query}%')
+            )
+        ).all()
+        
+        for job in active_jobs:
+            if job.invoice_number:
+                result = {
+                    'id': job.id,
+                    'invoice_number': job.invoice_number,
+                    'client_name': job.client_name,
+                    'description': job.description,
+                    'created_at': job.created_at,
+                    'total_amount': float(job.total_amount or 0),
+                    'deposit_amount': float(job.deposit_amount or 0),
+                    'remaining_amount': float(job.total_amount or 0) - float(job.deposit_amount or 0),
+                    'status': 'En Progreso'
+                }
+                results.append(result)
+                logger.info(f"Encontrado trabajo activo: {job.invoice_number} - {job.client_name}")
 
-    return render_template('search_invoices.html', jobs=jobs, query=query)
+        # 3. Buscar en trabajos completados (CompletedJob)
+        completed_jobs = CompletedJob.query.filter(
+            or_(
+                CompletedJob.invoice_number.ilike(f'%{query}%'),
+                CompletedJob.client_name.ilike(f'%{query}%')
+            )
+        ).all()
+        
+        for job in completed_jobs:
+            if job.invoice_number:
+                result = {
+                    'id': job.id,
+                    'invoice_number': job.invoice_number,
+                    'client_name': job.client_name,
+                    'description': job.description,
+                    'created_at': job.created_at,
+                    'total_amount': float(job.total_amount or 0),
+                    'deposit_amount': float(job.deposit_amount or 0),
+                    'remaining_amount': float(job.total_amount or 0) - float(job.deposit_amount or 0),
+                    'status': 'Completado'
+                }
+                results.append(result)
+                logger.info(f"Encontrado trabajo completado: {job.invoice_number} - {job.client_name}")
+
+        # 4. Buscar en trabajos entregados (DeliveredJob)
+        delivered_jobs = DeliveredJob.query.filter(
+            or_(
+                DeliveredJob.invoice_number.ilike(f'%{query}%'),
+                DeliveredJob.client_name.ilike(f'%{query}%')
+            )
+        ).all()
+        
+        for job in delivered_jobs:
+            if job.invoice_number:
+                result = {
+                    'id': job.id,
+                    'invoice_number': job.invoice_number,
+                    'client_name': job.client_name,
+                    'description': job.description,
+                    'created_at': job.created_at,
+                    'total_amount': float(job.total_amount or 0),
+                    'deposit_amount': float(job.deposit_amount or 0),
+                    'remaining_amount': float(job.total_amount or 0) - float(job.deposit_amount or 0),
+                    'status': 'Entregado'
+                }
+                results.append(result)
+                logger.info(f"Encontrado trabajo entregado: {job.invoice_number} - {job.client_name}")
+
+        # Ordenar resultados por fecha de creación (más recientes primero)
+        results.sort(key=lambda x: x['created_at'] if x['created_at'] else datetime.min, reverse=True)
+
+        logger.info(f"Total de resultados encontrados en todas las tablas: {len(results)}")
+        return render_template('search_invoices.html', results=results, query=query)
+
+    except Exception as e:
+        logger.error(f"Error en búsqueda de facturas: {str(e)}")
+        flash('Error al realizar la búsqueda', 'error')
+        return render_template('search_invoices.html', results=[], query=query, error=True)
 
 
 @bp.route('/dashboard')
