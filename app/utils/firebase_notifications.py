@@ -9,10 +9,12 @@ logger = logging.getLogger(__name__)
 class FirebaseNotifications:
     def __init__(self):
         self.server_key = os.environ.get('GOOGLE_API_KEY')
-        self.fcm_url = 'https://fcm.googleapis.com/fcm/send'
+        # Usar la nueva API v1 de FCM
+        self.project_id = 'foto-video-mojica'
+        self.fcm_url = f'https://fcm.googleapis.com/v1/projects/{self.project_id}/messages:send'
         
     def send_notification(self, tokens: List[str], title: str, body: str, data: Optional[dict] = None):
-        """Enviar notificación a múltiples tokens"""
+        """Enviar notificación a múltiples tokens usando FCM legacy API"""
         if not self.server_key:
             logger.error("GOOGLE_API_KEY no está configurada")
             return False
@@ -20,40 +22,49 @@ class FirebaseNotifications:
         if not tokens:
             logger.warning("No hay tokens para enviar notificaciones")
             return False
-            
+        
+        # Usar legacy API que sigue funcionando
+        legacy_url = 'https://fcm.googleapis.com/fcm/send'
         headers = {
             'Authorization': f'key={self.server_key}',
             'Content-Type': 'application/json',
         }
         
-        # Preparar datos
-        payload = {
-            'registration_ids': tokens,
-            'notification': {
-                'title': title,
-                'body': body,
-                'icon': '/static/icons/logo-192x192.png',
-                'tag': 'foto-video-mojica'
-            }
-        }
+        success_count = 0
         
-        if data:
-            payload['data'] = data
+        # Enviar a cada token individualmente para mejor control
+        for token in tokens:
+            payload = {
+                'to': token,
+                'notification': {
+                    'title': title,
+                    'body': body,
+                    'icon': '/static/icons/logo-192x192.png',
+                    'tag': 'foto-video-mojica',
+                    'click_action': 'FCM_PLUGIN_ACTIVITY',
+                    'sound': 'default'
+                },
+                'data': data or {}
+            }
             
-        try:
-            response = requests.post(self.fcm_url, headers=headers, json=payload)
-            
-            if response.status_code == 200:
-                result = response.json()
-                logger.info(f"Notificación enviada exitosamente: {result}")
-                return True
-            else:
-                logger.error(f"Error al enviar notificación: {response.status_code} - {response.text}")
-                return False
+            try:
+                response = requests.post(legacy_url, headers=headers, json=payload)
                 
-        except Exception as e:
-            logger.error(f"Error al enviar notificación Firebase: {str(e)}")
-            return False
+                if response.status_code == 200:
+                    result = response.json()
+                    if result.get('success', 0) > 0:
+                        success_count += 1
+                        logger.info(f"Notificación enviada exitosamente a token: {token[:20]}...")
+                    else:
+                        logger.warning(f"Falló envío a token {token[:20]}...: {result}")
+                else:
+                    logger.error(f"Error HTTP {response.status_code} enviando a {token[:20]}...: {response.text}")
+                        
+            except Exception as e:
+                logger.error(f"Error enviando notificación a token {token[:20]}...: {str(e)}")
+        
+        logger.info(f"Notificaciones enviadas exitosamente: {success_count}/{len(tokens)}")
+        return success_count > 0
     
     def send_to_user(self, user_id: int, title: str, body: str, data: Optional[dict] = None):
         """Enviar notificación a un usuario específico"""

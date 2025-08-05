@@ -593,6 +593,7 @@ class ChatApp {
     
     testFirebaseNotification() {
         // Test Firebase notification to all users
+        console.log('Enviando notificación de prueba...');
         fetch('/api/chat/test-notification', {
             method: 'POST',
             headers: {
@@ -603,6 +604,16 @@ class ChatApp {
                 body: 'El nuevo sistema de chat está funcionando correctamente',
                 test: true
             })
+        }).then(response => {
+            console.log('Respuesta del servidor:', response.status);
+            return response.json();
+        }).then(data => {
+            console.log('Notificación enviada:', data);
+            if (data.success) {
+                console.log('✅ Notificación enviada exitosamente');
+            } else {
+                console.log('❌ Error enviando notificación:', data.error);
+            }
         }).catch(error => {
             console.error('Error testing Firebase notification:', error);
         });

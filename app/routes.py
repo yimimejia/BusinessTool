@@ -3,7 +3,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from functools import wraps
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
-from sqlalchemy import or_, desc, literal_column
+from sqlalchemy import or_, and_, desc, literal_column
 from app import db
 from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, PendingJob, Message, Invoice, InventoryItem, InventoryTransaction, Category
 from app.utils.notifications import send_notification
@@ -1869,30 +1869,25 @@ def send_chat_message():
         db.session.add(message)
         db.session.commit()
         
-        # Enviar notificación Firebase
+        # Enviar notificación a través de SSE para actualización en tiempo real
         try:
-            from app.utils.firebase_notifications import send_firebase_notification
+            # Enviar evento SSE para que el destinatario reciba el mensaje instantáneamente
+            message_data = {
+                'type': 'new_message',
+                'sender_id': current_user.id,
+                'sender_name': current_user.name,
+                'content': content,
+                'message_id': message.id,
+                'timestamp': message.created_at.isoformat()
+            }
             
-            notification_title = f"Nuevo mensaje de {current_user.name}"
-            notification_body = content[:100] + "..." if len(content) > 100 else content
+            # Enviar a través de SSE al destinatario específico
+            sse.publish(message_data, channel=f'user_{recipient_id}')
             
-            # Enviar notificación al destinatario
-            send_firebase_notification(
-                recipient.fcm_token if hasattr(recipient, 'fcm_token') and recipient.fcm_token else None,
-                notification_title,
-                notification_body,
-                data={
-                    'type': 'chat_message',
-                    'sender_id': str(current_user.id),
-                    'sender_name': current_user.name,
-                    'message_id': str(message.id)
-                }
-            )
-            
-            logger.info(f"Notificación Firebase enviada para mensaje de chat: {current_user.name} -> {recipient.name}")
+            logger.info(f"Evento SSE enviado para mensaje de chat: {current_user.name} -> {recipient.name}")
             
         except Exception as e:
-            logger.error(f"Error enviando notificación Firebase: {str(e)}")
+            logger.error(f"Error enviando evento SSE: {str(e)}")
         
         # Registrar actividad
         log_activity('enviar_mensaje_chat', f"Mensaje enviado a {recipient.name}")
@@ -1915,31 +1910,29 @@ def send_chat_message():
 @bp.route('/api/chat/test-notification', methods=['POST'])
 @login_required
 def test_chat_notification():
-    """Probar notificación Firebase a todos los usuarios"""
+    """Probar notificación del sistema de chat a través de SSE"""
     try:
         data = request.get_json()
-        title = data.get('title', 'Notificación de prueba')
-        body = data.get('body', 'Esta es una notificación de prueba del sistema de chat')
+        title = data.get('title', 'Sistema de Chat')
+        body = data.get('body', 'El sistema de chat está funcionando correctamente')
         
-        from app.utils.firebase_notifications import send_firebase_notification_to_all
+        # Enviar notificación a través de SSE
+        notification_data = {
+            'type': 'test_notification',
+            'title': title,
+            'body': body,
+            'sender': current_user.name,
+            'timestamp': datetime.utcnow().isoformat()
+        }
         
-        # Enviar notificación a todos los usuarios
-        result = send_firebase_notification_to_all(
-            title,
-            body,
-            data={
-                'type': 'test_notification',
-                'sender': current_user.name,
-                'timestamp': datetime.utcnow().isoformat()
-            }
-        )
+        # Enviar a todos los usuarios conectados
+        sse.publish(notification_data, channel='notifications')
         
         logger.info(f"Notificación de prueba enviada por {current_user.name}")
         
         return jsonify({
             'success': True,
-            'message': 'Notificación de prueba enviada a todos los usuarios',
-            'result': result
+            'message': 'Notificación de prueba enviada exitosamente'
         })
         
     except Exception as e:

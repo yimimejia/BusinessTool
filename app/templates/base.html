@@ -133,7 +133,7 @@
                         sendWelcomeNotification();
                         
                         messaging.getToken({ 
-                            vapidKey: 'BLN9_vqrwJHq8kHtFJ9qL9Nq9qJGqG_qQ9qr1qr1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1q1'
+                            vapidKey: 'BH4uKNPfqx4-_fk1v2L3sL2H8ePqD5zGcU9JjF0Q0pU1tKjF0Q0pU1tKjF0Q0pU1tKjF0Q0pU1tKjF0Q0pU1t'
                         }).then((currentToken) => {
                             if (currentToken) {
                                 console.log('Registration token:', currentToken);
@@ -178,34 +178,81 @@
                 }
             });
 
-            function showBrowserNotification(title, body) {
-                if ('serviceWorker' in navigator && 'PushManager' in window) {
+            function showBrowserNotification(title, body, data = {}) {
+                // Use native notifications for better reliability
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    const notification = new Notification(title, {
+                        body: body,
+                        icon: '/static/icons/logo-192x192.png',
+                        tag: data.type || 'foto-video-mojica',
+                        requireInteraction: data.type === 'chat_message',
+                        silent: false
+                    });
+
+                    notification.onclick = function() {
+                        window.focus();
+                        if (data.type === 'chat_message') {
+                            window.location.href = '/chat';
+                        }
+                        notification.close();
+                    };
+
+                    // Auto close after 8 seconds unless it's a chat message
+                    if (data.type !== 'chat_message') {
+                        setTimeout(() => notification.close(), 8000);
+                    }
+                }
+                // Fallback to service worker
+                else if ('serviceWorker' in navigator && 'PushManager' in window) {
                     navigator.serviceWorker.ready.then(registration => {
                         registration.showNotification(title, {
                             body: body,
                             icon: '/static/icons/logo-192x192.png',
                             badge: '/static/icons/logo-192x192.png',
-                            tag: 'foto-video-mojica'
+                            tag: data.type || 'foto-video-mojica',
+                            requireInteraction: data.type === 'chat_message'
                         });
                     });
                 }
             }
+
+            // Global function for chat notifications
+            window.showChatNotification = function(senderName, message) {
+                showBrowserNotification(`💬 ${senderName}`, message, { type: 'chat_message' });
+            };
 
             // Send welcome notification when permissions are granted
             function sendWelcomeNotification() {
                 try {
                     console.log('Sending welcome notification...');
                     
-                    // Try service worker notification first
-                    if ('serviceWorker' in navigator && 'PushManager' in window) {
+                    // Use native browser notifications for chat system
+                    if ('Notification' in window && Notification.permission === 'granted') {
+                        const notification = new Notification('Sistema de Chat Activado', {
+                            body: 'Las notificaciones están funcionando correctamente. Recibirás alertas de nuevos mensajes.',
+                            icon: '/static/icons/logo-192x192.png',
+                            tag: 'chat-welcome',
+                            requireInteraction: false
+                        });
+
+                        notification.onclick = function() {
+                            window.focus();
+                            notification.close();
+                        };
+
+                        setTimeout(() => notification.close(), 5000);
+                    }
+                    
+                    // Also try service worker notification as fallback
+                    else if ('serviceWorker' in navigator && 'PushManager' in window) {
                         navigator.serviceWorker.ready.then(registration => {
                             console.log('Service worker ready, showing notification');
-                            registration.showNotification('FOTO VIDEO MOJICA', {
-                                body: 'No desactive las notificaciones para continuar recibiendo las notificaciones.\n\nAtt. Administración',
+                            registration.showNotification('Sistema de Chat Activado', {
+                                body: 'Las notificaciones están funcionando correctamente.',
                                 icon: '/static/icons/logo-192x192.png',
                                 badge: '/static/icons/logo-192x192.png',
-                                tag: 'welcome-notification',
-                                requireInteraction: true,
+                                tag: 'chat-welcome',
+                                requireInteraction: false,
                                 actions: [
                                     {
                                         action: 'ok',
