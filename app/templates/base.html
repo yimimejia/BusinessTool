@@ -83,6 +83,18 @@
             firebase.initializeApp(firebaseConfig);
             const messaging = firebase.messaging();
 
+            // Register service worker for notifications
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/static/firebase-messaging-sw.js')
+                    .then(registration => {
+                        console.log('Service Worker registered successfully:', registration);
+                        messaging.useServiceWorker(registration);
+                    })
+                    .catch(error => {
+                        console.error('Service Worker registration failed:', error);
+                    });
+            }
+
             // Request notification permission and get FCM token
             function requestNotificationPermission() {
                 Notification.requestPermission().then((permission) => {
@@ -154,8 +166,12 @@
             // Send welcome notification when permissions are granted
             function sendWelcomeNotification() {
                 try {
+                    console.log('Sending welcome notification...');
+                    
+                    // Try service worker notification first
                     if ('serviceWorker' in navigator && 'PushManager' in window) {
                         navigator.serviceWorker.ready.then(registration => {
+                            console.log('Service worker ready, showing notification');
                             registration.showNotification('FOTO VIDEO MOJICA', {
                                 body: 'No desactive las notificaciones para continuar recibiendo las notificaciones.\n\nAtt. Administración',
                                 icon: '/static/icons/logo-192x192.png',
@@ -168,14 +184,40 @@
                                         title: 'Entendido'
                                     }
                                 ]
+                            }).then(() => {
+                                console.log('Notification shown successfully');
+                            }).catch(err => {
+                                console.error('Error showing notification:', err);
+                                // Fallback to basic notification
+                                fallbackNotification();
                             });
+                        }).catch(err => {
+                            console.error('Service worker not ready:', err);
+                            fallbackNotification();
                         });
                     } else {
-                        // Fallback to browser notification
-                        new Notification('FOTO VIDEO MOJICA', {
-                            body: 'No desactive las notificaciones para continuar recibiendo las notificaciones.\n\nAtt. Administración',
-                            icon: '/static/icons/logo-192x192.png'
-                        });
+                        console.log('Service worker not supported, using fallback');
+                        fallbackNotification();
+                    }
+
+                    function fallbackNotification() {
+                        console.log('Using fallback notification method');
+                        if (Notification.permission === 'granted') {
+                            const notification = new Notification('FOTO VIDEO MOJICA', {
+                                body: 'No desactive las notificaciones para continuar recibiendo las notificaciones.\n\nAtt. Administración',
+                                icon: '/static/icons/logo-192x192.png',
+                                requireInteraction: true
+                            });
+                            
+                            notification.onclick = function() {
+                                console.log('Welcome notification clicked');
+                                notification.close();
+                            };
+                            
+                            console.log('Fallback notification created');
+                        } else {
+                            console.error('Notification permission not granted for fallback');
+                        }
                     }
                 } catch (error) {
                     console.error('Error enviando notificación de bienvenida:', error);
