@@ -166,6 +166,9 @@ def login():
                 log_activity('login', f"Usuario {user.username} inició sesión")
                 logger.debug(f"Login exitoso para usuario: {username}")
                 
+                # Mark this as a fresh login for notification permission request
+                session['fresh_login'] = True
+                
                 # Get the next page from args
                 next_page = request.args.get('next')
                 if not next_page or not next_page.startswith('/'):
@@ -3822,4 +3825,38 @@ def generate_invoice_view(qr_code=None):
     except Exception as e:
         logger.error(f"Error generando vista de factura: {str(e)}")
         return "Error al generar la vista de factura", 500
+
+# API Routes for Firebase and notifications
+@bp.route('/api/save-fcm-token', methods=['POST'])
+@login_required
+def save_fcm_token():
+    """Guardar token FCM del usuario"""
+    try:
+        data = request.get_json()
+        token = data.get('token')
+        
+        if not token:
+            return jsonify({'success': False, 'error': 'Token no proporcionado'})
+        
+        # Actualizar el token FCM del usuario actual
+        current_user.fcm_token = token
+        db.session.commit()
+        
+        logger.info(f"Token FCM guardado para usuario {current_user.username}")
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logger.error(f"Error guardando token FCM: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@bp.route('/api/clear-fresh-login', methods=['POST'])
+@login_required
+def clear_fresh_login():
+    """Limpiar la bandera de fresh login"""
+    try:
+        session.pop('fresh_login', None)
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error limpiando fresh_login: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
 

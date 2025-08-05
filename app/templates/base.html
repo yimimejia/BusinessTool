@@ -181,9 +181,43 @@
                 });
             }
 
-            // Initialize notification permissions when page loads
+            // Auto-request notification permissions on first login
+            function autoRequestNotificationPermission() {
+                // Check if this is first time asking for permissions
+                const hasAskedBefore = localStorage.getItem('notificationPermissionAsked');
+                const currentPermission = Notification.permission;
+                
+                if (!hasAskedBefore && currentPermission === 'default') {
+                    // Mark that we've asked before
+                    localStorage.setItem('notificationPermissionAsked', 'true');
+                    
+                    // Show friendly prompt first
+                    if (confirm('¿Desea recibir notificaciones de FOTO VIDEO MOJICA para mantenerse al día con los trabajos pendientes?')) {
+                        requestNotificationPermission();
+                    }
+                } else if (currentPermission === 'granted') {
+                    // If already granted, just get the token
+                    requestNotificationPermission();
+                }
+            }
+
+            // Initialize on page load and check for fresh login
             $(document).ready(function() {
-                requestNotificationPermission();
+                // Check if this is a fresh login from the server
+                const isFreshLogin = {{ 'true' if session.get('fresh_login') else 'false' }};
+                
+                if (isFreshLogin) {
+                    // Clear the fresh login flag with a request
+                    fetch('/api/clear-fresh-login', { method: 'POST' });
+                    
+                    // Delay slightly to let page load completely, then ask for notifications
+                    setTimeout(autoRequestNotificationPermission, 1500);
+                } else {
+                    // On regular page loads, just get token if permission already granted
+                    if (Notification.permission === 'granted') {
+                        requestNotificationPermission();
+                    }
+                }
             });
         }
     </script>
