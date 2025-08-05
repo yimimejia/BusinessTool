@@ -81,16 +81,16 @@ $(document).ready(function() {
         const button = $(this);
         
         // Confirmar acción
-        if (!confirm(`¿Marcar trabajo como listo para verificación?\n\nCliente: ${clientName}\nDescripción: ${description}`)) {
+        if (!confirm(`¿Notificar a supervisores que este trabajo está listo?\n\nCliente: ${clientName}\nDescripción: ${description}`)) {
             return;
         }
         
-        // Deshabilitar botón
+        // Deshabilitar botón temporalmente
         button.prop('disabled', true);
-        button.html('<i class="bi bi-clock"></i> Procesando...');
+        button.html('<i class="bi bi-clock"></i> Enviando...');
         
-        // Enviar solicitud
-        fetch('/api/mark-job-ready', {
+        // Enviar notificación (SIN cambiar estado del trabajo)
+        fetch('/api/notify-supervisors', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -101,12 +101,11 @@ $(document).ready(function() {
         .then(data => {
             if (data.success) {
                 // Mostrar mensaje de éxito
-                alert('¡Trabajo marcado como listo para verificación!');
+                alert('¡Notificación enviada a supervisores!');
                 
-                // Remover fila de la tabla
-                button.closest('tr').fadeOut(500, function() {
-                    $(this).remove();
-                });
+                // Restaurar botón (el trabajo se queda en su lugar)
+                button.prop('disabled', false);
+                button.html('<i class="bi bi-bell"></i> Notificar');
             } else {
                 alert('Error: ' + data.message);
                 // Restaurar botón
@@ -116,7 +115,7 @@ $(document).ready(function() {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error al procesar la solicitud');
+            alert('Error al enviar notificación');
             // Restaurar botón
             button.prop('disabled', false);
             button.html('<i class="bi bi-bell"></i> Notificar');

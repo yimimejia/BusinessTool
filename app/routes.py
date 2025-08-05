@@ -3860,10 +3860,10 @@ def clear_fresh_login():
         logger.error(f"Error limpiando fresh_login: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
-@bp.route('/api/mark-job-ready', methods=['POST'])
+@bp.route('/api/notify-supervisors', methods=['POST'])
 @login_required
-def mark_job_ready():
-    """Marcar trabajo como listo para verificación"""
+def notify_supervisors():
+    """Notificar a supervisores que un trabajo está listo (sin cambiar estado)"""
     try:
         data = request.get_json()
         job_id = data.get('job_id')
@@ -3876,9 +3876,57 @@ def mark_job_ready():
         if not job:
             return jsonify({'success': False, 'message': 'Trabajo no encontrado'})
         
-        # Verificar que el usuario puede marcar este trabajo
-        if not current_user.is_designer and job.designer_id != current_user.id:
-            return jsonify({'success': False, 'message': 'No tienes permiso para marcar este trabajo'})
+        # Verificar que el usuario puede notificar sobre este trabajo
+        if current_user.role != 'designer' and job.designer_id != current_user.id:
+            return jsonify({'success': False, 'message': 'No tienes permiso para notificar sobre este trabajo'})
+        
+        # Solo notificar a supervisores, NO cambiar el estado del trabajo
+        from app.utils.firebase_notifications import firebase_notifications
+        firebase_notifications.send_to_role(
+            'supervisor', 
+            'Trabajo Listo para Verificación',
+            f'El diseñador {current_user.name} indica que está listo: {job.client_name} ({job.description})',
+            {
+                'type': 'ready_for_verification',
+                'job_id': job.id,
+                'client_name': job.client_name,
+                'description': job.description,
+                'designer_name': current_user.name
+            }
+        )
+        
+        # Registrar actividad
+        log_activity(
+            'notificacion_supervisores',
+            f"Diseñador notificó que está listo: {job.client_name} (Factura: {job.invoice_number})"
+        )
+        
+        logger.info(f"Trabajo {job_id} - notificación enviada a supervisores por {current_user.username}")
+        return jsonify({'success': True, 'message': 'Notificación enviada a supervisores'})
+        
+    except Exception as e:
+        logger.error(f"Error enviando notificación: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error al enviar notificación'})
+
+@bp.route('/api/mark-job-ready', methods=['POST'])
+@login_required
+def mark_job_ready():
+    """Marcar trabajo como listo para verificación (SOLO para supervisores/admin)"""
+    try:
+        data = request.get_json()
+        job_id = data.get('job_id')
+        
+        if not job_id:
+            return jsonify({'success': False, 'message': 'ID de trabajo no proporcionado'})
+        
+        # Solo supervisores y admins pueden marcar como listo
+        if current_user.role not in ['admin', 'supervisor']:
+            return jsonify({'success': False, 'message': 'No tienes permiso para marcar trabajos como listos'})
+        
+        # Buscar el trabajo
+        job = Job.query.get(job_id)
+        if not job:
+            return jsonify({'success': False, 'message': 'Trabajo no encontrado'})
         
         # Crear trabajo pendiente de verificación
         pending_job = PendingJob(
@@ -3904,21 +3952,6 @@ def mark_job_ready():
         log_activity(
             'trabajo_listo_verificacion',
             f"Trabajo marcado como listo para verificación: {job.client_name} (Factura: {job.invoice_number})"
-        )
-        
-        # Notificar a todos los supervisores
-        from app.utils.firebase_notifications import firebase_notifications
-        firebase_notifications.send_to_role(
-            'supervisor', 
-            'Trabajo Listo para Verificación',
-            f'El diseñador {current_user.name} marcó como listo: {job.client_name} ({job.description})',
-            {
-                'type': 'ready_for_verification',
-                'job_id': pending_job.id,
-                'client_name': job.client_name,
-                'description': job.description,
-                'designer_name': current_user.name
-            }
         )
         
         logger.info(f"Trabajo {job_id} marcado como listo para verificación por {current_user.username}")
