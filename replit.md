@@ -28,6 +28,9 @@ Preferred communication style: Simple, everyday language.
 - Updated WhatsApp message format to include business contact information
 - Added close button to invoice interface
 - Fixed WhatsApp button to properly use phone number from invoice
+- Separated invoice messages from work completion messages:
+  * Invoice messages: Include contact numbers and explain it's a virtual copy
+  * Work completion messages: No contact numbers, simpler notification format
 
 # System Architecture
 

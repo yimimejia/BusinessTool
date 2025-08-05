@@ -167,11 +167,6 @@ Nos complace informarle que su trabajo ya está *LISTO* para recoger.
 
 Puede pasar a recoger su trabajo en nuestras instalaciones durante nuestro horario de atención.
 
-*Información de contacto:*
-📞 809-246-0263
-📞 809-973-0372
-(WhatsApp y llamadas)
-
 Gracias por confiar en nosotros.
 Que Dios le bendiga.
 
