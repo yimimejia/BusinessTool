@@ -146,34 +146,36 @@ def generate_client_completion_message(job, include_invoice_url=True):
         
         # Construir el mensaje como un solo texto (sin concatenación)
         message = f"""*FOTO VIDEO MOJICA*
-¡Hola {job.client_name}!
 
-Nos complace informarle que su trabajo ya está *LISTO* ✅
+Estimado/a {job.client_name},
 
-*Detalles:*
+Nos complace informarle que su trabajo ya está *LISTO* para recoger.
+
+*Detalles del trabajo:*
 📝 Descripción: {job.description}
-🔢 Factura: {job.invoice_number}
+🔢 No. Factura: {job.invoice_number}
 💵 Total: ${float(job.total_amount or 0)}"""
 
         # Agregar enlace a la factura si está disponible
         if invoice_url:
             message += f"""
 
-*Ver su factura en línea:*
+*Acceder a su factura digital:*
 {invoice_url}"""
 
         message += f"""
 
-Puede pasar a recogerlo en nuestras instalaciones en horario de atención.
-¡Gracias por su preferencia!
+Puede pasar a recoger su trabajo en nuestras instalaciones durante nuestro horario de atención.
 
-*IMPORTANTE:* 
-No responda a este número automático.
-Para cualquier consulta, contáctenos al:
-*+1 (809) 246-0263*
+*Información de contacto:*
+📞 809-246-0263
+📞 809-973-0372
+(WhatsApp y llamadas)
 
-FOTO VIDEO MOJICA
-"""
+Gracias por confiar en nosotros.
+Que Dios le bendiga.
+
+*FOTO VIDEO MOJICA*"""
         return message
     except Exception as e:
         logger.error(f"Error al generar mensaje de finalización: {str(e)}")

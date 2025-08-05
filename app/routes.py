@@ -727,15 +727,24 @@ def send_whatsapp_invoice(job_id):
         remaining_amount = total_amount - deposit_amount
 
         # Preparar mensaje de WhatsApp según las especificaciones del usuario
-        whatsapp_message = f"""FOTO VIDEO MOJICA 
-{invoice_url}
-acceda a su factura atraves de este enlace.
-le informamos que su trabajo esta listo.
-Gracias por Preferirnos 
-DIOS TE BENDIGA.
+        whatsapp_message = f"""*FOTO VIDEO MOJICA*
 
-aqui podra ver su factura en caso de que pierda la fisica para mas informacion contancte : 809-246-0263 o 809-973-0372 Ambos por whatssap o llamada normal.
-DIOS TE BENDIGA."""
+{invoice_url}
+
+Estimado/a cliente,
+
+Le informamos que su trabajo está listo para recoger.
+
+Acceda a su factura a través de este enlace.
+
+Gracias por preferirnos.
+
+*Información de contacto:*
+📞 809-246-0263
+📞 809-973-0372
+(WhatsApp y llamadas)
+
+Que Dios le bendiga."""
         
         # Crear enlace de WhatsApp
         whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(whatsapp_message)}"
