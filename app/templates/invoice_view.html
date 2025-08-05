@@ -176,9 +176,7 @@
         <button onclick="window.print()" class="btn btn-print">
             Imprimir
         </button>
-        {% set clean_phone = job.phone_number|replace('+', '')|replace('-', '')|replace(' ', '') %}
-        {% set whatsapp_msg = "FOTO VIDEO MOJICA aqui podra ver su factura en caso de que pierda la fisica para mas informacion contancte : 809-246-0263 o 809-973-0372 Ambos por whatssap o llamada normal. DIOS TE BENDIGA." %}
-        <a href="https://wa.me/{{ clean_phone }}?text={{ whatsapp_msg|urlencode }}" 
+        <a href="{{ url_for('main.send_whatsapp_invoice', job_id=job.id) }}" 
            class="btn btn-whatsapp" target="_blank">
             Enviar por WhatsApp
         </a>
