@@ -2842,7 +2842,7 @@ def complete_job(job_id):
                 # Generar mensaje para el cliente
                 whatsapp_message = generate_client_completion_message(completed_job)
                 
-                # Intentar enviar mensaje directo por Twilio si hay credenciales
+                # Intentar enviar mensaje directo por WhatsApp si hay credenciales
                 whatsapp_sent = False
                 if all([os.environ.get("TWILIO_ACCOUNT_SID"), 
                         os.environ.get("TWILIO_AUTH_TOKEN"),
@@ -3563,7 +3563,7 @@ def approve_pending_job(job_id):
                 # Generar mensaje para el cliente
                 whatsapp_message = generate_client_completion_message(completed_job)
                 
-                # Intentar enviar mensaje directo por Twilio si hay credenciales
+                # Intentar enviar mensaje directo por WhatsApp si hay credenciales
                 whatsapp_sent = False
                 if all([os.environ.get("TWILIO_ACCOUNT_SID"), 
                         os.environ.get("TWILIO_AUTH_TOKEN"),
@@ -3573,8 +3573,8 @@ def approve_pending_job(job_id):
                             completed_job.phone_number,
                             whatsapp_message
                         )
-                    except Exception as twilio_error:
-                        logger.error(f"Error al enviar WhatsApp con Twilio: {str(twilio_error)}")
+                    except Exception as whatsapp_error:
+                        logger.error(f"Error al enviar WhatsApp con WhatsApp: {str(whatsapp_error)}")
                         whatsapp_sent = False
                 
                 # Generar enlace de WhatsApp como alternativa
@@ -3898,7 +3898,7 @@ def api_complete_job():
                 # Generar mensaje para el cliente
                 whatsapp_message = generate_client_completion_message(completed_job)
                 
-                # Intentar enviar mensaje directo por Twilio si hay credenciales
+                # Intentar enviar mensaje directo por WhatsApp si hay credenciales
                 whatsapp_sent = False
                 if all([os.environ.get("TWILIO_ACCOUNT_SID"), 
                         os.environ.get("TWILIO_AUTH_TOKEN"),
@@ -3908,8 +3908,8 @@ def api_complete_job():
                             completed_job.phone_number,
                             whatsapp_message
                         )
-                    except Exception as twilio_error:
-                        logger.error(f"Error al enviar WhatsApp con Twilio: {str(twilio_error)}")
+                    except Exception as whatsapp_error:
+                        logger.error(f"Error al enviar WhatsApp con WhatsApp: {str(whatsapp_error)}")
                         whatsapp_sent = False
                 
                 # Generar enlace de WhatsApp como alternativa
