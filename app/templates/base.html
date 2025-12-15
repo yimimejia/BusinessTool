@@ -373,6 +373,80 @@
         }
     </script>
 
+    <!-- Polling Notifications System -->
+    <script>
+        {% if current_user.is_authenticated %}
+        (function() {
+            let lastCheck = Date.now();
+            const POLL_INTERVAL = 10000; // 10 segundos
+            
+            function checkNotifications() {
+                fetch('/api/notifications/pending')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.notifications && data.notifications.length > 0) {
+                            const ids = [];
+                            data.notifications.forEach(n => {
+                                showBrowserNotification(n.title, n.body, n);
+                                showToast(n.title, n.body);
+                                ids.push(n.id);
+                            });
+                            // Marcar como leídas
+                            fetch('/api/notifications/mark-read', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({ids: ids})
+                            });
+                        }
+                    })
+                    .catch(err => console.error('Error checking notifications:', err));
+            }
+            
+            function showBrowserNotification(title, body, data) {
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    const notification = new Notification(title, {
+                        body: body,
+                        icon: '/static/icons/logo-192x192.png',
+                        tag: 'notification-' + (data.id || Date.now()),
+                        requireInteraction: false
+                    });
+                    notification.onclick = function() {
+                        window.focus();
+                        notification.close();
+                    };
+                    setTimeout(() => notification.close(), 8000);
+                }
+            }
+            
+            function showToast(title, body) {
+                const toastContainer = document.querySelector('.toast-container');
+                if (!toastContainer) return;
+                const toastId = 'toast-' + Date.now();
+                const toastHtml = `
+                    <div id="${toastId}" class="toast show" role="alert" style="min-width: 300px;">
+                        <div class="toast-header bg-primary text-white">
+                            <i class="bi bi-bell-fill me-2"></i>
+                            <strong class="me-auto">${title}</strong>
+                            <button type="button" class="btn-close btn-close-white" onclick="this.closest('.toast').remove()"></button>
+                        </div>
+                        <div class="toast-body">${body}</div>
+                    </div>
+                `;
+                toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+                setTimeout(() => {
+                    const toast = document.getElementById(toastId);
+                    if (toast) toast.remove();
+                }, 8000);
+            }
+            
+            // Iniciar polling
+            setInterval(checkNotifications, POLL_INTERVAL);
+            // Primera verificación después de 3 segundos
+            setTimeout(checkNotifications, 3000);
+        })();
+        {% endif %}
+    </script>
+
     <style>
         .navbar-nav {
             display: flex;

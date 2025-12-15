@@ -5,7 +5,7 @@ from functools import wraps
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy import or_, and_, desc, literal_column
 from app import db
-from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, PendingJob, Message, Invoice, InventoryItem, InventoryTransaction, Category
+from app.models import User, Job, CompletedJob, ActivityLog, DeliveredJob, PendingJob, Message, Invoice, InventoryItem, InventoryTransaction, Category, SystemNotification
 from app.utils.notifications import send_notification
 from flask_sse import sse
 from datetime import datetime, timedelta
@@ -1948,6 +1948,108 @@ def test_chat_notification():
     except Exception as e:
         logger.error(f"Error enviando notificación de prueba: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@bp.route('/api/broadcast-notification', methods=['POST'])
+@login_required
+@admin_required
+def broadcast_notification():
+    """Enviar notificación a todos los usuarios del sistema"""
+    try:
+        data = request.get_json() or {}
+        title = data.get('title', '📢 Notificación del Sistema')
+        body = data.get('body', 'Esta es una notificación de prueba del sistema FOTO VIDEO MOJICA')
+        
+        # Obtener todos los usuarios activos
+        all_users = User.query.filter_by(is_active=True).all()
+        sent_count = 0
+        
+        # Guardar notificación en la base de datos para cada usuario
+        for user in all_users:
+            try:
+                notification = SystemNotification(
+                    user_id=user.id,
+                    title=title,
+                    body=body,
+                    sender_id=current_user.id,
+                    notification_type='broadcast'
+                )
+                db.session.add(notification)
+                sent_count += 1
+                logger.info(f"Notificación guardada para usuario: {user.username}")
+            except Exception as e:
+                logger.error(f"Error guardando notificación para {user.username}: {str(e)}")
+        
+        db.session.commit()
+        log_activity('broadcast_notification', f"Notificación enviada a {sent_count} usuarios: {title}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Notificación enviada a {sent_count} usuarios',
+            'sent_count': sent_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error enviando notificación broadcast: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/api/notifications/pending')
+@login_required
+def get_pending_notifications():
+    """Obtener notificaciones pendientes para el usuario actual"""
+    try:
+        notifications = SystemNotification.query.filter_by(
+            user_id=current_user.id,
+            is_read=False
+        ).order_by(SystemNotification.created_at.desc()).limit(10).all()
+        
+        return jsonify({
+            'notifications': [{
+                'id': n.id,
+                'title': n.title,
+                'body': n.body,
+                'type': n.notification_type,
+                'created_at': n.created_at.isoformat()
+            } for n in notifications]
+        })
+    except Exception as e:
+        logger.error(f"Error obteniendo notificaciones: {str(e)}")
+        return jsonify({'notifications': []})
+
+@bp.route('/api/notifications/mark-read', methods=['POST'])
+@login_required
+def mark_notifications_read():
+    """Marcar notificaciones como leídas"""
+    try:
+        data = request.get_json() or {}
+        notification_ids = data.get('ids', [])
+        
+        if notification_ids:
+            SystemNotification.query.filter(
+                SystemNotification.id.in_(notification_ids),
+                SystemNotification.user_id == current_user.id
+            ).update({'is_read': True}, synchronize_session=False)
+        else:
+            # Marcar todas como leídas
+            SystemNotification.query.filter_by(
+                user_id=current_user.id,
+                is_read=False
+            ).update({'is_read': True})
+        
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error marcando notificaciones: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/test-notifications')
+@login_required
+@admin_required
+def test_notifications_page():
+    """Página para probar el sistema de notificaciones"""
+    users = User.query.filter_by(is_active=True).all()
+    return render_template('test_notifications.html', users=users)
 
 @bp.route('/messages/unread')
 @login_required

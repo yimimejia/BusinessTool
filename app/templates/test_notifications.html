@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Probar Notificaciones{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 800px;">
+    <h2 class="d-flex align-items-center gap-2 mb-4">
+        <i class="bi bi-bell-fill"></i> Probar Sistema de Notificaciones
+    </h2>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-gear"></i> Estado del Sistema</h5>
+        </div>
+        <div class="card-body">
+            <div id="notification-status" class="alert alert-info">
+                Verificando permisos de notificación...
+            </div>
+            <button id="requestPermission" class="btn btn-primary mb-3">
+                <i class="bi bi-bell"></i> Solicitar Permiso de Notificaciones
+            </button>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-broadcast"></i> Enviar Notificación a Todos</h5>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="notificationTitle" class="form-label">Título</label>
+                <input type="text" class="form-control" id="notificationTitle" value="📢 Notificación de Prueba">
+            </div>
+            <div class="mb-3">
+                <label for="notificationBody" class="form-label">Mensaje</label>
+                <textarea class="form-control" id="notificationBody" rows="3">Esta es una notificación de prueba del sistema FOTO VIDEO MOJICA</textarea>
+            </div>
+            <button id="sendBroadcast" class="btn btn-success btn-lg w-100">
+                <i class="bi bi-send-fill"></i> Enviar a Todos los Usuarios
+            </button>
+            <div id="sendResult" class="mt-3"></div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-bell-slash"></i> Probar Notificación Local</h5>
+        </div>
+        <div class="card-body">
+            <button id="testLocal" class="btn btn-outline-primary w-100">
+                <i class="bi bi-bell"></i> Mostrar Notificación Local de Prueba
+            </button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-people"></i> Usuarios Activos ({{ users|length }})</h5>
+        </div>
+        <div class="card-body">
+            <ul class="list-group">
+                {% for user in users %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="bi bi-person-circle"></i> {{ user.name or user.username }}
+                        {% if user.is_admin %}<span class="badge bg-danger">Admin</span>{% endif %}
+                        {% if user.is_supervisor %}<span class="badge bg-warning">Supervisor</span>{% endif %}
+                        {% if user.is_designer %}<span class="badge bg-info">Diseñador</span>{% endif %}
+                    </span>
+                    <span class="text-muted">{{ user.username }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+$(document).ready(function() {
+    // Verificar estado de permisos
+    function checkPermissionStatus() {
+        const statusDiv = $('#notification-status');
+        if (!('Notification' in window)) {
+            statusDiv.removeClass('alert-info').addClass('alert-danger')
+                .html('<i class="bi bi-x-circle"></i> Este navegador no soporta notificaciones');
+            return;
+        }
+        
+        if (Notification.permission === 'granted') {
+            statusDiv.removeClass('alert-info alert-danger').addClass('alert-success')
+                .html('<i class="bi bi-check-circle"></i> Notificaciones permitidas - El sistema está listo');
+        } else if (Notification.permission === 'denied') {
+            statusDiv.removeClass('alert-info alert-success').addClass('alert-danger')
+                .html('<i class="bi bi-x-circle"></i> Notificaciones bloqueadas - Habilítalas en la configuración del navegador');
+        } else {
+            statusDiv.html('<i class="bi bi-info-circle"></i> Permisos pendientes - Haz clic en "Solicitar Permiso"');
+        }
+    }
+    
+    checkPermissionStatus();
+    
+    // Solicitar permiso
+    $('#requestPermission').click(function() {
+        Notification.requestPermission().then(function(permission) {
+            checkPermissionStatus();
+            if (permission === 'granted') {
+                new Notification('Permisos Activados', {
+                    body: 'Ahora recibirás notificaciones del sistema',
+                    icon: '/static/icons/logo-192x192.png'
+                });
+            }
+        });
+    });
+    
+    // Enviar notificación broadcast
+    $('#sendBroadcast').click(function() {
+        const title = $('#notificationTitle').val();
+        const body = $('#notificationBody').val();
+        
+        $(this).prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Enviando...');
+        
+        fetch('/api/broadcast-notification', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ title: title, body: body })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                $('#sendResult').html('<div class="alert alert-success"><i class="bi bi-check-circle"></i> ' + data.message + '</div>');
+            } else {
+                $('#sendResult').html('<div class="alert alert-danger"><i class="bi bi-x-circle"></i> Error: ' + (data.error || 'Error desconocido') + '</div>');
+            }
+        })
+        .catch(error => {
+            $('#sendResult').html('<div class="alert alert-danger"><i class="bi bi-x-circle"></i> Error: ' + error + '</div>');
+        })
+        .finally(() => {
+            $('#sendBroadcast').prop('disabled', false).html('<i class="bi bi-send-fill"></i> Enviar a Todos los Usuarios');
+        });
+    });
+    
+    // Prueba local
+    $('#testLocal').click(function() {
+        if (Notification.permission === 'granted') {
+            const notification = new Notification('🔔 Prueba Local', {
+                body: 'Esta es una notificación de prueba local',
+                icon: '/static/icons/logo-192x192.png',
+                tag: 'test-local'
+            });
+            notification.onclick = function() {
+                window.focus();
+                notification.close();
+            };
+            setTimeout(() => notification.close(), 5000);
+        } else {
+            alert('Primero debes permitir las notificaciones');
+        }
+    });
+});
+</script>
+{% endblock %}

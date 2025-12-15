@@ -514,3 +514,17 @@ class InventoryTransaction(db.Model):
 
     item = db.relationship('InventoryItem', backref='transactions')
     created_by = db.relationship('User', backref='inventory_transactions')
+
+class SystemNotification(db.Model):
+    __tablename__ = 'system_notifications'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    notification_type = db.Column(db.String(50), default='info')  # broadcast, chat, alert, etc.
+    sender_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    user = db.relationship('User', foreign_keys=[user_id], backref='system_notifications')
+    sender = db.relationship('User', foreign_keys=[sender_id])
