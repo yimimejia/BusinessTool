@@ -52,4 +52,4 @@ localPort = 5001
 externalPort = 3000
 
 [agent]
-integrations = ["twilio_send_message==1.0.0"]
+integrations = ["twilio_send_message:1.0.0"]

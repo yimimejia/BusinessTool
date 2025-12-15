@@ -115,33 +115,16 @@ $(document).ready(function() {
   let currentJobId = null;
   const authModal = new bootstrap.Modal(document.getElementById('authModal'));
   const errorDiv = document.getElementById('authError');
+  const isYimi = '{{ current_user.username }}'.toLowerCase() === 'yimi';
 
-  $('.complete-job').click(function() {
-    currentJobId = $(this).data('job-id');
-    if (errorDiv) {
-      errorDiv.classList.add('d-none');
-    }
-    authModal.show();
-  });
-
-  function completeJob(jobId) {
-    currentJobId = jobId;
-    if (errorDiv) {
-      errorDiv.classList.add('d-none');
-    }
-    authModal.show();
-  }
-
-  $('#submitAuth').click(function() {
-    const password = $('#authPassword').val();
-
-    fetch(`/jobs/${currentJobId}/complete`, {
+  function submitComplete(jobId, password) {
+    fetch(`/jobs/${jobId}/complete`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        admin_password: password
+        admin_password: password || ''
       })
     })
     .then(response => response.json())
@@ -153,6 +136,9 @@ $(document).ready(function() {
           errorDiv.textContent = data.message || 'Error al completar el trabajo';
           errorDiv.classList.remove('d-none');
         }
+        if (!isYimi) {
+          authModal.show();
+        }
       }
     })
     .catch(error => {
@@ -162,6 +148,35 @@ $(document).ready(function() {
         errorDiv.classList.remove('d-none');
       }
     });
+  }
+
+  $('.complete-job').click(function() {
+    currentJobId = $(this).data('job-id');
+    if (errorDiv) {
+      errorDiv.classList.add('d-none');
+    }
+    if (isYimi) {
+      submitComplete(currentJobId, '');
+    } else {
+      authModal.show();
+    }
+  });
+
+  window.completeJob = function(jobId) {
+    currentJobId = jobId;
+    if (errorDiv) {
+      errorDiv.classList.add('d-none');
+    }
+    if (isYimi) {
+      submitComplete(jobId, '');
+    } else {
+      authModal.show();
+    }
+  };
+
+  $('#submitAuth').click(function() {
+    const password = $('#authPassword').val();
+    submitComplete(currentJobId, password);
   });
 });
 </script>

@@ -787,6 +787,16 @@ Que Dios le bendiga."""
         # Crear enlace de WhatsApp
         whatsapp_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(whatsapp_message)}"
 
+        # Si es trabajo completado, marcar automáticamente como llamado
+        if is_completed and not job.is_called:
+            job.is_called = True
+            job.called_at = datetime.utcnow()
+            db.session.commit()
+            log_activity(
+                'cliente_llamado',
+                f"Cliente notificado automáticamente: {job.client_name} (Factura: {job.invoice_number})"
+            )
+
         log_activity(
             'enviar_whatsapp_factura',
             f"Factura enviada por WhatsApp a {job.client_name} (Factura: {job.invoice_number})"
@@ -2776,32 +2786,37 @@ def complete_job(job_id):
     try:
         data = request.get_json()
         admin_password = data.get('admin_password')
+        
+        # Si el usuario actual es "yimi" (supervisor), no necesita contraseña
+        if current_user.username.lower() == 'yimi' and current_user.is_supervisor:
+            authorized_user = current_user
+            valid_password = True
+        else:
+            if not admin_password:
+                return jsonify({
+                    'success': False,
+                    'message': 'Se requiere la contraseña de administrador'
+                }), 400
 
-        if not admin_password:
-            return jsonify({
-                'success': False,
-                'message': 'Se requiere la contraseña de administrador'
-            }), 400
+            # Verificar si la contraseña coincide con algún admin o supervisor
+            authorized_users = User.query.filter(
+                (User.is_admin == True) | (User.is_supervisor == True)
+            ).all()
 
-        # Verificar si la contraseña coincide con algún admin o supervisor
-        authorized_users = User.query.filter(
-            (User.is_admin == True) | (User.is_supervisor == True)
-        ).all()
+            valid_password = False
+            authorized_user = None
+            for user in authorized_users:
+                if user.check_password(admin_password):
+                    valid_password = True
+                    authorized_user = user
+                    break
 
-        valid_password = False
-        authorized_user = None
-        for user in authorized_users:
-            if user.check_password(admin_password):
-                valid_password = True
-                authorized_user = user
-                break
-
-        if not valid_password:
-            logger.warning(f"Intento de autorización fallido para completar trabajo {job_id}")
-            return jsonify({
-                'success': False,
-                'message': 'Contraseña incorrecta. Se requiere contraseña de administrador o supervisor.'
-            }), 401
+            if not valid_password:
+                logger.warning(f"Intento de autorización fallido para completar trabajo {job_id}")
+                return jsonify({
+                    'success': False,
+                    'message': 'Contraseña incorrecta. Se requiere contraseña de administrador o supervisor.'
+                }), 401
 
         # Buscar el trabajo
         job = Job.query.get_or_404(job_id)
