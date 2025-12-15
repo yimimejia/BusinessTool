@@ -77,6 +77,13 @@
                                 <span class="text-danger">No hay número de teléfono registrado</span>
                                 {% endif %}
                             {% else %}
+                                <!-- Botón para revertir a pendiente (siempre visible para staff) -->
+                                <form action="{{ url_for('main.revert_to_pending', job_id=job.id) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Está seguro de revertir este trabajo a pendiente?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="Revertir a pendiente">
+                                        <i class="bi bi-arrow-counterclockwise"></i> A Pendiente
+                                    </button>
+                                </form>
+                                
                                 {% if not job.is_called %}
                                 {% if job.phone_number %}
                                 <!-- Botón unificado de factura y WhatsApp -->

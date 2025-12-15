@@ -2776,6 +2776,48 @@ def unmark_called(job_id):
     return redirect(url_for('main.completed_jobs'))
 
 
+@bp.route('/completed-jobs/<int:job_id>/revert-to-pending', methods=['POST'])
+@login_required
+@staff_required
+def revert_to_pending(job_id):
+    """Revertir un trabajo completado a pendiente"""
+    try:
+        completed_job = CompletedJob.query.get_or_404(job_id)
+        
+        # Crear un nuevo trabajo pendiente con los mismos datos
+        pending_job = Job(
+            description=completed_job.description,
+            designer_id=completed_job.designer_id,
+            registered_by_id=current_user.id,
+            invoice_number=completed_job.invoice_number,
+            client_name=completed_job.client_name,
+            phone_number=completed_job.phone_number,
+            created_at=completed_job.created_at,
+            tags=completed_job.tags,
+            total_amount=completed_job.total_amount,
+            deposit_amount=completed_job.deposit_amount,
+            qr_code=completed_job.qr_code,
+            status='pending'
+        )
+        
+        db.session.add(pending_job)
+        db.session.delete(completed_job)
+        db.session.commit()
+        
+        log_activity(
+            'trabajo_revertido',
+            f"Trabajo revertido a pendiente: {pending_job.client_name} (Factura: {pending_job.invoice_number}) por {current_user.username}"
+        )
+        
+        flash(f'Trabajo de {pending_job.client_name} revertido a pendiente exitosamente.', 'success')
+        return redirect(url_for('main.completed_jobs'))
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al revertir trabajo a pendiente: {str(e)}")
+        flash('Error al revertir el trabajo a pendiente.', 'error')
+        return redirect(url_for('main.completed_jobs'))
+
 
 @bp.route('/completed-jobs/<int:job_id>/mark-delivered', methods=['POST'])
 @login_required
