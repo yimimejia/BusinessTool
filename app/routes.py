@@ -210,6 +210,20 @@ def inject_urgent_jobs():
         logger.error(f"Error al obtener trabajos urgentes: {str(e)}")
         return {'urgent_jobs': []}
 
+@bp.context_processor
+def inject_pending_verification():
+    """Inject pending verification jobs into templates"""
+    if not current_user.is_authenticated:
+        return {'pending_verification_jobs': []}
+    try:
+        if current_user.is_admin or current_user.is_supervisor:
+            pending_jobs = PendingJob.query.filter_by(pending_type='photo_verification').all()
+            return {'pending_verification_jobs': pending_jobs}
+        return {'pending_verification_jobs': []}
+    except Exception as e:
+        logger.error(f"Error al obtener trabajos pendientes de verificación: {str(e)}")
+        return {'pending_verification_jobs': []}
+
 def notify_staff(message, title="Notificación"):
     """Enviar notificación a admin y supervisores"""
     try:

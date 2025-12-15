@@ -334,14 +334,10 @@
 
             // Auto-request notification permissions on first login
             function autoRequestNotificationPermission() {
-                // Check if this is first time asking for permissions
-                const hasAskedBefore = localStorage.getItem('notificationPermissionAsked');
                 const currentPermission = Notification.permission;
                 
-                if (!hasAskedBefore && currentPermission === 'default') {
-                    // Mark that we've asked before
-                    localStorage.setItem('notificationPermissionAsked', 'true');
-                    
+                // Siempre pedir permiso en el primer login si no está ya otorgado
+                if (currentPermission === 'default') {
                     // Show friendly prompt first
                     if (confirm('¿Desea recibir notificaciones de FOTO VIDEO MOJICA para mantenerse al día con los trabajos pendientes?')) {
                         requestNotificationPermission();
@@ -586,6 +582,58 @@
     </div>
 </div>
 
+<!-- Modal para trabajos pendientes de verificación -->
+<div class="modal fade" id="pendingVerificationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="bi bi-images"></i> 
+                    Trabajos Pendientes de Verificación
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% if pending_verification_jobs %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Cliente</th>
+                                <th>Descripción</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for job in pending_verification_jobs %}
+                            <tr>
+                                <td>{{ job.id }}</td>
+                                <td>{{ job.client_name }}</td>
+                                <td>{{ job.description }}</td>
+                                <td>{{ job.created_at.strftime('%d/%m/%Y') }}</td>
+                                <td>
+                                    <a href="{{ url_for('main.jobs_pending_photos') }}" class="btn btn-sm btn-warning">
+                                        <i class="bi bi-eye"></i> Verificar
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center">No hay trabajos pendientes de verificación.</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
     {% if request.endpoint != 'main.view_approved_photos' %}
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
         <div class="container">
@@ -814,6 +862,14 @@
                 {% if urgent_jobs and urgent_jobs|length > 0 %}
                     const urgentJobsModal = new bootstrap.Modal(document.getElementById('urgentJobsModal'));
                     urgentJobsModal.show();
+                {% endif %}
+                
+                {% if pending_verification_jobs and pending_verification_jobs|length > 0 %}
+                    // Mostrar después de 500ms para no solapar con el modal urgente
+                    setTimeout(() => {
+                        const pendingVerificationModal = new bootstrap.Modal(document.getElementById('pendingVerificationModal'));
+                        pendingVerificationModal.show();
+                    }, 500);
                 {% endif %}
             });
         </script>
