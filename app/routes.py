@@ -218,15 +218,12 @@ def inject_pending_verification():
     try:
         # Mostrar a admin, supervisor y diseñador
         if current_user.is_admin or current_user.is_supervisor:
-            # Admin y supervisor ven todos los trabajos pendientes de verificación
-            pending_jobs = PendingJob.query.filter_by(pending_type='photo_verification').all()
+            # Admin y supervisor ven todos los trabajos pendientes de verificación (todos los tipos)
+            pending_jobs = PendingJob.query.all()
             return {'pending_verification_jobs': pending_jobs}
         elif current_user.is_designer:
             # Diseñador solo ve sus propios trabajos pendientes de verificación
-            pending_jobs = PendingJob.query.filter_by(
-                pending_type='photo_verification',
-                designer_id=current_user.id
-            ).all()
+            pending_jobs = PendingJob.query.filter_by(designer_id=current_user.id).all()
             return {'pending_verification_jobs': pending_jobs}
         return {'pending_verification_jobs': []}
     except Exception as e:
