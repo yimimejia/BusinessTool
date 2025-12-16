@@ -427,6 +427,9 @@ def view_invoice_pdf(job_id):
         if not job:
             flash('Trabajo no encontrado', 'error')
             return redirect(url_for('main.dashboard'))
+        
+        # Verificar si viene de crear un nuevo trabajo
+        from_new_job = request.args.get('from_new', '0') == '1'
             
         # Preparar mensaje de WhatsApp
         whatsapp_message = f"""*FOTO VIDEO MOJICA*
@@ -456,7 +459,8 @@ Le enviamos su factura:
             deposit_amount=deposit_amount,
             remaining_amount=remaining_amount,
             whatsapp_message=whatsapp_message,
-            whatsapp_url=whatsapp_url
+            whatsapp_url=whatsapp_url,
+            from_new_job=from_new_job
         )
     except Exception as e:
         logger.error(f"Error al mostrar factura: {str(e)}")
@@ -1003,8 +1007,8 @@ Le notificaremos cuando esté listo para recoger.
             logger.error(f"Error al generar enlace de WhatsApp: {str(whatsapp_error)}")
         
         flash('Trabajo aprobado exitosamente', 'success')
-        # Redirigir a la vista de factura para enviar al cliente
-        return redirect(url_for('main.view_invoice_pdf', job_id=active_job.id))
+        # Redirigir a la vista de factura para enviar al cliente (con parámetro from_new=1)
+        return redirect(url_for('main.view_invoice_pdf', job_id=active_job.id, from_new=1))
 
     except Exception as e:
         db.session.rollback()

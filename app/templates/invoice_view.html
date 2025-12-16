@@ -170,9 +170,15 @@
     </div>
 
     <div class="actions">
-        <button onclick="window.close()" class="btn btn-close">
+        {% if from_new_job %}
+        <a href="{{ url_for('main.dashboard') }}" class="btn btn-close">
+            Cerrar
+        </a>
+        {% else %}
+        <button onclick="window.close(); window.history.back();" class="btn btn-close">
             Cerrar
         </button>
+        {% endif %}
         <button onclick="window.print()" class="btn btn-print">
             Imprimir
         </button>
