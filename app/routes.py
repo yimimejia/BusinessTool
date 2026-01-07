@@ -4605,9 +4605,17 @@ def upload_empleado_pdfs():
                 max_total = data['total']
                 winner = pc
         
+        # Ordenar por total descendente y convertir a lista
+        sorted_pc_list = sorted(
+            [{'pc': pc, **data} for pc, data in pc_data.items()],
+            key=lambda x: x['total'],
+            reverse=True
+        )
+        
         # Guardar en sesión para uso posterior
         session['empleado_mes_data'] = {
             'pc_data': pc_data,
+            'sorted_list': sorted_pc_list,
             'winner': winner,
             'warnings': warnings
         }

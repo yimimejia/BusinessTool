@@ -89,19 +89,19 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for pc, info in data.pc_data|dictsort(by='value', reverse=true, attribute='total') %}
-                                <tr class="{% if pc == data.winner %}table-success{% endif %}">
+                                {% for item in data.sorted_list %}
+                                <tr class="{% if item.pc == data.winner %}table-success{% endif %}">
                                     <td>
-                                        {{ pc }}
-                                        {% if pc == data.winner %}
+                                        {{ item.pc }}
+                                        {% if item.pc == data.winner %}
                                         <span class="badge bg-warning text-dark ms-2">
                                             <i class="bi bi-trophy-fill"></i> GANADOR
                                         </span>
                                         {% endif %}
                                     </td>
-                                    <td class="text-center">{{ info.fotos_5x7 }}</td>
-                                    <td class="text-center">{{ info.fotos_combos }}</td>
-                                    <td class="text-center fw-bold">{{ info.total }}</td>
+                                    <td class="text-center">{{ item.fotos_5x7 }}</td>
+                                    <td class="text-center">{{ item.fotos_combos }}</td>
+                                    <td class="text-center fw-bold">{{ item.total }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
