@@ -33,4 +33,5 @@ dependencies = [
     "oauthlib>=3.2.2",
     "pyjwt>=2.10.1",
     "pdf2image>=1.17.0",
+    "pdfplumber>=0.11.9",
 ]

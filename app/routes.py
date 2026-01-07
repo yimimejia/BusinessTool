@@ -357,6 +357,20 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def admin_or_yimi_required(f):
+    """Decorator para requerir que el usuario sea admin o sea Yimi (supervisor especial)"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash('Debes iniciar sesión', 'error')
+            return redirect(url_for('main.login'))
+        is_yimi = current_user.username.lower() == 'yimi' and current_user.is_supervisor
+        if not current_user.is_admin and not is_yimi:
+            flash('No tienes permiso para acceder a esta página', 'error')
+            return redirect(url_for('main.dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 @bp.route('/jobs/public/<int:job_id>/invoice', methods=['GET'])
 def public_view_job_invoice(job_id):
     """Ver factura sin autenticación"""
@@ -4444,4 +4458,310 @@ def mark_job_ready():
         db.session.rollback()
         logger.error(f"Error marcando trabajo como listo: {str(e)}")
         return jsonify({'success': False, 'message': f'Error al procesar la solicitud: {str(e)}'})
+
+
+# ============================================================================
+# MÓDULO EMPLEADO DEL MES
+# ============================================================================
+
+@bp.route('/admin/empleado-del-mes', methods=['GET'])
+@login_required
+@admin_or_yimi_required
+def empleado_del_mes():
+    """Página principal del módulo Empleado del Mes"""
+    from app.models import EmployeeOfMonthReport
+    
+    # Obtener reportes anteriores
+    previous_reports = EmployeeOfMonthReport.query.order_by(
+        EmployeeOfMonthReport.created_at.desc()
+    ).limit(10).all()
+    
+    return render_template('empleado_del_mes.html', previous_reports=previous_reports)
+
+
+@bp.route('/admin/empleado-del-mes/upload', methods=['POST'])
+@login_required
+@admin_or_yimi_required
+def upload_empleado_pdfs():
+    """Subir y procesar PDFs para calcular producción"""
+    import pdfplumber
+    from app.models import EmployeeOfMonthReport
+    
+    try:
+        if 'pdfs' not in request.files:
+            flash('No se seleccionaron archivos PDF', 'error')
+            return redirect(url_for('main.empleado_del_mes'))
+        
+        pdf_files = request.files.getlist('pdfs')
+        if not pdf_files or all(f.filename == '' for f in pdf_files):
+            flash('No se seleccionaron archivos PDF', 'error')
+            return redirect(url_for('main.empleado_del_mes'))
+        
+        # Equivalencias de combos
+        COMBO_EQUIVALENCIAS = {
+            'combo bebe': 4,
+            'combo bebé': 4,
+            'combo baby': 4,
+            'combo cumpleaños': 6,
+            'combo cumpleanos': 6,
+            'combo embarazada': 11,
+            'combo embarazo': 11,
+            'combo 15 años': 13,
+            'combo 15 anos': 13,
+            'combo quince': 13,
+            'combo quinceañera': 13,
+            'combo navidad': 8,
+            'combo oferta': 8,
+            'navidad': 8,
+            'oferta especial': 8,
+        }
+        
+        # Resultados por PC
+        pc_data = {}
+        warnings = []
+        all_text = ""
+        
+        for pdf_file in pdf_files:
+            if not pdf_file.filename.endswith('.pdf'):
+                warnings.append(f"Archivo ignorado (no es PDF): {pdf_file.filename}")
+                continue
+            
+            try:
+                with pdfplumber.open(pdf_file) as pdf:
+                    for page in pdf.pages:
+                        page_text = page.extract_text() or ""
+                        all_text += page_text + "\n"
+            except Exception as e:
+                warnings.append(f"Error leyendo {pdf_file.filename}: {str(e)}")
+        
+        if not all_text.strip():
+            flash('No se pudo extraer texto de los PDFs', 'error')
+            return redirect(url_for('main.empleado_del_mes'))
+        
+        # Procesar el texto línea por línea
+        lines = all_text.split('\n')
+        current_pc = None
+        found_pcs = set()
+        found_5x7 = False
+        found_combos = False
+        
+        for line in lines:
+            line_lower = line.lower().strip()
+            
+            # Ignorar líneas con montos de dinero
+            if 'rd$' in line_lower or 'itbis' in line_lower or 'total:' in line_lower:
+                continue
+            
+            # Detectar PC
+            pc_match = re.search(r'\b(pc\s*\d+)\b', line_lower)
+            if pc_match:
+                pc_name = pc_match.group(1).replace(' ', '').upper()
+                current_pc = pc_name
+                found_pcs.add(pc_name)
+                if pc_name not in pc_data:
+                    pc_data[pc_name] = {'fotos_5x7': 0, 'fotos_combos': 0}
+            
+            # Detectar fotos 5x7 - buscar patrón con cantidad
+            if '5x7' in line_lower or '5 x 7' in line_lower:
+                found_5x7 = True
+                # Buscar cantidad numérica al final de la línea
+                cantidad_match = re.search(r'(\d+)\s*$', line.strip())
+                if cantidad_match and current_pc:
+                    cantidad = int(cantidad_match.group(1))
+                    # Evitar números muy grandes que probablemente sean dinero
+                    if cantidad < 5000:
+                        pc_data[current_pc]['fotos_5x7'] += cantidad
+            
+            # Detectar combos
+            for combo_key, equiv in COMBO_EQUIVALENCIAS.items():
+                if combo_key in line_lower:
+                    found_combos = True
+                    # Buscar cantidad numérica en la línea
+                    cantidad_match = re.search(r'(\d+)', line)
+                    if cantidad_match and current_pc:
+                        cantidad = int(cantidad_match.group(1))
+                        if cantidad < 100:  # Los combos raramente superan 100
+                            fotos_equiv = cantidad * equiv
+                            pc_data[current_pc]['fotos_combos'] += fotos_equiv
+                    break
+        
+        # Generar advertencias
+        if not found_pcs:
+            warnings.append("No se detectaron PCs en los PDF(s)")
+        if not found_5x7 and found_pcs:
+            warnings.append("Se detectaron PCs pero no se detectó sección de fotos 5x7")
+        if not found_combos and found_pcs:
+            warnings.append("Se detectaron PCs pero no se detectó sección de combos")
+        
+        # Calcular totales
+        for pc in pc_data:
+            pc_data[pc]['total'] = pc_data[pc]['fotos_5x7'] + pc_data[pc]['fotos_combos']
+        
+        # Determinar ganador
+        winner = None
+        max_total = 0
+        for pc, data in pc_data.items():
+            if data['total'] > max_total:
+                max_total = data['total']
+                winner = pc
+        
+        # Guardar en sesión para uso posterior
+        session['empleado_mes_data'] = {
+            'pc_data': pc_data,
+            'winner': winner,
+            'warnings': warnings
+        }
+        
+        if pc_data:
+            flash('PDFs procesados exitosamente', 'success')
+        else:
+            flash('No se pudieron extraer datos de los PDFs', 'warning')
+        
+        return redirect(url_for('main.empleado_del_mes'))
+        
+    except Exception as e:
+        logger.error(f"Error procesando PDFs: {str(e)}")
+        flash(f'Error al procesar los PDFs: {str(e)}', 'error')
+        return redirect(url_for('main.empleado_del_mes'))
+
+
+@bp.route('/admin/empleado-del-mes/generar-pdf', methods=['POST'])
+@login_required
+@admin_or_yimi_required
+def generar_pdf_empleado():
+    """Generar PDF del reporte de Empleado del Mes"""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from app.models import EmployeeOfMonthReport
+    
+    try:
+        data = session.get('empleado_mes_data')
+        if not data or not data.get('pc_data'):
+            flash('No hay datos para generar el PDF', 'error')
+            return redirect(url_for('main.empleado_del_mes'))
+        
+        pc_data = data['pc_data']
+        winner = data['winner']
+        warnings_list = data.get('warnings', [])
+        
+        # Crear directorio si no existe
+        reports_dir = os.path.join(current_app.static_folder, 'reports')
+        if not os.path.exists(reports_dir):
+            os.makedirs(reports_dir)
+        
+        # Nombre del archivo
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'empleado_mes_{timestamp}.pdf'
+        filepath = os.path.join(reports_dir, filename)
+        
+        # Crear PDF
+        doc = SimpleDocTemplate(filepath, pagesize=letter)
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Título
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            alignment=1,  # Centrado
+            spaceAfter=20
+        )
+        elements.append(Paragraph("EMPLEADO DEL MES - Producción Real", title_style))
+        
+        # Fecha
+        fecha = datetime.now().strftime('%d/%m/%Y %H:%M')
+        elements.append(Paragraph(f"Fecha: {fecha}", styles['Normal']))
+        elements.append(Spacer(1, 20))
+        
+        # Tabla de datos
+        table_data = [['Empleado (PC)', 'Fotos 5x7', 'Combos', 'Total Real']]
+        
+        # Ordenar por total descendente
+        sorted_pcs = sorted(pc_data.items(), key=lambda x: x[1]['total'], reverse=True)
+        
+        for pc, info in sorted_pcs:
+            row = [
+                pc + (' 🏆 GANADOR' if pc == winner else ''),
+                str(info['fotos_5x7']),
+                str(info['fotos_combos']),
+                str(info['total'])
+            ]
+            table_data.append(row)
+        
+        table = Table(table_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+        
+        # Estilo de la tabla
+        table_style = [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a1a2e')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]
+        
+        # Resaltar ganador
+        for i, (pc, _) in enumerate(sorted_pcs, start=1):
+            if pc == winner:
+                table_style.append(('BACKGROUND', (0, i), (-1, i), colors.HexColor('#28a745')))
+                table_style.append(('TEXTCOLOR', (0, i), (-1, i), colors.white))
+                table_style.append(('FONTNAME', (0, i), (-1, i), 'Helvetica-Bold'))
+        
+        table.setStyle(TableStyle(table_style))
+        elements.append(table)
+        
+        # Advertencias si las hay
+        if warnings_list:
+            elements.append(Spacer(1, 20))
+            elements.append(Paragraph("Advertencias:", styles['Heading3']))
+            for w in warnings_list:
+                elements.append(Paragraph(f"• {w}", styles['Normal']))
+        
+        doc.build(elements)
+        
+        # Guardar registro en base de datos
+        month_name = datetime.now().strftime('%B %Y')
+        report = EmployeeOfMonthReport(
+            created_by_id=current_user.id,
+            totals_json=json.dumps(pc_data),
+            winner_pc=winner,
+            pdf_path=f'reports/{filename}',
+            month=month_name,
+            warnings=json.dumps(warnings_list) if warnings_list else None
+        )
+        db.session.add(report)
+        db.session.commit()
+        
+        # Limpiar sesión
+        session.pop('empleado_mes_data', None)
+        
+        flash('PDF generado exitosamente', 'success')
+        return redirect(url_for('main.descargar_reporte_empleado', report_id=report.id))
+        
+    except Exception as e:
+        logger.error(f"Error generando PDF: {str(e)}")
+        flash(f'Error al generar el PDF: {str(e)}', 'error')
+        return redirect(url_for('main.empleado_del_mes'))
+
+
+@bp.route('/admin/empleado-del-mes/reporte/<int:report_id>')
+@login_required
+@admin_or_yimi_required
+def descargar_reporte_empleado(report_id):
+    """Descargar o ver reporte PDF"""
+    from app.models import EmployeeOfMonthReport
+    
+    report = EmployeeOfMonthReport.query.get_or_404(report_id)
+    filepath = os.path.join(current_app.static_folder, report.pdf_path)
+    
+    if not os.path.exists(filepath):
+        flash('El archivo PDF no existe', 'error')
+        return redirect(url_for('main.empleado_del_mes'))
+    
+    return send_file(filepath, as_attachment=False, download_name=f'empleado_mes_{report.month}.pdf')
 

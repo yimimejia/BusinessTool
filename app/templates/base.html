@@ -697,6 +697,13 @@
                                 </a>
                             </li>
                             {% endif %}
+                            {% if current_user.is_admin or (current_user.username|lower == 'yimi' and current_user.is_supervisor) %}
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('main.empleado_del_mes') }}">
+                                    <i class="bi bi-trophy-fill text-warning"></i> Empleado del Mes
+                                </a>
+                            </li>
+                            {% endif %}
                         </ul>
                     </li>
                     <!-- Menú normal para móviles -->
@@ -752,6 +759,13 @@
                     <li class="nav-item">
                         <a class="nav-link text-white" href="{{ url_for('main.manage_users') }}">
                             <i class="bi bi-people-fill"></i> Usuarios
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if current_user.is_admin or (current_user.username|lower == 'yimi' and current_user.is_supervisor) %}
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{{ url_for('main.empleado_del_mes') }}">
+                            <i class="bi bi-trophy-fill text-warning"></i> Empleado del Mes
                         </a>
                     </li>
                     {% endif %}

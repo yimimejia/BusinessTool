@@ -528,3 +528,17 @@ class SystemNotification(db.Model):
 
     user = db.relationship('User', foreign_keys=[user_id], backref='system_notifications')
     sender = db.relationship('User', foreign_keys=[sender_id])
+
+
+class EmployeeOfMonthReport(db.Model):
+    __tablename__ = 'employee_of_month_reports'
+    id = db.Column(db.Integer, primary_key=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    totals_json = db.Column(db.Text)  # JSON con los totales de cada PC
+    winner_pc = db.Column(db.String(50))  # PC ganador del mes
+    pdf_path = db.Column(db.String(255))  # Ruta del PDF generado
+    month = db.Column(db.String(20))  # Mes del reporte (ej: "Enero 2025")
+    warnings = db.Column(db.Text)  # Advertencias durante el procesamiento
+
+    created_by = db.relationship('User', backref='employee_reports')
