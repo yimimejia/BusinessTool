@@ -4576,11 +4576,11 @@ def upload_empleado_pdfs():
             for combo_key, equiv in COMBO_EQUIVALENCIAS.items():
                 if combo_key in line_lower:
                     found_combos = True
-                    # Buscar cantidad numérica en la línea
-                    cantidad_match = re.search(r'(\d+)', line)
+                    # Buscar cantidad numérica AL FINAL de la línea (evitar fechas)
+                    cantidad_match = re.search(r'(\d+)\s*$', line.strip())
                     if cantidad_match and current_pc:
                         cantidad = int(cantidad_match.group(1))
-                        if cantidad < 100:  # Los combos raramente superan 100
+                        if cantidad < 500:  # Los combos raramente superan 500
                             fotos_equiv = cantidad * equiv
                             pc_data[current_pc]['fotos_combos'] += fotos_equiv
                     break
