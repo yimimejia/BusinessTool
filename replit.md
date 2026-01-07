@@ -8,6 +8,15 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+## January 2026 - Employee of the Month Module
+- Added "Empleado del Mes" module for calculating employee production from PDF reports
+- New EmployeeOfMonthReport model to store historical reports
+- Created admin_or_yimi_required decorator for special access (Admin + Yimi supervisor)
+- PDF parsing with pdfplumber to extract 5x7 photos and combos data
+- Combo equivalencies: Bebé=4, Cumpleaños=6, Embarazada=11, 15 Años=13, Navidad/Oferta=8
+- PDF report generation with ReportLab showing winner highlighted
+- Module visible in menu only for Admin and user "Yimi"
+
 ## August 2025 - Firebase Cloud Messaging Implementation
 - Implemented comprehensive Firebase Cloud Messaging system for internal staff notifications
 - Added fcm_token field to User model for push notification support
