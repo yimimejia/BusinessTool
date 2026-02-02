@@ -4538,52 +4538,78 @@ def upload_empleado_pdfs():
             flash('No se pudo extraer texto de los PDFs', 'error')
             return redirect(url_for('main.empleado_del_mes'))
         
+        # Función auxiliar para extraer cantidad de una línea
+        def extraer_cantidad(line):
+            """Extrae la cantidad de una línea, manejando múltiples formatos de PDF"""
+            # Primero intentar: cantidad después de fecha (formato tabla: dd/mm/yyyy  64.00)
+            fecha_match = re.search(r'\d{2}/\d{2}/\d{4}\s+(\d+(?:\.\d+)?)', line)
+            if fecha_match:
+                return int(float(fecha_match.group(1)))
+            
+            # Segundo intentar: cantidad al final de la línea (formato simple)
+            final_match = re.search(r'(\d+(?:\.\d+)?)\s*$', line.strip())
+            if final_match:
+                return int(float(final_match.group(1)))
+            
+            return None
+        
         # Procesar el texto línea por línea
+        # Usamos lógica de "pending lines": acumulamos líneas hasta encontrar Subtotal de PCx
         lines = all_text.split('\n')
-        current_pc = None
+        pending_5x7 = []  # Líneas de 5x7 pendientes de asignar a un PC
+        pending_combos = []  # Tuplas (línea, equivalencia) pendientes de asignar
         found_pcs = set()
         found_5x7 = False
         found_combos = False
         
         for line in lines:
             line_lower = line.lower().strip()
-            
-            # Ignorar líneas con montos de dinero
-            if 'rd$' in line_lower or 'itbis' in line_lower or 'total:' in line_lower:
+            if not line_lower:
                 continue
             
-            # Detectar PC
-            pc_match = re.search(r'\b(pc\s*\d+)\b', line_lower)
-            if pc_match:
-                pc_name = pc_match.group(1).replace(' ', '').upper()
-                current_pc = pc_name
+            # Ignorar líneas de encabezado y totales generales
+            if 'rd$' in line_lower or 'totales' in line_lower or 'page ' in line_lower:
+                continue
+            if 'codigo' in line_lower and 'descripcion' in line_lower:
+                continue
+            
+            # Verificar si es línea de subtotal (contiene el PC al que pertenecen las líneas anteriores)
+            subtotal_match = re.search(r'subtotal\s+de\s+(pc\s*\d+)', line_lower)
+            if subtotal_match:
+                pc_name = subtotal_match.group(1).replace(' ', '').upper()
                 found_pcs.add(pc_name)
                 if pc_name not in pc_data:
                     pc_data[pc_name] = {'fotos_5x7': 0, 'fotos_combos': 0}
+                
+                # Asignar las líneas de 5x7 pendientes a este PC
+                for pending_line in pending_5x7:
+                    cantidad = extraer_cantidad(pending_line)
+                    if cantidad and cantidad < 5000:
+                        pc_data[pc_name]['fotos_5x7'] += cantidad
+                pending_5x7.clear()
+                
+                # Asignar las líneas de combos pendientes a este PC
+                for pending_line, equiv in pending_combos:
+                    cantidad = extraer_cantidad(pending_line)
+                    if cantidad and cantidad < 500:
+                        pc_data[pc_name]['fotos_combos'] += cantidad * equiv
+                pending_combos.clear()
+                continue
             
-            # Detectar fotos 5x7 - buscar patrón con cantidad
-            if '5x7' in line_lower or '5 x 7' in line_lower:
+            is_combo_line = 'combo' in line_lower
+            
+            # Si es línea de 5x7 (y no combo), guardar para asignar después
+            if not is_combo_line and ('5x7' in line_lower or 'foto 5x7' in line_lower):
                 found_5x7 = True
-                # Buscar cantidad numérica al final de la línea
-                cantidad_match = re.search(r'(\d+)\s*$', line.strip())
-                if cantidad_match and current_pc:
-                    cantidad = int(cantidad_match.group(1))
-                    # Evitar números muy grandes que probablemente sean dinero
-                    if cantidad < 5000:
-                        pc_data[current_pc]['fotos_5x7'] += cantidad
+                pending_5x7.append(line)
             
-            # Detectar combos
-            for combo_key, equiv in COMBO_EQUIVALENCIAS.items():
-                if combo_key in line_lower:
-                    found_combos = True
-                    # Buscar cantidad numérica AL FINAL de la línea (evitar fechas)
-                    cantidad_match = re.search(r'(\d+)\s*$', line.strip())
-                    if cantidad_match and current_pc:
-                        cantidad = int(cantidad_match.group(1))
-                        if cantidad < 500:  # Los combos raramente superan 500
-                            fotos_equiv = cantidad * equiv
-                            pc_data[current_pc]['fotos_combos'] += fotos_equiv
-                    break
+            # Si es línea de combo, encontrar el tipo y guardar para asignar después
+            if is_combo_line:
+                for combo_key, equiv in COMBO_EQUIVALENCIAS.items():
+                    if combo_key in line_lower:
+                        found_combos = True
+                        pending_combos.append((line, equiv))
+                        break
         
         # Generar advertencias
         if not found_pcs:
