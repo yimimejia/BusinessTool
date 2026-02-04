@@ -3132,7 +3132,33 @@ def complete_job(job_id):
                 }), 401
 
         # Buscar el trabajo
-        job = Job.query.get_or_404(job_id)
+        job = Job.query.get(job_id)
+        
+        if not job:
+            # El trabajo ya no existe, probablemente ya fue completado
+            existing = CompletedJob.query.filter_by(original_job_id=job_id).first()
+            if existing:
+                return jsonify({
+                    'success': True,
+                    'message': 'Este trabajo ya fue completado anteriormente',
+                    'whatsapp_link': None
+                })
+            return jsonify({
+                'success': False,
+                'message': 'Trabajo no encontrado'
+            }), 404
+
+        # Verificar si ya existe un trabajo completado con este número de factura
+        existing_completed = CompletedJob.query.filter_by(invoice_number=job.invoice_number).first()
+        if existing_completed:
+            # Ya existe, eliminar el trabajo pendiente y retornar éxito
+            db.session.delete(job)
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': 'Este trabajo ya fue completado anteriormente',
+                'whatsapp_link': None
+            })
 
         try:
             # Crear un trabajo completado
