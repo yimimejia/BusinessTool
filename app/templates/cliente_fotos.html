@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Fotos - FOTO VIDEO MOJICA</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Montserrat', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px 0;
+            margin-bottom: 30px;
+        }
+        .logo-small {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid #f39c12;
+        }
+        .status-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            margin: 0 auto;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-align: center;
+        }
+        .status-icon {
+            font-size: 5rem;
+            margin-bottom: 20px;
+        }
+        .status-icon.working {
+            color: #f39c12;
+            animation: pulse 2s infinite;
+        }
+        .status-icon.payment {
+            color: #e74c3c;
+        }
+        .status-icon.ready {
+            color: #27ae60;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        .btn-whatsapp {
+            background: #25D366;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 20px;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .btn-whatsapp:hover {
+            background: #128C7E;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(37, 211, 102, 0.4);
+        }
+        .btn-back {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 30px;
+        }
+        .btn-back:hover {
+            color: white;
+        }
+        .gallery-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .client-info {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .photo-item {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            aspect-ratio: 1;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .photo-item:hover {
+            transform: scale(1.03);
+        }
+        .photo-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .photo-count {
+            background: #f39c12;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            display: inline-block;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .modal-img {
+            max-width: 100%;
+            max-height: 80vh;
+            border-radius: 10px;
+        }
+        .amount-pending {
+            color: #e74c3c;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <img src="{{ url_for('static', filename='icons/logo-192x192.png') }}" alt="Logo" class="logo-small me-3">
+                    <div>
+                        <h5 class="mb-0">FOTO VIDEO MOJICA</h5>
+                        <small class="text-muted">Portal de Clientes</small>
+                    </div>
+                </div>
+                <a href="{{ url_for('main.cliente_login') }}" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-box-arrow-left"></i> Salir
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        {% if status == 'working' %}
+            <div class="status-card">
+                <i class="bi bi-hourglass-split status-icon working"></i>
+                <h2>Sus fotos se están trabajando</h2>
+                <p class="text-muted">
+                    Nuestro equipo está preparando sus fotos con el mayor cuidado.
+                    <br>Le notificaremos cuando estén listas.
+                </p>
+                <div class="client-info mt-4">
+                    <p class="mb-1"><strong>Cliente:</strong> {{ job.client_name }}</p>
+                    <p class="mb-1"><strong>Factura:</strong> #{{ job.invoice_number }}</p>
+                    <p class="mb-0"><strong>Descripción:</strong> {{ job.description }}</p>
+                </div>
+                <a href="{{ url_for('main.cliente_login') }}" class="btn-back">
+                    <i class="bi bi-arrow-left"></i> Volver
+                </a>
+            </div>
+
+        {% elif status == 'no_photos' %}
+            <div class="status-card">
+                <i class="bi bi-camera status-icon working"></i>
+                <h2>Sus fotos están casi listas</h2>
+                <p class="text-muted">
+                    Su trabajo ha sido completado pero las fotos aún no han sido subidas.
+                    <br>Contáctenos para más información.
+                </p>
+                <a href="https://wa.me/18092460263?text=Hola,%20consulto%20por%20mi%20factura%20%23{{ job.invoice_number }}" 
+                   class="btn-whatsapp" target="_blank">
+                    <i class="bi bi-whatsapp"></i> Contactar por WhatsApp
+                </a>
+                <br>
+                <a href="{{ url_for('main.cliente_login') }}" class="btn-back">
+                    <i class="bi bi-arrow-left"></i> Volver
+                </a>
+            </div>
+
+        {% elif status == 'payment_required' %}
+            <div class="status-card">
+                <i class="bi bi-credit-card status-icon payment"></i>
+                <h2>Pago Pendiente</h2>
+                <p class="text-muted">
+                    Para acceder a sus fotos, por favor realice el pago pendiente.
+                </p>
+                <div class="amount-pending">
+                    RD$ {{ "%.2f"|format(pending_amount) }}
+                </div>
+                <div class="client-info mt-4">
+                    <p class="mb-1"><strong>Cliente:</strong> {{ job.client_name }}</p>
+                    <p class="mb-1"><strong>Factura:</strong> #{{ job.invoice_number }}</p>
+                    <p class="mb-1"><strong>Total:</strong> RD$ {{ "%.2f"|format(job.total_amount|float) }}</p>
+                    <p class="mb-0"><strong>Abonado:</strong> RD$ {{ "%.2f"|format(job.deposit_amount|float) }}</p>
+                </div>
+                <a href="https://wa.me/18092460263?text=Hola,%20quiero%20realizar%20el%20pago%20de%20mi%20factura%20%23{{ job.invoice_number }}" 
+                   class="btn-whatsapp" target="_blank">
+                    <i class="bi bi-whatsapp"></i> Coordinar Pago
+                </a>
+                <br>
+                <a href="{{ url_for('main.cliente_login') }}" class="btn-back">
+                    <i class="bi bi-arrow-left"></i> Volver
+                </a>
+            </div>
+
+        {% elif status == 'photos_ready' %}
+            <div class="gallery-container">
+                <div class="client-info text-center">
+                    <h3 class="mb-3"><i class="bi bi-check-circle text-success"></i> ¡Sus fotos están listas!</h3>
+                    <p class="mb-1"><strong>Cliente:</strong> {{ job.client_name }}</p>
+                    <p class="mb-1"><strong>Factura:</strong> #{{ job.invoice_number }}</p>
+                    <p class="mb-0"><strong>Descripción:</strong> {{ job.description }}</p>
+                </div>
+                
+                <div class="text-center">
+                    <span class="photo-count">
+                        <i class="bi bi-images"></i> {{ photos|length }} fotos disponibles
+                    </span>
+                </div>
+
+                <div class="photo-grid">
+                    {% for photo in photos %}
+                    <div class="photo-item" data-bs-toggle="modal" data-bs-target="#photoModal" 
+                         onclick="showPhoto('{{ url_for('static', filename=photo) }}')">
+                        <img src="{{ url_for('static', filename=photo) }}" alt="Foto {{ loop.index }}" loading="lazy">
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="text-center mt-4">
+                    <a href="{{ url_for('main.cliente_login') }}" class="btn-back">
+                        <i class="bi bi-arrow-left"></i> Volver al inicio
+                    </a>
+                </div>
+            </div>
+
+            <div class="modal fade" id="photoModal" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered modal-xl">
+                    <div class="modal-content bg-dark">
+                        <div class="modal-body text-center p-0">
+                            <img id="modalImage" src="" class="modal-img">
+                        </div>
+                        <div class="modal-footer border-0 justify-content-center">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function showPhoto(src) {
+            document.getElementById('modalImage').src = src;
+        }
+    </script>
+</body>
+</html>

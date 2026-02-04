@@ -187,6 +187,151 @@ def login():
 
     return render_template('login.html')
 
+
+# ============================================
+# PORTAL PÚBLICO DE CLIENTES
+# ============================================
+
+@bp.route('/cliente', methods=['GET', 'POST'])
+def cliente_login():
+    """Portal público para que clientes accedan a sus fotos con número de factura y teléfono"""
+    if request.method == 'POST':
+        invoice_number = request.form.get('invoice_number', '').strip()
+        phone_digits = request.form.get('phone_digits', '').strip()
+        
+        if not invoice_number or not phone_digits:
+            flash('Por favor ingrese su número de factura y los últimos 4 dígitos de su teléfono', 'error')
+            return redirect(url_for('main.cliente_login'))
+        
+        if len(phone_digits) != 4 or not phone_digits.isdigit():
+            flash('Los dígitos del teléfono deben ser exactamente 4 números', 'error')
+            return redirect(url_for('main.cliente_login'))
+        
+        try:
+            # Función para verificar los últimos 4 dígitos del teléfono
+            def verify_phone(job_phone):
+                if not job_phone:
+                    return False
+                # Limpiar el teléfono de caracteres no numéricos
+                clean_phone = re.sub(r'[^\d]', '', job_phone)
+                return clean_phone[-4:] == phone_digits if len(clean_phone) >= 4 else False
+            
+            # Primero buscar en trabajos completados (tienen fotos disponibles)
+            completed_job = CompletedJob.query.filter_by(invoice_number=invoice_number).first()
+            
+            if completed_job:
+                # Verificar teléfono
+                if not verify_phone(completed_job.phone_number):
+                    flash('Los datos ingresados no coinciden. Verifique su información.', 'error')
+                    return redirect(url_for('main.cliente_login'))
+                
+                # Verificar si no ha sido entregado
+                delivered = DeliveredJob.query.filter_by(original_job_id=completed_job.id).first()
+                if delivered:
+                    flash('Este trabajo ya fue entregado y el acceso ha expirado', 'error')
+                    return redirect(url_for('main.cliente_login'))
+                
+                # Guardar en sesión y redirigir a ver fotos
+                session['cliente_invoice'] = invoice_number
+                session['cliente_job_id'] = completed_job.id
+                return redirect(url_for('main.cliente_fotos'))
+            
+            # Buscar en trabajos pendientes (aún se están trabajando)
+            pending_job = Job.query.filter_by(invoice_number=invoice_number).first()
+            if pending_job:
+                # Verificar teléfono
+                if not verify_phone(pending_job.phone_number):
+                    flash('Los datos ingresados no coinciden. Verifique su información.', 'error')
+                    return redirect(url_for('main.cliente_login'))
+                
+                session['cliente_invoice'] = invoice_number
+                session['cliente_pending_job_id'] = pending_job.id
+                return redirect(url_for('main.cliente_fotos'))
+            
+            # No se encontró ningún trabajo con ese número
+            flash('No se encontró ningún trabajo con ese número de factura', 'error')
+            return redirect(url_for('main.cliente_login'))
+            
+        except Exception as e:
+            logger.error(f"Error en portal cliente: {str(e)}")
+            flash('Error al buscar su trabajo. Intente nuevamente.', 'error')
+            return redirect(url_for('main.cliente_login'))
+    
+    return render_template('cliente_login.html')
+
+
+@bp.route('/cliente/fotos')
+def cliente_fotos():
+    """Mostrar fotos o estado del trabajo al cliente"""
+    invoice_number = session.get('cliente_invoice')
+    
+    if not invoice_number:
+        flash('Por favor ingrese su número de factura', 'error')
+        return redirect(url_for('main.cliente_login'))
+    
+    try:
+        # Verificar si hay un trabajo completado
+        completed_job = CompletedJob.query.filter_by(invoice_number=invoice_number).first()
+        
+        if completed_job:
+            # Verificar si no ha sido entregado
+            delivered = DeliveredJob.query.filter_by(original_job_id=completed_job.id).first()
+            if delivered:
+                session.pop('cliente_invoice', None)
+                session.pop('cliente_job_id', None)
+                flash('Este trabajo ya fue entregado y el acceso ha expirado', 'error')
+                return redirect(url_for('main.cliente_login'))
+            
+            # Calcular pago pendiente
+            total = float(completed_job.total_amount or 0)
+            deposit = float(completed_job.deposit_amount or 0)
+            pending_amount = total - deposit
+            
+            # Verificar si hay pago pendiente
+            if pending_amount > 0:
+                return render_template('cliente_fotos.html', 
+                                       status='payment_required',
+                                       job=completed_job,
+                                       pending_amount=pending_amount)
+            
+            # Verificar si hay fotos subidas
+            photos = []
+            if completed_job.photos:
+                try:
+                    photos = json.loads(completed_job.photos)
+                except:
+                    photos = []
+            
+            if not photos:
+                # No hay fotos, redirigir a WhatsApp
+                return render_template('cliente_fotos.html',
+                                       status='no_photos',
+                                       job=completed_job)
+            
+            # Fotos disponibles y pagadas
+            return render_template('cliente_fotos.html',
+                                   status='photos_ready',
+                                   job=completed_job,
+                                   photos=photos)
+        
+        # Buscar en trabajos pendientes
+        pending_job = Job.query.filter_by(invoice_number=invoice_number).first()
+        if pending_job:
+            return render_template('cliente_fotos.html',
+                                   status='working',
+                                   job=pending_job)
+        
+        # No se encontró el trabajo
+        session.pop('cliente_invoice', None)
+        flash('No se encontró su trabajo', 'error')
+        return redirect(url_for('main.cliente_login'))
+        
+    except Exception as e:
+        logger.error(f"Error mostrando fotos cliente: {str(e)}")
+        flash('Error al cargar sus fotos. Intente nuevamente.', 'error')
+        return redirect(url_for('main.cliente_login'))
+
+
 @bp.context_processor
 def inject_urgent_jobs():
     """Inject urgent jobs into all templates"""
@@ -712,31 +857,17 @@ def send_job_photos(job_id):
                     img.save(full_path, optimize=True, quality=85)
                     photo_paths.append(photo_path)
 
-        # Crear un PendingJob para la verificación de fotos
-        pending_job = PendingJob(
-            original_job_id=job.id,
-            description=f"Verificación de fotos - Trabajo #{job.id}",
-            designer_id=job.designer_id,
-            registered_by_id=current_user.id,
-            invoice_number=job.invoice_number,
-            client_name=job.client_name,
-            phone_number=job.phone_number,
-            photos=json.dumps(photo_paths),
-            pending_type='photo_verification',
-            message=request.form.get('message', ''),
-            total_amount=float(job.total_amount or 0),
-            deposit_amount=float(job.deposit_amount or 0)
-        )
-
-        db.session.add(pending_job)
+        # Guardar fotos directamente en CompletedJob (disponibles inmediatamente para el cliente)
+        # Ya no se requiere verificación - las fotos estarán disponibles en el portal de clientes
+        job.photos = json.dumps(photo_paths)
         db.session.commit()
 
         log_activity(
             'enviar_fotos',
-            f"Fotos enviadas para verificación - Trabajo #{job.id}, Cliente: {job.client_name}"
+            f"Fotos subidas para cliente - Trabajo #{job.id}, Cliente: {job.client_name}, {len(photo_paths)} fotos"
         )
 
-        flash('Fotos enviadas para verificación', 'success')
+        flash(f'Fotos subidas exitosamente ({len(photo_paths)} fotos). Ya están disponibles para el cliente.', 'success')
         return redirect(url_for('main.completed_jobs'))
 
     except Exception as e:

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso Clientes - FOTO VIDEO MOJICA</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Montserrat', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .login-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 420px;
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .logo-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo-container img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 3px solid #f39c12;
+            padding: 5px;
+            background: white;
+        }
+        .company-name {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-top: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .subtitle {
+            color: #f39c12;
+            font-size: 1rem;
+            margin-top: 5px;
+        }
+        .form-label {
+            color: white;
+            font-weight: 600;
+        }
+        .form-control {
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 10px;
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+        .form-control:focus {
+            box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.5);
+            background: white;
+        }
+        .btn-acceder {
+            background: linear-gradient(135deg, #f39c12, #e74c3c);
+            border: none;
+            border-radius: 10px;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: white;
+            width: 100%;
+            margin-top: 20px;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .btn-acceder:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(243, 156, 18, 0.4);
+            color: white;
+        }
+        .help-text {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.85rem;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .alert {
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .invoice-icon {
+            font-size: 3rem;
+            color: #f39c12;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="logo-container">
+            <img src="{{ url_for('static', filename='icons/logo-192x192.png') }}" alt="Logo FOTO VIDEO MOJICA">
+            <div class="company-name">FOTO VIDEO MOJICA</div>
+            <div class="subtitle">Portal de Clientes</div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('main.cliente_login') }}">
+            <div class="text-center mb-4">
+                <i class="bi bi-receipt invoice-icon"></i>
+            </div>
+            
+            <div class="mb-3">
+                <label for="invoice_number" class="form-label">
+                    <i class="bi bi-hash"></i> Número de Factura
+                </label>
+                <input type="text" 
+                       class="form-control" 
+                       id="invoice_number" 
+                       name="invoice_number" 
+                       placeholder="Ej: 10076"
+                       required
+                       autocomplete="off"
+                       pattern="[0-9]+"
+                       title="Solo números">
+            </div>
+
+            <div class="mb-3">
+                <label for="phone_digits" class="form-label">
+                    <i class="bi bi-phone"></i> Últimos 4 dígitos de su teléfono
+                </label>
+                <input type="text" 
+                       class="form-control" 
+                       id="phone_digits" 
+                       name="phone_digits" 
+                       placeholder="Ej: 1234"
+                       required
+                       autocomplete="off"
+                       pattern="[0-9]{4}"
+                       maxlength="4"
+                       title="Ingrese los últimos 4 dígitos de su teléfono">
+            </div>
+            
+            <button type="submit" class="btn btn-acceder">
+                <i class="bi bi-box-arrow-in-right"></i> Acceder a mis Fotos
+            </button>
+        </form>
+
+        <p class="help-text">
+            <i class="bi bi-info-circle"></i> 
+            Ingrese su número de factura y los últimos 4 dígitos del teléfono registrado.
+        </p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

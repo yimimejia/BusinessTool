@@ -8,6 +8,16 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+## February 2026 - Public Client Portal
+- Created public portal at /cliente for clients to view their photos
+- Login requires invoice number + last 4 digits of phone (security verification)
+- Different states handled: working, no_photos, payment_required, photos_ready
+- Photos uploaded by designers are now directly available (no verification needed)
+- Access expires when job is marked as delivered
+- If payment pending (total - deposit > 0): photos blocked until paid
+- If no photos uploaded: redirects to WhatsApp +18092460263
+- Modified send_job_photos to save directly to CompletedJob
+
 ## January 2026 - Employee of the Month Module
 - Added "Empleado del Mes" module for calculating employee production from PDF reports
 - New EmployeeOfMonthReport model to store historical reports
