@@ -908,6 +908,9 @@ def send_whatsapp_invoice(job_id):
         is_completed = isinstance(job, CompletedJob)
         
         if is_completed:
+            # Generar URL del portal de clientes
+            portal_url = url_for('main.cliente_login', _external=True)
+            
             # Para trabajos completados: mensaje de trabajo listo
             whatsapp_message = f"""*FOTO VIDEO MOJICA*
 
@@ -919,6 +922,10 @@ Nos complace informarle que su trabajo ya está *LISTO* para recoger.
 📝 Descripción: {job.description}
 🔢 No. Factura: {job.invoice_number}
 💵 Total: ${float(job.total_amount or 0)}
+
+📸 *Ver sus fotos en línea:*
+{portal_url}
+(Use su número de factura y los últimos 4 dígitos de su teléfono)
 
 *Acceder a su factura digital:*
 {invoice_url}

@@ -351,6 +351,22 @@ class CompletedJob(db.Model):
         phone = re.sub(r'[^\d]', '', self.phone_number)
 
         if with_invoice and invoice_url:
+            # Generar URL del portal de clientes
+            from flask import url_for
+            try:
+                portal_url = url_for('main.cliente_login', _external=True)
+            except:
+                portal_url = ""
+            
+            # Sección del portal de fotos
+            photos_section = ""
+            if portal_url:
+                photos_section = f"""
+📸 *Ver sus fotos en línea:*
+{portal_url}
+(Use su número de factura y los últimos 4 dígitos de su teléfono)
+"""
+            
             # Mensaje de trabajo listo con enlace a factura
             message = f"""*FOTO VIDEO MOJICA*
 
@@ -362,7 +378,7 @@ Nos complace informarle que su trabajo ya está *LISTO* para recoger.
 📝 Descripción: {self.description}
 🔢 No. Factura: {self.invoice_number}
 💵 Total: ${float(self.total_amount or 0)}
-
+{photos_section}
 *Acceder a su factura digital:*
 {invoice_url}
 
