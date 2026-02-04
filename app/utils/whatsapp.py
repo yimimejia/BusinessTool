@@ -64,13 +64,14 @@ def generate_whatsapp_link(phone_number, message):
         return ""
 
 
-def generate_client_completion_message(completed_job):
+def generate_client_completion_message(completed_job, portal_url=None):
     """
     Genera un mensaje de WhatsApp personalizado para notificar al cliente
     sobre la finalización de su trabajo.
     
     Args:
         completed_job: Instancia de CompletedJob con información del trabajo completado
+        portal_url: URL base del portal de clientes (opcional)
         
     Returns:
         str: Mensaje personalizado con formato WhatsApp
@@ -87,6 +88,15 @@ def generate_client_completion_message(completed_job):
             "Sábado y Domingo: 8:00 AM - 5:00 PM"
         )
         
+        # Sección del portal de fotos
+        photos_section = ""
+        if portal_url:
+            photos_section = f"""
+📸 *Ver sus fotos en línea:*
+{portal_url}
+(Use su número de factura y los últimos 4 dígitos de su teléfono)
+"""
+        
         # Crear mensaje de finalización (sin contactos comerciales)
         completion_message = f"""¡Hola {client_name}! 👋
 
@@ -95,7 +105,7 @@ Su trabajo ya está listo para entregar.
 📋 *Detalles del trabajo:*
 • Factura: {invoice_number}
 • Descripción: {description}
-
+{photos_section}
 📍 *Recoger en:*
 FOTO VIDEO MOJICA
 

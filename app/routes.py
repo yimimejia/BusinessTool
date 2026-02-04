@@ -3167,8 +3167,11 @@ def complete_job(job_id):
             try:
                 from app.utils.whatsapp import generate_client_completion_message, generate_whatsapp_link, send_whatsapp_message
                 
-                # Generar mensaje para el cliente
-                whatsapp_message = generate_client_completion_message(completed_job)
+                # Generar URL del portal de clientes
+                portal_url = request.url_root.rstrip('/') + url_for('main.cliente_login')
+                
+                # Generar mensaje para el cliente con enlace al portal
+                whatsapp_message = generate_client_completion_message(completed_job, portal_url)
                 
                 # Intentar enviar mensaje directo por WhatsApp si hay credenciales
                 whatsapp_sent = False
@@ -3888,8 +3891,11 @@ def approve_pending_job(job_id):
             if completed_job.phone_number:
                 from app.utils.whatsapp import generate_client_completion_message, generate_whatsapp_link, send_whatsapp_message
                 
-                # Generar mensaje para el cliente
-                whatsapp_message = generate_client_completion_message(completed_job)
+                # Generar URL del portal de clientes
+                portal_url = request.url_root.rstrip('/') + url_for('main.cliente_login')
+                
+                # Generar mensaje para el cliente con enlace al portal
+                whatsapp_message = generate_client_completion_message(completed_job, portal_url)
                 
                 # Intentar enviar mensaje directo por WhatsApp si hay credenciales
                 whatsapp_sent = False
@@ -4223,8 +4229,11 @@ def api_complete_job():
             if completed_job.phone_number:
                 from app.utils.whatsapp import generate_client_completion_message, generate_whatsapp_link, send_whatsapp_message
                 
-                # Generar mensaje para el cliente
-                whatsapp_message = generate_client_completion_message(completed_job)
+                # Generar URL del portal de clientes
+                portal_url = request.url_root.rstrip('/') + url_for('main.cliente_login')
+                
+                # Generar mensaje para el cliente con enlace al portal
+                whatsapp_message = generate_client_completion_message(completed_job, portal_url)
                 
                 # Intentar enviar mensaje directo por WhatsApp si hay credenciales
                 whatsapp_sent = False
