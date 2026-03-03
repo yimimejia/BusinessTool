@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+.local/
+attached_assets/
+app/static/uploads/
+app/static/reports/
+*.db
+*.sqlite3
+flask_session/
+.env
